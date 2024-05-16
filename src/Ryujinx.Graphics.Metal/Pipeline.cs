@@ -32,6 +32,7 @@ namespace Ryujinx.Graphics.Metal
         private MTLTexture[] _renderTargets = [];
 
         private RenderEncoderState _renderEncoderState;
+        private MTLRenderPassDescriptor _renderPassDescriptor = new();
         private readonly MTLVertexDescriptor _vertexDescriptor = new();
         private List<BufferInfo> _vertexBuffers = [];
         private List<BufferInfo> _uniformBuffers = [];
@@ -41,6 +42,14 @@ namespace Ryujinx.Graphics.Metal
         private MTLIndexType _indexType;
         private ulong _indexBufferOffset;
         private MTLClearColor _clearColor;
+
+        struct StateChange
+        {
+            public bool program = true;
+
+            public StateChange() {}
+        };
+        private StateChange _stateChange;
 
         public Pipeline(MTLDevice device, MTLCommandQueue commandQueue)
         {
@@ -58,15 +67,23 @@ namespace Ryujinx.Graphics.Metal
 
         public MTLRenderCommandEncoder GetOrCreateRenderEncoder()
         {
-            if (_currentEncoder != null)
+            if (_currentEncoder == null || _currentEncoderType != EncoderType.Render)
             {
-                if (_currentEncoderType == EncoderType.Render)
-                {
-                    return new MTLRenderCommandEncoder(_currentEncoder.Value);
-                }
+                BeginRenderPass();
+
+                // Reset state
+                _stateChange = new();
             }
 
-            return BeginRenderPass();
+            var renderCommandEncoder = new MTLRenderCommandEncoder(_currentEncoder.Value);
+
+            // Updating state
+            if (_stateChange.program)
+            {
+                _renderEncoderState.SetEncoderState(renderCommandEncoder, _renderPassDescriptor, _vertexDescriptor);
+            }
+
+            return renderCommandEncoder;
         }
 
         public MTLBlitCommandEncoder GetOrCreateBlitEncoder()
@@ -125,19 +142,19 @@ namespace Ryujinx.Graphics.Metal
         {
             EndCurrentPass();
 
-            var descriptor = new MTLRenderPassDescriptor();
+            _renderPassDescriptor = new MTLRenderPassDescriptor();
             for (int i = 0; i < _renderTargets.Length; i++)
             {
                 if (_renderTargets[i] != null)
                 {
-                    var attachment = descriptor.ColorAttachments.Object((ulong)i);
+                    var attachment = _renderPassDescriptor.ColorAttachments.Object((ulong)i);
                     attachment.Texture = _renderTargets[i];
                     attachment.LoadAction = MTLLoadAction.Load;
                 }
             }
 
-            var renderCommandEncoder = _commandBuffer.RenderCommandEncoder(descriptor);
-            _renderEncoderState.SetEncoderState(renderCommandEncoder, descriptor, _vertexDescriptor);
+            var renderCommandEncoder = _commandBuffer.RenderCommandEncoder(_renderPassDescriptor);
+            _renderEncoderState.SetEncoderState(renderCommandEncoder, _renderPassDescriptor, _vertexDescriptor);
 
             RebindBuffers(renderCommandEncoder);
 
@@ -494,6 +511,8 @@ namespace Ryujinx.Graphics.Metal
                 prg.VertexFunction,
                 prg.FragmentFunction,
                 _device);
+
+            _stateChange.program = true;
         }
 
         public void SetRasterizerDiscard(bool discard)
