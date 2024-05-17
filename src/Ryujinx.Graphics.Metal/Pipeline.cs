@@ -30,6 +30,7 @@ namespace Ryujinx.Graphics.Metal
         private MTLCommandEncoder? _currentEncoder;
         private EncoderType _currentEncoderType = EncoderType.None;
         private MTLTexture[] _renderTargets = [];
+        private MTLTexture _depthTarget;
 
         private RenderEncoderState _renderEncoderState;
         private MTLRenderPassDescriptor _renderPassDescriptor = new();
@@ -152,6 +153,10 @@ namespace Ryujinx.Graphics.Metal
                     attachment.LoadAction = MTLLoadAction.Load;
                 }
             }
+
+            var depthAttachment = _renderPassDescriptor.DepthAttachment;
+            depthAttachment.Texture = _depthTarget;
+            depthAttachment.LoadAction = MTLLoadAction.Load;
 
             var renderCommandEncoder = _commandBuffer.RenderCommandEncoder(_renderPassDescriptor);
             _renderEncoderState.SetEncoderState(renderCommandEncoder, _renderPassDescriptor, _vertexDescriptor);
@@ -542,13 +547,18 @@ namespace Ryujinx.Graphics.Metal
                 }
             }
 
+            if (depthStencil is Texture depthTexture)
+            {
+                _depthTarget = depthTexture.MTLTexture;
+            }
+
             // Recreate Render Command Encoder
             BeginRenderPass();
         }
 
         public unsafe void SetScissors(ReadOnlySpan<Rectangle<int>> regions)
         {
-            int maxScissors = Math.Min(regions.Length, _renderEncoderState.ViewportCount);
+            int maxScissors = Math.Min(regions.Length, _renderEncoderState.Viewports.Length);
 
             if (maxScissors == 0)
             {
@@ -563,8 +573,8 @@ namespace Ryujinx.Graphics.Metal
 
                 mtlScissorRects[i] = new MTLScissorRect
                 {
-                    height = (ulong)region.Height,
-                    width = (ulong)region.Width,
+                    height = Math.Clamp((ulong)region.Height, 0, (ulong)_renderEncoderState.Viewports[i].height),
+                    width = Math.Clamp((ulong)region.Width, 0, (ulong)_renderEncoderState.Viewports[i].width),
                     x = (ulong)region.X,
                     y = (ulong)region.Y
                 };
@@ -754,6 +764,11 @@ namespace Ryujinx.Graphics.Metal
 
         public unsafe void SetViewports(ReadOnlySpan<Viewport> viewports)
         {
+            static float Clamp(float value)
+            {
+                return Math.Clamp(value, 0f, 1f);
+            }
+
             var mtlViewports = new MTLViewport[viewports.Length];
 
             for (int i = 0; i < viewports.Length; i++)
@@ -765,8 +780,8 @@ namespace Ryujinx.Graphics.Metal
                     originY = viewport.Region.Y,
                     width = viewport.Region.Width,
                     height = viewport.Region.Height,
-                    znear = viewport.DepthNear,
-                    zfar = viewport.DepthFar
+                    znear = Clamp(viewport.DepthNear),
+                    zfar = Clamp(viewport.DepthFar)
                 };
             }
 

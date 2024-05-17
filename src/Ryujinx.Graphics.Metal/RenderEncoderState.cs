@@ -27,7 +27,7 @@ namespace Ryujinx.Graphics.Metal
 
         private MTLViewport[] _viewports = [];
         private MTLScissorRect[] _scissors = [];
-        public readonly int ViewportCount => _viewports.Length;
+        public readonly MTLViewport[] Viewports => _viewports;
 
         public RenderEncoderState(MTLFunction vertexFunction, MTLFunction fragmentFunction, MTLDevice device)
         {
@@ -36,7 +36,7 @@ namespace Ryujinx.Graphics.Metal
             _device = device;
         }
 
-        public unsafe readonly void SetEncoderState(MTLRenderCommandEncoder renderCommandEncoder, MTLRenderPassDescriptor descriptor, MTLVertexDescriptor vertexDescriptor)
+        public unsafe void SetEncoderState(MTLRenderCommandEncoder renderCommandEncoder, MTLRenderPassDescriptor descriptor, MTLVertexDescriptor vertexDescriptor)
         {
             var renderPipelineDescriptor = new MTLRenderPipelineDescriptor
             {
@@ -68,6 +68,8 @@ namespace Ryujinx.Graphics.Metal
                     attachment.DestinationRGBBlendFactor = MTLBlendFactor.OneMinusSourceAlpha;
                 }
             }
+
+            renderPipelineDescriptor.DepthAttachmentPixelFormat = descriptor.DepthAttachment.Texture.PixelFormat;
 
             var error = new NSError(IntPtr.Zero);
             var pipelineState = _device.NewRenderPipelineState(renderPipelineDescriptor, ref error);
