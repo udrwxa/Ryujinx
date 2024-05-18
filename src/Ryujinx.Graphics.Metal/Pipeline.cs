@@ -124,16 +124,6 @@ namespace Ryujinx.Graphics.Metal
 
                 _currentEncoderType = EncoderType.None;
             }
-
-            // Reset the render encoder state
-            _renderEncoderState = new RenderEncoderState(_device);
-            // HACK: set the pipeline just in case
-            _renderEncoderState.UpdateProgram(
-                _helperShaders.BlitShader.VertexFunction,
-                _helperShaders.BlitShader.FragmentFunction
-            );
-            // HACK: set the vertex descriptor
-            _renderEncoderState.UpdateVertexDescriptor(_vertexDescriptor);
         }
 
         public MTLRenderCommandEncoder BeginRenderPass()

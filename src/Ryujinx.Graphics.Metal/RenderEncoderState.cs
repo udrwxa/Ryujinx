@@ -56,6 +56,14 @@ namespace Ryujinx.Graphics.Metal
         {
             _renderCommandEncoder = renderCommandEncoder;
             _renderPassDescriptor = renderPassDescriptor;
+
+            // Set all the state change to true to rebind the state
+            _stateChange.pipeline = true;
+            _stateChange.cullMode = true;
+            _stateChange.winding = true;
+            //_stateChange.depthStencil = true;
+            //_stateChange.viewport = true;
+            //_stateChange.scissor = true;
         }
 
         public unsafe void SetEncoderState()
