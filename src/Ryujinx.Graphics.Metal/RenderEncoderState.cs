@@ -75,8 +75,6 @@ namespace Ryujinx.Graphics.Metal
             }
 
             // Pipeline
-            if (_stateChange.pipeline)
-            {
                 var renderPipelineDescriptor = new MTLRenderPipelineDescriptor();
                 if (_vertexDescriptor != null)
                 {
@@ -119,30 +117,18 @@ namespace Ryujinx.Graphics.Metal
                 }
 
                 _renderCommandEncoder?.SetRenderPipelineState(pipelineState);
-            }
 
             // Face culling
-            if (_stateChange.cullMode)
-            {
                 _renderCommandEncoder?.SetCullMode(CullMode);
-            }
-            if (_stateChange.winding)
-            {
                 _renderCommandEncoder?.SetFrontFacingWinding(Winding);
-            }
 
             // Depth and stencil
-            if (_stateChange.depthStencil)
-            {
                 if (_depthStencilState != null)
                 {
                     _renderCommandEncoder?.SetDepthStencilState(_depthStencilState.Value);
                 }
-            }
 
             // Viewport and scissor
-            if (_stateChange.viewport)
-            {
                 if (_viewports.Length > 0)
                 {
                     fixed (MTLViewport* pMtlViewports = _viewports)
@@ -150,10 +136,7 @@ namespace Ryujinx.Graphics.Metal
                         _renderCommandEncoder?.SetViewports((IntPtr)pMtlViewports, (ulong)_viewports.Length);
                     }
                 }
-            }
 
-            if (_stateChange.scissor)
-            {
                 if (_scissors.Length > 0)
                 {
                     fixed (MTLScissorRect* pMtlScissors = _scissors)
@@ -161,7 +144,6 @@ namespace Ryujinx.Graphics.Metal
                         _renderCommandEncoder?.SetScissorRects((IntPtr)pMtlScissors, (ulong)_scissors.Length);
                     }
                 }
-            }
 
             // Reset state
             _stateChange = new();
@@ -171,6 +153,8 @@ namespace Ryujinx.Graphics.Metal
         {
             _vertexFunction = vertexFunction;
             _fragmentFunction = fragmentFunction;
+
+            _depthStencilState = null;
 
             _stateChange.pipeline = true;
         }
