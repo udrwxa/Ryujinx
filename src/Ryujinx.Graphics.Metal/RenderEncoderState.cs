@@ -172,12 +172,6 @@ namespace Ryujinx.Graphics.Metal
             _vertexFunction = vertexFunction;
             _fragmentFunction = fragmentFunction;
 
-            // HACK: reset the state
-            UpdateCullMode(MTLCullMode.None);
-            UpdateWinding(MTLWinding.Clockwise);
-            UpdateViewports([]);
-            UpdateScissors([]);
-
             _stateChange.pipeline = true;
         }
 
