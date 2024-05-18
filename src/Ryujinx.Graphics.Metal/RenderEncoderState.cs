@@ -62,8 +62,8 @@ namespace Ryujinx.Graphics.Metal
             _stateChange.cullMode = true;
             _stateChange.winding = true;
             //_stateChange.depthStencil = true;
-            //_stateChange.viewport = true;
-            //_stateChange.scissor = true;
+            _stateChange.viewport = true;
+            _stateChange.scissor = true;
         }
 
         public unsafe void SetEncoderState()
