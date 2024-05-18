@@ -769,7 +769,7 @@ namespace Ryujinx.Graphics.Metal
                 };
             }
 
-            _renderEncoderState.UpdateViewport(mtlViewports);
+            _renderEncoderState.UpdateViewports(mtlViewports);
             if (_currentEncoderType == EncoderType.Render)
             {
                 fixed (MTLViewport* pMtlViewports = mtlViewports)

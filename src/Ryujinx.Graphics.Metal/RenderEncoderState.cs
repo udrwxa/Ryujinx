@@ -237,7 +237,7 @@ namespace Ryujinx.Graphics.Metal
             _stateChange.scissor = true;
         }
 
-        public void UpdateViewport(MTLViewport[] viewports)
+        public void UpdateViewports(MTLViewport[] viewports)
         {
             _viewports = viewports;
 
