@@ -33,6 +33,11 @@ namespace Ryujinx.Graphics.Metal
         struct StateChange
         {
             public bool pipeline = false;
+            public bool cullMode = false;
+            public bool winding = false;
+            public bool depthStencil = false;
+            public bool viewport = false;
+            public bool scissor = false;
 
             public StateChange() {}
         };
@@ -93,29 +98,44 @@ namespace Ryujinx.Graphics.Metal
             }
 
             // Face culling
-            renderCommandEncoder.SetCullMode(CullMode);
-            renderCommandEncoder.SetFrontFacingWinding(Winding);
-
-            // Depth and stencil
-            if (_depthStencilState != null)
+            if (_stateChange.cullMode)
             {
-                renderCommandEncoder.SetDepthStencilState(_depthStencilState.Value);
+                renderCommandEncoder.SetCullMode(CullMode);
+            }
+            if (_stateChange.winding)
+            {
+                renderCommandEncoder.SetFrontFacingWinding(Winding);
             }
 
-            // Viewport and scissor
-            if (_viewports.Length > 0)
+            // Depth and stencil
+            if (_stateChange.depthStencil)
             {
-                fixed (MTLViewport* pMtlViewports = _viewports)
+                if (_depthStencilState != null)
                 {
-                    renderCommandEncoder.SetViewports((IntPtr)pMtlViewports, (ulong)_viewports.Length);
+                    renderCommandEncoder.SetDepthStencilState(_depthStencilState.Value);
                 }
             }
 
-            if (_scissors.Length > 0)
+            // Viewport and scissor
+            if (_stateChange.viewport)
             {
-                fixed (MTLScissorRect* pMtlScissors = _scissors)
+                if (_viewports.Length > 0)
                 {
-                    renderCommandEncoder.SetScissorRects((IntPtr)pMtlScissors, (ulong)_scissors.Length);
+                    fixed (MTLViewport* pMtlViewports = _viewports)
+                    {
+                        renderCommandEncoder.SetViewports((IntPtr)pMtlViewports, (ulong)_viewports.Length);
+                    }
+                }
+            }
+
+            if (_stateChange.scissor)
+            {
+                if (_scissors.Length > 0)
+                {
+                    fixed (MTLScissorRect* pMtlScissors = _scissors)
+                    {
+                        renderCommandEncoder.SetScissorRects((IntPtr)pMtlScissors, (ulong)_scissors.Length);
+                    }
                 }
             }
 
@@ -151,6 +171,8 @@ namespace Ryujinx.Graphics.Metal
                 FrontFaceStencil = _frontFaceStencil
             });
 
+            _stateChange.depthStencil = true;
+
             return _depthStencilState.Value;
         }
 
@@ -169,17 +191,23 @@ namespace Ryujinx.Graphics.Metal
 
             _depthStencilState = state;
 
+            _stateChange.depthStencil = true;
+
             return state;
         }
 
         public void UpdateScissors(MTLScissorRect[] scissors)
         {
             _scissors = scissors;
+
+            _stateChange.scissor = true;
         }
 
         public void UpdateViewport(MTLViewport[] viewports)
         {
             _viewports = viewports;
+
+            _stateChange.viewport = true;
         }
     }
 }
