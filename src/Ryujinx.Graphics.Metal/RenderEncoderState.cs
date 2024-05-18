@@ -182,7 +182,21 @@ namespace Ryujinx.Graphics.Metal
             _stateChange.pipeline = true;
         }
 
-        public MTLDepthStencilState UpdateStencilState(MTLStencilDescriptor backFace, MTLStencilDescriptor frontFace)
+        public void UpdateCullMode(MTLCullMode cullMode)
+        {
+            CullMode = cullMode;
+
+            _stateChange.cullMode = true;
+        }
+
+        public void UpdateWinding(MTLWinding winding)
+        {
+            Winding = winding;
+
+            _stateChange.winding = true;
+        }
+
+        public void UpdateStencilState(MTLStencilDescriptor backFace, MTLStencilDescriptor frontFace)
         {
             _backFaceStencil = backFace;
             _frontFaceStencil = frontFace;
@@ -196,11 +210,9 @@ namespace Ryujinx.Graphics.Metal
             });
 
             _stateChange.depthStencil = true;
-
-            return _depthStencilState.Value;
         }
 
-        public MTLDepthStencilState UpdateDepthState(MTLCompareFunction depthCompareFunction, bool depthWriteEnabled)
+        public void UpdateDepthState(MTLCompareFunction depthCompareFunction, bool depthWriteEnabled)
         {
             _depthCompareFunction = depthCompareFunction;
             _depthWriteEnabled = depthWriteEnabled;
@@ -216,8 +228,6 @@ namespace Ryujinx.Graphics.Metal
             _depthStencilState = state;
 
             _stateChange.depthStencil = true;
-
-            return state;
         }
 
         public void UpdateScissors(MTLScissorRect[] scissors)

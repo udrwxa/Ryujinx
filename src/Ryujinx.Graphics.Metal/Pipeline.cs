@@ -388,38 +388,23 @@ namespace Ryujinx.Graphics.Metal
 
         public void SetDepthTest(DepthTestDescriptor depthTest)
         {
-            var depthStencilState = _renderEncoderState.UpdateDepthState(
+            _renderEncoderState.UpdateDepthState(
                 depthTest.TestEnable ? depthTest.Func.Convert() : MTLCompareFunction.Always,
                 depthTest.WriteEnable);
-
-            if (_currentEncoderType == EncoderType.Render)
-            {
-                new MTLRenderCommandEncoder(_currentEncoder.Value).SetDepthStencilState(depthStencilState);
-            }
         }
 
         public void SetFaceCulling(bool enable, Face face)
         {
             var cullMode = enable ? face.Convert() : MTLCullMode.None;
 
-            if (_currentEncoderType == EncoderType.Render)
-            {
-                new MTLRenderCommandEncoder(_currentEncoder.Value).SetCullMode(cullMode);
-            }
-
-            _renderEncoderState.CullMode = cullMode;
+            _renderEncoderState.UpdateCullMode(cullMode);
         }
 
         public void SetFrontFace(FrontFace frontFace)
         {
             var winding = frontFace.Convert();
 
-            if (_currentEncoderType == EncoderType.Render)
-            {
-                new MTLRenderCommandEncoder(_currentEncoder.Value).SetFrontFacingWinding(winding);
-            }
-
-            _renderEncoderState.Winding = winding;
+            _renderEncoderState.UpdateWinding(winding);
         }
 
         public void SetIndexBuffer(BufferRange buffer, IndexType type)
@@ -598,12 +583,7 @@ namespace Ryujinx.Graphics.Metal
                 WriteMask = (uint)stencilTest.FrontMask
             };
 
-            var depthStencilState = _renderEncoderState.UpdateStencilState(backFace, frontFace);
-
-            if (_currentEncoderType == EncoderType.Render)
-            {
-                new MTLRenderCommandEncoder(_currentEncoder.Value).SetDepthStencilState(depthStencilState);
-            }
+            _renderEncoderState.UpdateStencilState(backFace, frontFace);
         }
 
         public void SetStorageBuffers(ReadOnlySpan<BufferAssignment> buffers)
