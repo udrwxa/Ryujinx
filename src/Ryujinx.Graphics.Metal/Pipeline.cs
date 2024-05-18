@@ -44,24 +44,18 @@ namespace Ryujinx.Graphics.Metal
         private ulong _indexBufferOffset;
         private MTLClearColor _clearColor;
 
-        struct StateChange
-        {
-            public bool program = true;
-
-            public StateChange() {}
-        };
-        private StateChange _stateChange;
-
         public Pipeline(MTLDevice device, MTLCommandQueue commandQueue)
         {
             _device = device;
             _commandQueue = commandQueue;
             _helperShaders = new HelperShaders(_device);
 
-            _renderEncoderState = new RenderEncoderState(
+            _renderEncoderState = new RenderEncoderState(_device);
+            // HACK: set the pipeline just in case
+            _renderEncoderState.UpdateProgram(
                 _helperShaders.BlitShader.VertexFunction,
-                _helperShaders.BlitShader.FragmentFunction,
-                _device);
+                _helperShaders.BlitShader.FragmentFunction
+            );
 
             _commandBuffer = _commandQueue.CommandBuffer();
         }
@@ -71,18 +65,12 @@ namespace Ryujinx.Graphics.Metal
             if (_currentEncoder == null || _currentEncoderType != EncoderType.Render)
             {
                 BeginRenderPass();
-
-                // Reset state
-                _stateChange = new();
             }
 
             var renderCommandEncoder = new MTLRenderCommandEncoder(_currentEncoder.Value);
 
-            // Updating state
-            if (_stateChange.program)
-            {
-                _renderEncoderState.SetEncoderState(renderCommandEncoder, _renderPassDescriptor, _vertexDescriptor);
-            }
+            // Update state
+            _renderEncoderState.SetEncoderState(renderCommandEncoder, _renderPassDescriptor);
 
             return renderCommandEncoder;
         }
@@ -137,6 +125,16 @@ namespace Ryujinx.Graphics.Metal
 
                 _currentEncoderType = EncoderType.None;
             }
+
+            // Reset the render encoder state
+            _renderEncoderState = new RenderEncoderState(_device);
+            // HACK: set the pipeline just in case
+            _renderEncoderState.UpdateProgram(
+                _helperShaders.BlitShader.VertexFunction,
+                _helperShaders.BlitShader.FragmentFunction
+            );
+            // HACK: set the vertex descriptor
+            _renderEncoderState.UpdateVertexDescriptor(_vertexDescriptor);
         }
 
         public MTLRenderCommandEncoder BeginRenderPass()
@@ -159,12 +157,12 @@ namespace Ryujinx.Graphics.Metal
             depthAttachment.LoadAction = MTLLoadAction.Load;
 
             var renderCommandEncoder = _commandBuffer.RenderCommandEncoder(_renderPassDescriptor);
-            _renderEncoderState.SetEncoderState(renderCommandEncoder, _renderPassDescriptor, _vertexDescriptor);
 
             RebindBuffers(renderCommandEncoder);
 
             _currentEncoder = renderCommandEncoder;
             _currentEncoderType = EncoderType.Render;
+
             return renderCommandEncoder;
         }
 
@@ -211,11 +209,10 @@ namespace Ryujinx.Graphics.Metal
             descriptor.ColorAttachments.SetObject(colorAttachment, 0);
 
             var renderCommandEncoder = _commandBuffer.RenderCommandEncoder(descriptor);
-            _renderEncoderState = new RenderEncoderState(
+            _renderEncoderState.UpdateProgram(
                 _helperShaders.BlitShader.VertexFunction,
-                _helperShaders.BlitShader.FragmentFunction,
-                _device);
-            _renderEncoderState.SetEncoderState(renderCommandEncoder, descriptor, _vertexDescriptor);
+                _helperShaders.BlitShader.FragmentFunction);
+            _renderEncoderState.SetEncoderState(renderCommandEncoder, descriptor);
 
             var sampler = _device.NewSamplerState(new MTLSamplerDescriptor
             {
@@ -512,12 +509,9 @@ namespace Ryujinx.Graphics.Metal
                 return;
             }
 
-            _renderEncoderState = new RenderEncoderState(
+            _renderEncoderState.UpdateProgram(
                 prg.VertexFunction,
-                prg.FragmentFunction,
-                _device);
-
-            _stateChange.program = true;
+                prg.FragmentFunction);
         }
 
         public void SetRasterizerDiscard(bool discard)
@@ -719,6 +713,7 @@ namespace Ryujinx.Graphics.Metal
 
         public void SetVertexAttribs(ReadOnlySpan<VertexAttribDescriptor> vertexAttribs)
         {
+            bool descriptorChanged = false;
             for (int i = 0; i < vertexAttribs.Length; i++)
             {
                 if (!vertexAttribs[i].IsZero)
@@ -731,7 +726,14 @@ namespace Ryujinx.Graphics.Metal
 
                     var layout = _vertexDescriptor.Layouts.Object((ulong)vertexAttribs[i].BufferIndex);
                     layout.Stride = 1;
+
+                    descriptorChanged = true;
                 }
+            }
+
+            if (descriptorChanged)
+            {
+                _renderEncoderState.UpdateVertexDescriptor(_vertexDescriptor);
             }
         }
 
@@ -739,12 +741,18 @@ namespace Ryujinx.Graphics.Metal
         {
             _vertexBuffers = [];
 
+            bool descriptorChanged = false;
             for (int i = 0; i < vertexBuffers.Length; i++)
             {
                 if (vertexBuffers[i].Stride != 0)
                 {
                     var layout = _vertexDescriptor.Layouts.Object((ulong)i);
-                    layout.Stride = (ulong)vertexBuffers[i].Stride;
+                    var newStride = (ulong)vertexBuffers[i].Stride;
+                    if (layout.Stride != newStride)
+                    {
+                        layout.Stride = newStride;
+                        descriptorChanged = true;
+                    }
 
                     _vertexBuffers.Add(new BufferInfo
                     {
@@ -759,6 +767,11 @@ namespace Ryujinx.Graphics.Metal
             {
                 var renderCommandEncoder = GetOrCreateRenderEncoder();
                 RebindBuffers(renderCommandEncoder);
+            }
+
+            if (descriptorChanged)
+            {
+                _renderEncoderState.UpdateVertexDescriptor(_vertexDescriptor);
             }
         }
 

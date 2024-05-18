@@ -11,8 +11,9 @@ namespace Ryujinx.Graphics.Metal
     struct RenderEncoderState
     {
         private readonly MTLDevice _device;
-        private readonly MTLFunction? _vertexFunction = null;
-        private readonly MTLFunction? _fragmentFunction = null;
+        private MTLFunction? _vertexFunction = null;
+        private MTLFunction? _fragmentFunction = null;
+        private MTLVertexDescriptor? _vertexDescriptor = null;
         private MTLDepthStencilState? _depthStencilState = null;
 
         private MTLCompareFunction _depthCompareFunction = MTLCompareFunction.Always;
@@ -29,64 +30,79 @@ namespace Ryujinx.Graphics.Metal
         private MTLScissorRect[] _scissors = [];
         public readonly MTLViewport[] Viewports => _viewports;
 
-        public RenderEncoderState(MTLFunction vertexFunction, MTLFunction fragmentFunction, MTLDevice device)
+        struct StateChange
         {
-            _vertexFunction = vertexFunction;
-            _fragmentFunction = fragmentFunction;
+            public bool pipeline = false;
+
+            public StateChange() {}
+        };
+        private StateChange _stateChange;
+
+        public RenderEncoderState(MTLDevice device)
+        {
             _device = device;
         }
 
-        public unsafe void SetEncoderState(MTLRenderCommandEncoder renderCommandEncoder, MTLRenderPassDescriptor descriptor, MTLVertexDescriptor vertexDescriptor)
+        public unsafe void SetEncoderState(MTLRenderCommandEncoder renderCommandEncoder, MTLRenderPassDescriptor descriptor)
         {
-            var renderPipelineDescriptor = new MTLRenderPipelineDescriptor
+            // Pipeline
+            if (_stateChange.pipeline)
             {
-                VertexDescriptor = vertexDescriptor
-            };
-
-            if (_vertexFunction != null)
-            {
-                renderPipelineDescriptor.VertexFunction = _vertexFunction.Value;
-            }
-
-            if (_fragmentFunction != null)
-            {
-                renderPipelineDescriptor.FragmentFunction = _fragmentFunction.Value;
-            }
-
-            const int MaxColorAttachments = 8;
-            for (int i = 0; i < MaxColorAttachments; i++)
-            {
-                var renderAttachment = descriptor.ColorAttachments.Object((ulong)i);
-                if (renderAttachment.Texture != IntPtr.Zero)
+                var renderPipelineDescriptor = new MTLRenderPipelineDescriptor();
+                if (_vertexDescriptor != null)
                 {
-                    var attachment = renderPipelineDescriptor.ColorAttachments.Object((ulong)i);
-                    attachment.SetBlendingEnabled(true);
-                    attachment.PixelFormat = renderAttachment.Texture.PixelFormat;
-                    attachment.SourceAlphaBlendFactor = MTLBlendFactor.SourceAlpha;
-                    attachment.DestinationAlphaBlendFactor = MTLBlendFactor.OneMinusSourceAlpha;
-                    attachment.SourceRGBBlendFactor = MTLBlendFactor.SourceAlpha;
-                    attachment.DestinationRGBBlendFactor = MTLBlendFactor.OneMinusSourceAlpha;
+                    renderPipelineDescriptor.VertexDescriptor = _vertexDescriptor.Value;
                 }
+
+                if (_vertexFunction != null)
+                {
+                    renderPipelineDescriptor.VertexFunction = _vertexFunction.Value;
+                }
+
+                if (_fragmentFunction != null)
+                {
+                    renderPipelineDescriptor.FragmentFunction = _fragmentFunction.Value;
+                }
+
+                const int MaxColorAttachments = 8;
+                for (int i = 0; i < MaxColorAttachments; i++)
+                {
+                    var renderAttachment = descriptor.ColorAttachments.Object((ulong)i);
+                    if (renderAttachment.Texture != IntPtr.Zero)
+                    {
+                        var attachment = renderPipelineDescriptor.ColorAttachments.Object((ulong)i);
+                        attachment.SetBlendingEnabled(true);
+                        attachment.PixelFormat = renderAttachment.Texture.PixelFormat;
+                        attachment.SourceAlphaBlendFactor = MTLBlendFactor.SourceAlpha;
+                        attachment.DestinationAlphaBlendFactor = MTLBlendFactor.OneMinusSourceAlpha;
+                        attachment.SourceRGBBlendFactor = MTLBlendFactor.SourceAlpha;
+                        attachment.DestinationRGBBlendFactor = MTLBlendFactor.OneMinusSourceAlpha;
+                    }
+                }
+
+                renderPipelineDescriptor.DepthAttachmentPixelFormat = descriptor.DepthAttachment.Texture.PixelFormat;
+
+                var error = new NSError(IntPtr.Zero);
+                var pipelineState = _device.NewRenderPipelineState(renderPipelineDescriptor, ref error);
+                if (error != IntPtr.Zero)
+                {
+                    Logger.Error?.PrintMsg(LogClass.Gpu, $"Failed to create Render Pipeline State: {StringHelper.String(error.LocalizedDescription)}");
+                }
+
+                renderCommandEncoder.SetRenderPipelineState(pipelineState);
             }
 
-            renderPipelineDescriptor.DepthAttachmentPixelFormat = descriptor.DepthAttachment.Texture.PixelFormat;
-
-            var error = new NSError(IntPtr.Zero);
-            var pipelineState = _device.NewRenderPipelineState(renderPipelineDescriptor, ref error);
-            if (error != IntPtr.Zero)
-            {
-                Logger.Error?.PrintMsg(LogClass.Gpu, $"Failed to create Render Pipeline State: {StringHelper.String(error.LocalizedDescription)}");
-            }
-
-            renderCommandEncoder.SetRenderPipelineState(pipelineState);
+            // Face culling
             renderCommandEncoder.SetCullMode(CullMode);
             renderCommandEncoder.SetFrontFacingWinding(Winding);
 
+            // Depth and stencil
             if (_depthStencilState != null)
             {
                 renderCommandEncoder.SetDepthStencilState(_depthStencilState.Value);
             }
 
+            // Viewport and scissor
             if (_viewports.Length > 0)
             {
                 fixed (MTLViewport* pMtlViewports = _viewports)
@@ -102,6 +118,24 @@ namespace Ryujinx.Graphics.Metal
                     renderCommandEncoder.SetScissorRects((IntPtr)pMtlScissors, (ulong)_scissors.Length);
                 }
             }
+
+            // Reset state
+            _stateChange = new();
+        }
+
+        public void UpdateProgram(MTLFunction vertexFunction, MTLFunction fragmentFunction)
+        {
+            _vertexFunction = vertexFunction;
+            _fragmentFunction = fragmentFunction;
+
+            _stateChange.pipeline = true;
+        }
+
+        public void UpdateVertexDescriptor(MTLVertexDescriptor vertexDescriptor)
+        {
+            _vertexDescriptor = vertexDescriptor;
+
+            _stateChange.pipeline = true;
         }
 
         public MTLDepthStencilState UpdateStencilState(MTLStencilDescriptor backFace, MTLStencilDescriptor frontFace)
