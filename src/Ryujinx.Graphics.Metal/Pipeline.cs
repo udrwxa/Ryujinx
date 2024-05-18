@@ -143,7 +143,7 @@ namespace Ryujinx.Graphics.Metal
 
             var depthAttachment = descriptor.DepthAttachment;
             depthAttachment.Texture = _depthTarget;
-            depthAttachment.LoadAction = MTLLoadAction.Load;
+            depthAttachment.LoadAction = MTLLoadAction.Clear;
 
             var renderCommandEncoder = _commandBuffer.RenderCommandEncoder(descriptor);
             _renderEncoderState.RenderPassBegan(renderCommandEncoder, descriptor);
