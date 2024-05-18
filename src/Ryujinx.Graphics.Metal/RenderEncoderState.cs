@@ -30,6 +30,10 @@ namespace Ryujinx.Graphics.Metal
         private MTLScissorRect[] _scissors = [];
         public readonly MTLViewport[] Viewports => _viewports;
 
+        // Render encoder
+        private MTLRenderCommandEncoder? _renderCommandEncoder = null;
+        private MTLRenderPassDescriptor _renderPassDescriptor;
+
         struct StateChange
         {
             public bool pipeline = false;
@@ -48,8 +52,20 @@ namespace Ryujinx.Graphics.Metal
             _device = device;
         }
 
-        public unsafe void SetEncoderState(MTLRenderCommandEncoder renderCommandEncoder, MTLRenderPassDescriptor descriptor)
+        public void RenderPassBegan(MTLRenderCommandEncoder renderCommandEncoder, MTLRenderPassDescriptor renderPassDescriptor)
         {
+            _renderCommandEncoder = renderCommandEncoder;
+            _renderPassDescriptor = renderPassDescriptor;
+        }
+
+        public unsafe void SetEncoderState()
+        {
+            if (_renderCommandEncoder == IntPtr.Zero)
+            {
+                Logger.Error?.PrintMsg(LogClass.Gpu, "Render pass not active!");
+                return;
+            }
+
             // Pipeline
             if (_stateChange.pipeline)
             {
@@ -72,7 +88,7 @@ namespace Ryujinx.Graphics.Metal
                 const int MaxColorAttachments = 8;
                 for (int i = 0; i < MaxColorAttachments; i++)
                 {
-                    var renderAttachment = descriptor.ColorAttachments.Object((ulong)i);
+                    var renderAttachment = _renderPassDescriptor.ColorAttachments.Object((ulong)i);
                     if (renderAttachment.Texture != IntPtr.Zero)
                     {
                         var attachment = renderPipelineDescriptor.ColorAttachments.Object((ulong)i);
@@ -85,7 +101,7 @@ namespace Ryujinx.Graphics.Metal
                     }
                 }
 
-                renderPipelineDescriptor.DepthAttachmentPixelFormat = descriptor.DepthAttachment.Texture.PixelFormat;
+                renderPipelineDescriptor.DepthAttachmentPixelFormat = _renderPassDescriptor.DepthAttachment.Texture.PixelFormat;
 
                 var error = new NSError(IntPtr.Zero);
                 var pipelineState = _device.NewRenderPipelineState(renderPipelineDescriptor, ref error);
@@ -94,17 +110,17 @@ namespace Ryujinx.Graphics.Metal
                     Logger.Error?.PrintMsg(LogClass.Gpu, $"Failed to create Render Pipeline State: {StringHelper.String(error.LocalizedDescription)}");
                 }
 
-                renderCommandEncoder.SetRenderPipelineState(pipelineState);
+                _renderCommandEncoder?.SetRenderPipelineState(pipelineState);
             }
 
             // Face culling
             if (_stateChange.cullMode)
             {
-                renderCommandEncoder.SetCullMode(CullMode);
+                _renderCommandEncoder?.SetCullMode(CullMode);
             }
             if (_stateChange.winding)
             {
-                renderCommandEncoder.SetFrontFacingWinding(Winding);
+                _renderCommandEncoder?.SetFrontFacingWinding(Winding);
             }
 
             // Depth and stencil
@@ -112,7 +128,7 @@ namespace Ryujinx.Graphics.Metal
             {
                 if (_depthStencilState != null)
                 {
-                    renderCommandEncoder.SetDepthStencilState(_depthStencilState.Value);
+                    _renderCommandEncoder?.SetDepthStencilState(_depthStencilState.Value);
                 }
             }
 
@@ -123,7 +139,7 @@ namespace Ryujinx.Graphics.Metal
                 {
                     fixed (MTLViewport* pMtlViewports = _viewports)
                     {
-                        renderCommandEncoder.SetViewports((IntPtr)pMtlViewports, (ulong)_viewports.Length);
+                        _renderCommandEncoder?.SetViewports((IntPtr)pMtlViewports, (ulong)_viewports.Length);
                     }
                 }
             }
@@ -134,7 +150,7 @@ namespace Ryujinx.Graphics.Metal
                 {
                     fixed (MTLScissorRect* pMtlScissors = _scissors)
                     {
-                        renderCommandEncoder.SetScissorRects((IntPtr)pMtlScissors, (ulong)_scissors.Length);
+                        _renderCommandEncoder?.SetScissorRects((IntPtr)pMtlScissors, (ulong)_scissors.Length);
                     }
                 }
             }

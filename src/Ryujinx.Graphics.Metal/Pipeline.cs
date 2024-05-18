@@ -33,7 +33,6 @@ namespace Ryujinx.Graphics.Metal
         private MTLTexture _depthTarget;
 
         private RenderEncoderState _renderEncoderState;
-        private MTLRenderPassDescriptor _renderPassDescriptor = new();
         private readonly MTLVertexDescriptor _vertexDescriptor = new();
         private List<BufferInfo> _vertexBuffers = [];
         private List<BufferInfo> _uniformBuffers = [];
@@ -70,7 +69,7 @@ namespace Ryujinx.Graphics.Metal
             var renderCommandEncoder = new MTLRenderCommandEncoder(_currentEncoder.Value);
 
             // Update state
-            _renderEncoderState.SetEncoderState(renderCommandEncoder, _renderPassDescriptor);
+            _renderEncoderState.SetEncoderState();
 
             return renderCommandEncoder;
         }
@@ -141,22 +140,23 @@ namespace Ryujinx.Graphics.Metal
         {
             EndCurrentPass();
 
-            _renderPassDescriptor = new MTLRenderPassDescriptor();
+            var descriptor = new MTLRenderPassDescriptor();
             for (int i = 0; i < _renderTargets.Length; i++)
             {
                 if (_renderTargets[i] != null)
                 {
-                    var attachment = _renderPassDescriptor.ColorAttachments.Object((ulong)i);
+                    var attachment = descriptor.ColorAttachments.Object((ulong)i);
                     attachment.Texture = _renderTargets[i];
                     attachment.LoadAction = MTLLoadAction.Load;
                 }
             }
 
-            var depthAttachment = _renderPassDescriptor.DepthAttachment;
+            var depthAttachment = descriptor.DepthAttachment;
             depthAttachment.Texture = _depthTarget;
             depthAttachment.LoadAction = MTLLoadAction.Load;
 
-            var renderCommandEncoder = _commandBuffer.RenderCommandEncoder(_renderPassDescriptor);
+            var renderCommandEncoder = _commandBuffer.RenderCommandEncoder(descriptor);
+            _renderEncoderState.RenderPassBegan(renderCommandEncoder, descriptor);
 
             RebindBuffers(renderCommandEncoder);
 
@@ -209,10 +209,11 @@ namespace Ryujinx.Graphics.Metal
             descriptor.ColorAttachments.SetObject(colorAttachment, 0);
 
             var renderCommandEncoder = _commandBuffer.RenderCommandEncoder(descriptor);
+            _renderEncoderState.RenderPassBegan(renderCommandEncoder, descriptor);
             _renderEncoderState.UpdateProgram(
                 _helperShaders.BlitShader.VertexFunction,
                 _helperShaders.BlitShader.FragmentFunction);
-            _renderEncoderState.SetEncoderState(renderCommandEncoder, descriptor);
+            _renderEncoderState.SetEncoderState();
 
             var sampler = _device.NewSamplerState(new MTLSamplerDescriptor
             {
