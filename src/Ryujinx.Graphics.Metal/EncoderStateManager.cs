@@ -661,11 +661,18 @@ namespace Ryujinx.Graphics.Metal
             // TODO: Handle 'zero' buffers
             for (int i = 0; i < attribDescriptors.Length; i++)
             {
-                var attrib = vertexDescriptor.Attributes.Object((ulong)i);
-                attrib.Format = attribDescriptors[i].Format.Convert();
-                indexMask |= 1u << attribDescriptors[i].BufferIndex;
-                attrib.BufferIndex = (ulong)attribDescriptors[i].BufferIndex;
-                attrib.Offset = (ulong)attribDescriptors[i].Offset;
+                if (!attribDescriptors[i].IsZero)
+                {
+                    var attrib = vertexDescriptor.Attributes.Object((ulong)i);
+                    attrib.Format = attribDescriptors[i].Format.Convert();
+                    indexMask |= 1u << attribDescriptors[i].BufferIndex;
+                    attrib.BufferIndex = (ulong)attribDescriptors[i].BufferIndex;
+                    attrib.Offset = (ulong)attribDescriptors[i].Offset;
+                }
+                else
+                {
+                    Logger.Warning?.PrintMsg(LogClass.Gpu, "Unhandled IsZero buffer!");
+                }
             }
 
             for (int i = 0; i < bufferDescriptors.Length; i++)
