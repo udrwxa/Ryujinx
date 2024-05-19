@@ -335,9 +335,23 @@ namespace Ryujinx.Graphics.Metal
         {
             if (texture is Texture srcTexture)
             {
-                // _encoderStateManager.SwapStates();
+                var oldCullMode = _encoderStateManager.CullMode;
+                var oldStencilTestEnable = _encoderStateManager.StencilTestEnable;
+                var oldDepthTestEnable = _encoderStateManager.DepthTestEnable;
+                var oldDepthWriteEnable = _encoderStateManager.DepthWriteEnable;
+                var oldTopology = _encoderStateManager.Topology;
+                var oldViewports = _encoderStateManager.Viewports;
+
+                _encoderStateManager.UpdateCullMode(MTLCullMode.None);
+                _encoderStateManager.UpdateStencilState(false, false, false);
 
                 _helperShader.DrawTexture(srcTexture, sampler, srcRegion, dstRegion);
+
+                _encoderStateManager.UpdateCullMode(oldCullMode);
+                _encoderStateManager.UpdateStencilState(oldStencilTestEnable, oldDepthTestEnable, oldDepthWriteEnable);
+                _encoderStateManager.UpdatePrimitiveTopology(oldTopology);
+
+                _encoderStateManager.UpdateViewports(oldViewports);
             }
         }
 
@@ -467,7 +481,7 @@ namespace Ryujinx.Graphics.Metal
 
         public void SetScissors(ReadOnlySpan<Rectangle<int>> regions)
         {
-            _encoderStateManager.UpdateScissors(regions);
+            // _encoderStateManager.UpdateScissors(regions);
         }
 
         public void SetStencilTest(StencilTestDescriptor stencilTest)
