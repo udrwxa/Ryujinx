@@ -481,7 +481,7 @@ namespace Ryujinx.Graphics.Metal
 
         public void SetScissors(ReadOnlySpan<Rectangle<int>> regions)
         {
-            // _encoderStateManager.UpdateScissors(regions);
+            _encoderStateManager.UpdateScissors(regions);
         }
 
         public void SetStencilTest(StencilTestDescriptor stencilTest)

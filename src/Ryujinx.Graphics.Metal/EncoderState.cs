@@ -59,7 +59,7 @@ namespace Ryujinx.Graphics.Metal
         public MTLWinding Winding = MTLWinding.CounterClockwise;
 
         public MTLViewport[] Viewports = [];
-        public MTLScissorRect[] Scissors = [];
+        public Rectangle<int>[] Scissors = [];
 
         // Changes to attachments take recreation!
         public Texture DepthStencil = default;
