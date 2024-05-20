@@ -167,19 +167,30 @@ namespace Ryujinx.Graphics.Metal
             _table[(int)format] = mtlFormat;
         }
 
-        public static MTLPixelFormat GetFormat(Format format)
+        public static MTLPixelFormat GetFormat(Format srcFormat, MTLDevice device)
         {
-            var mtlFormat = _table[(int)format];
+            var format = _table[(int)srcFormat];
 
-            if (mtlFormat == MTLPixelFormat.Depth24UnormStencil8 || mtlFormat == MTLPixelFormat.Depth32FloatStencil8)
+            if (IsD24S8(srcFormat) && !device.Depth24Stencil8PixelFormatSupported)
             {
-                if (!MTLDevice.CreateSystemDefaultDevice().Depth24Stencil8PixelFormatSupported)
+                // The format is not supported. Can we convert it to a higher precision format?
+                if (IsD24S8(srcFormat))
                 {
-                    mtlFormat = MTLPixelFormat.Depth32Float;
+                    format = MTLPixelFormat.Depth32FloatStencil8;
                 }
             }
 
-            return mtlFormat;
+            if (format == MTLPixelFormat.Invalid)
+            {
+                Logger.Error?.PrintMsg(LogClass.Gpu, $"Format {srcFormat} is not supported by the host.");
+            }
+
+            return format;
+        }
+
+        public static bool IsD24S8(Format format)
+        {
+            return format == Format.D24UnormS8Uint || format == Format.S8UintD24Unorm || format == Format.X8UintD24Unorm;
         }
 
         public static MTLPixelFormat PackedStencilToXFormat(MTLPixelFormat format)
