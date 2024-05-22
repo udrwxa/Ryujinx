@@ -21,6 +21,7 @@ namespace Ryujinx.Graphics.Metal
         public int Width => Info.Width;
         public int Height => Info.Height;
         public int Depth => Info.Depth;
+        public MTLPixelFormat MtlPixelFormat;
 
         public Texture(MTLDevice device, Pipeline pipeline, TextureCreateInfo info)
         {
@@ -28,9 +29,13 @@ namespace Ryujinx.Graphics.Metal
             _pipeline = pipeline;
             _info = info;
 
+            var format = FormatTable.GetFormat(Info.Format, _device);
+
+            MtlPixelFormat = format;
+
             var descriptor = new MTLTextureDescriptor
             {
-                PixelFormat = FormatTable.GetFormat(Info.Format),
+                PixelFormat = format,
                 Usage = MTLTextureUsage.Unknown,
                 SampleCount = (ulong)Info.Samples,
                 TextureType = Info.Target.Convert(),
@@ -59,7 +64,7 @@ namespace Ryujinx.Graphics.Metal
             _pipeline = pipeline;
             _info = info;
 
-            var pixelFormat = FormatTable.GetFormat(Info.Format);
+            var format = FormatTable.GetFormat(Info.Format, _device);
             var textureType = Info.Target.Convert();
             NSRange levels;
             levels.location = (ulong)firstLevel;
@@ -73,9 +78,10 @@ namespace Ryujinx.Graphics.Metal
                 slices.length = (ulong)Info.Depth;
             }
 
-            var swizzle = GetSwizzle(info, pixelFormat);
+            var swizzle = GetSwizzle(info, format);
 
-            MTLTexture = sourceTexture.NewTextureView(pixelFormat, textureType, levels, slices, swizzle);
+            MtlPixelFormat = format;
+            MTLTexture = sourceTexture.NewTextureView(format, textureType, levels, slices, swizzle);
         }
 
         private MTLTextureSwizzleChannels GetSwizzle(TextureCreateInfo info, MTLPixelFormat pixelFormat)
@@ -113,7 +119,7 @@ namespace Ryujinx.Graphics.Metal
 
         public void CopyTo(ITexture destination, int firstLayer, int firstLevel)
         {
-            var blitCommandEncoder = _pipeline.GetOrCreateBlitEncoder();
+            var blitCommandEncoder = // Invoke helper shaderGetOrCreateBlitEncoder();
 
             if (destination is Texture destinationTexture)
             {
@@ -131,7 +137,7 @@ namespace Ryujinx.Graphics.Metal
 
         public void CopyTo(ITexture destination, int srcLayer, int dstLayer, int srcLevel, int dstLevel)
         {
-            var blitCommandEncoder = _pipeline.GetOrCreateBlitEncoder();
+            var blitCommandEncoder = // Invoke helper shaderGetOrCreateBlitEncoder();
 
             if (destination is Texture destinationTexture)
             {
@@ -149,7 +155,7 @@ namespace Ryujinx.Graphics.Metal
 
         public void CopyTo(ITexture destination, Extents2D srcRegion, Extents2D dstRegion, bool linearFilter)
         {
-            // var blitCommandEncoder = _pipeline.GetOrCreateBlitEncoder();
+            // var blitCommandEncoder = // Invoke helper shaderGetOrCreateBlitEncoder();
             //
             // if (destination is Texture destinationTexture)
             // {
@@ -160,7 +166,7 @@ namespace Ryujinx.Graphics.Metal
 
         public void CopyTo(BufferRange range, int layer, int level, int stride)
         {
-            var blitCommandEncoder = _pipeline.GetOrCreateBlitEncoder();
+            var blitCommandEncoder = // Invoke helper shaderGetOrCreateBlitEncoder();
 
             ulong bytesPerRow = (ulong)Info.GetMipStride(level);
             ulong bytesPerImage = 0;
@@ -202,7 +208,7 @@ namespace Ryujinx.Graphics.Metal
         // TODO: Handle array formats
         public unsafe void SetData(IMemoryOwner<byte> data)
         {
-            var blitCommandEncoder = _pipeline.GetOrCreateBlitEncoder();
+            var blitCommandEncoder = // Invoke helper shaderGetOrCreateBlitEncoder();
 
             var dataSpan = data.Memory.Span;
             var mtlBuffer = _device.NewBuffer((ulong)dataSpan.Length, MTLResourceOptions.ResourceStorageModeShared);
@@ -254,7 +260,7 @@ namespace Ryujinx.Graphics.Metal
 
         public void SetData(IMemoryOwner<byte> data, int layer, int level)
         {
-            var blitCommandEncoder = _pipeline.GetOrCreateBlitEncoder();
+            var blitCommandEncoder = // Invoke helper shaderGetOrCreateBlitEncoder();
 
             ulong bytesPerRow = (ulong)Info.GetMipStride(level);
             ulong bytesPerImage = 0;
@@ -286,7 +292,7 @@ namespace Ryujinx.Graphics.Metal
 
         public void SetData(IMemoryOwner<byte> data, int layer, int level, Rectangle<int> region)
         {
-            var blitCommandEncoder = _pipeline.GetOrCreateBlitEncoder();
+            var blitCommandEncoder = // Invoke helper shaderGetOrCreateBlitEncoder();
 
             ulong bytesPerRow = (ulong)Info.GetMipStride(level);
             ulong bytesPerImage = 0;
@@ -319,6 +325,76 @@ namespace Ryujinx.Graphics.Metal
         public void SetStorage(BufferRange buffer)
         {
             Logger.Warning?.Print(LogClass.Gpu, "Not Implemented!");
+        }
+
+        private int GetBufferDataLength(int length)
+        {
+            if (NeedsD24S8Conversion())
+            {
+                return length * 2;
+            }
+
+            return length;
+        }
+
+        private Format GetCompatibleGalFormat(Format format)
+        {
+            if (NeedsD24S8Conversion())
+            {
+                return Format.D32FloatS8Uint;
+            }
+
+            return format;
+        }
+
+        private void CopyDataToBuffer(Span<byte> storage, ReadOnlySpan<byte> input)
+        {
+            if (NeedsD24S8Conversion())
+            {
+                FormatConverter.ConvertD24S8ToD32FS8(storage, input);
+                return;
+            }
+
+            input.CopyTo(storage);
+        }
+
+        private ReadOnlySpan<byte> GetDataFromBuffer(ReadOnlySpan<byte> storage, int size, Span<byte> output)
+        {
+            if (NeedsD24S8Conversion())
+            {
+                if (output.IsEmpty)
+                {
+                    output = new byte[GetBufferDataLength(size)];
+                }
+
+                FormatConverter.ConvertD32FS8ToD24S8(output, storage);
+                return output;
+            }
+
+            return storage;
+        }
+
+        private bool PrepareOutputBuffer()
+        {
+            if (NeedsD24S8Conversion())
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        private void CopyDataToOutputBuffer()
+        {
+            if (NeedsD24S8Conversion())
+            {
+                // Invoke helper shader
+            }
+        }
+
+        private bool NeedsD24S8Conversion()
+        {
+            return FormatTable.IsD24S8(Info.Format) && MtlPixelFormat == MTLPixelFormat.Depth32FloatStencil8;
         }
 
         public void Release()

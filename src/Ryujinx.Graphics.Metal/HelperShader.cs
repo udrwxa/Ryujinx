@@ -18,7 +18,9 @@ namespace Ryujinx.Graphics.Metal
     [SupportedOSPlatform("macos")]
     class HelperShader : IDisposable
     {
+        private const int ConvertElementsPerWorkgroup = 32 * 100; // Work group size of 32 times 100 elements.
         private const string ShadersSourcePath = "/Ryujinx.Graphics.Metal/Shaders";
+
         private readonly Pipeline _pipeline;
         private MTLDevice _device;
 
@@ -27,6 +29,7 @@ namespace Ryujinx.Graphics.Metal
         private readonly IProgram _programColorClearSI;
         private readonly IProgram _programColorClearUI;
         private readonly IProgram _programDepthStencilClear;
+        private readonly IProgram _programConvertD32S8ToD24S8;
 
         public HelperShader(MTLDevice device, Pipeline pipeline)
         {
@@ -67,6 +70,12 @@ namespace Ryujinx.Graphics.Metal
             //     new ShaderSource(depthStencilClearSource, ShaderStage.Fragment, TargetLanguage.Msl),
             //     new ShaderSource(depthStencilClearSource, ShaderStage.Vertex, TargetLanguage.Msl)
             // ], device);
+
+            var convertD32ToD24S8Source = ReadMsl("ConvertD32S8ToD24S8.metal");
+            _programConvertD32S8ToD24S8 = new Program(
+            [
+                new ShaderSource(convertD32ToD24S8Source, ShaderStage.Compute, TargetLanguage.Msl)
+            ], device);
         }
 
         private static string ReadMsl(string fileName)
@@ -166,6 +175,18 @@ namespace Ryujinx.Graphics.Metal
             _pipeline.SetDepthTest(new DepthTestDescriptor(true, depthMask, CompareOp.Always));
             _pipeline.SetStencilTest(CreateStencilTestDescriptor(stencilMask != 0, stencilValue, 0xFF, stencilMask));
             _pipeline.Draw(4, 1, 0, 0);
+            _pipeline.Finish();
+        }
+
+        public unsafe void ConvertD32S8ToD24S8(
+            int pixelCount,
+            int dstOffset)
+        {
+            int inSize = pixelCount * 2 * sizeof(int);
+            int outSize = pixelCount * sizeof(int);
+
+            _pipeline.SetProgram(_programConvertD32S8ToD24S8);
+            _pipeline.DispatchCompute(1 + inSize / ConvertElementsPerWorkgroup, 1, 1);
             _pipeline.Finish();
         }
 
