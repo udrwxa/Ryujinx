@@ -423,7 +423,7 @@ namespace Ryujinx.Graphics.Metal
                 descriptor.FrontFaceStencil = _currentState.FrontFaceStencil;
             }
 
-            _currentState.DepthStencilState = _device.NewDepthStencilState(descriptor);
+            // _currentState.DepthStencilState = device.NewDepthStencilState(descriptor);
 
             // Mark dirty
             _currentState.Dirty.DepthStencil = true;
