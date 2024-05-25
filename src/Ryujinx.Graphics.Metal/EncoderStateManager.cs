@@ -232,7 +232,8 @@ namespace Ryujinx.Graphics.Metal
                 if (_currentState.VertexFunction != null)
                 {
                     renderPipelineDescriptor.VertexFunction = _currentState.VertexFunction.Value;
-                } else
+                }
+                else
                 {
                     return;
                 }
