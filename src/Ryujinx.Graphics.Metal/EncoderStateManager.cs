@@ -227,7 +227,8 @@ namespace Ryujinx.Graphics.Metal
             var vertexDescriptor = BuildVertexDescriptor(_currentState.VertexBuffers, _currentState.VertexAttribs);
             renderPipelineDescriptor.VertexDescriptor = vertexDescriptor;
 
-            try {
+            try
+            {
                 if (_currentState.VertexFunction != null)
                 {
                     renderPipelineDescriptor.VertexFunction = _currentState.VertexFunction.Value;
@@ -250,7 +251,8 @@ namespace Ryujinx.Graphics.Metal
                     _currentState.BlendColor.Green,
                     _currentState.BlendColor.Blue,
                     _currentState.BlendColor.Alpha);
-            } finally
+            }
+            finally
             {
                 // Cleanup
                 renderPipelineDescriptor.Dispose();
