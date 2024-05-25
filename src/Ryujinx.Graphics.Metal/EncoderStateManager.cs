@@ -10,7 +10,7 @@ using System.Runtime.Versioning;
 namespace Ryujinx.Graphics.Metal
 {
     [SupportedOSPlatform("macos")]
-    struct EncoderStateManager
+    struct EncoderStateManager : IDisposable
     {
         private readonly Pipeline _pipeline;
 
@@ -32,6 +32,12 @@ namespace Ryujinx.Graphics.Metal
             _pipeline = pipeline;
             _renderPipelineCache = new(device);
             _depthStencilCache = new(device);
+        }
+
+        public void Dispose()
+        {
+            _renderPipelineCache.Dispose();
+            _depthStencilCache.Dispose();
         }
 
         public void SaveState()
@@ -137,6 +143,9 @@ namespace Ryujinx.Graphics.Metal
             SetTextureAndSampler(renderCommandEncoder, ShaderStage.Vertex, _currentState.VertexTextures, _currentState.VertexSamplers);
             SetTextureAndSampler(renderCommandEncoder, ShaderStage.Fragment, _currentState.FragmentTextures, _currentState.FragmentSamplers);
 
+            // Cleanup
+            renderPassDescriptor.Dispose();
+
             return renderCommandEncoder;
         }
 
@@ -211,15 +220,12 @@ namespace Ryujinx.Graphics.Metal
                 }
             }
 
-            renderPipelineDescriptor.VertexDescriptor = BuildVertexDescriptor(_currentState.VertexBuffers, _currentState.VertexAttribs);
+            var vertexDescriptor = BuildVertexDescriptor(_currentState.VertexBuffers, _currentState.VertexAttribs);
+            renderPipelineDescriptor.VertexDescriptor = vertexDescriptor;
 
             if (_currentState.VertexFunction != null)
             {
                 renderPipelineDescriptor.VertexFunction = _currentState.VertexFunction.Value;
-            }
-            else
-            {
-                return;
             }
 
             if (_currentState.FragmentFunction != null)
@@ -236,6 +242,10 @@ namespace Ryujinx.Graphics.Metal
                 _currentState.BlendColor.Green,
                 _currentState.BlendColor.Blue,
                 _currentState.BlendColor.Alpha);
+
+            // Cleanup
+            renderPipelineDescriptor.Dispose();
+            vertexDescriptor.Dispose();
         }
 
         public void UpdateIndexBuffer(BufferRange buffer, IndexType type)
@@ -288,6 +298,9 @@ namespace Ryujinx.Graphics.Metal
             if (depthStencil is Texture depthTexture)
             {
                 _currentState.DepthStencil = depthTexture;
+            } else if (depthStencil == null)
+            {
+                _currentState.DepthStencil = null;
             }
 
             // Requires recreating pipeline
@@ -314,7 +327,7 @@ namespace Ryujinx.Graphics.Metal
         // Inlineable
         public void UpdateStencilState(StencilTestDescriptor stencilTest)
         {
-            _currentState.BackFaceStencil = new MTLStencilDescriptor
+            var backFace = new MTLStencilDescriptor
             {
                 StencilFailureOperation = stencilTest.BackSFail.Convert(),
                 DepthFailureOperation = stencilTest.BackDpFail.Convert(),
@@ -323,8 +336,9 @@ namespace Ryujinx.Graphics.Metal
                 ReadMask = (uint)stencilTest.BackFuncMask,
                 WriteMask = (uint)stencilTest.BackMask
             };
+            _currentState.BackFaceStencil = backFace;
 
-            _currentState.FrontFaceStencil = new MTLStencilDescriptor
+            var frontFace = new MTLStencilDescriptor
             {
                 StencilFailureOperation = stencilTest.FrontSFail.Convert(),
                 DepthFailureOperation = stencilTest.FrontDpFail.Convert(),
@@ -333,6 +347,7 @@ namespace Ryujinx.Graphics.Metal
                 ReadMask = (uint)stencilTest.FrontFuncMask,
                 WriteMask = (uint)stencilTest.FrontMask
             };
+            _currentState.FrontFaceStencil = frontFace;
 
             _currentState.StencilTestEnabled = stencilTest.TestEnable;
 
@@ -352,6 +367,11 @@ namespace Ryujinx.Graphics.Metal
 
             // Mark dirty
             _currentState.Dirty.DepthStencil = true;
+
+            // Cleanup
+            descriptor.Dispose();
+            frontFace.Dispose();
+            backFace.Dispose();
         }
 
         // Inlineable
@@ -376,6 +396,9 @@ namespace Ryujinx.Graphics.Metal
 
             // Mark dirty
             _currentState.Dirty.DepthStencil = true;
+
+            // Cleanup
+            descriptor.Dispose();
         }
 
         // Inlineable
@@ -395,11 +418,6 @@ namespace Ryujinx.Graphics.Metal
         public void UpdateScissors(ReadOnlySpan<Rectangle<int>> regions)
         {
             int maxScissors = Math.Min(regions.Length, _currentState.Viewports.Length);
-
-            if (maxScissors == 0)
-            {
-                return;
-            }
 
             _currentState.Scissors = new MTLScissorRect[maxScissors];
 
