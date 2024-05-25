@@ -46,6 +46,16 @@ namespace Ryujinx.Graphics.Metal
             _encoderStateManager = new EncoderStateManager(_device, this);
         }
 
+        public void SaveState()
+        {
+            _encoderStateManager.SaveState();
+        }
+
+        public void RestoreState()
+        {
+            _encoderStateManager.RestoreState();
+        }
+
         public MTLRenderCommandEncoder GetOrCreateRenderEncoder()
         {
             MTLRenderCommandEncoder renderCommandEncoder;
@@ -161,7 +171,7 @@ namespace Ryujinx.Graphics.Metal
 
             EndCurrentPass();
 
-            _encoderStateManager.SwapStates();
+            SaveState();
 
             // TODO: Clean this up
             var textureInfo = new TextureCreateInfo((int)drawable.Texture.Width, (int)drawable.Texture.Height, (int)drawable.Texture.Depth, (int)drawable.Texture.MipmapLevelCount, (int)drawable.Texture.SampleCount, 0, 0, 0, Format.B8G8R8A8Unorm, 0, Target.Texture2D, SwizzleComponent.Red, SwizzleComponent.Green, SwizzleComponent.Blue, SwizzleComponent.Alpha);
@@ -169,20 +179,40 @@ namespace Ryujinx.Graphics.Metal
 
             _helperShader.BlitColor(tex, dest);
 
+            EndCurrentPass();
+
             _commandBuffer.PresentDrawable(drawable);
             _commandBuffer.Commit();
 
             _commandBuffer = _commandQueue.CommandBuffer();
-        }
 
-        public void Finish()
-        {
-            _encoderStateManager.SwapStates();
+            RestoreState();
+
+            // Cleanup
+            dest.Dispose();
         }
 
         public void Barrier()
         {
-            Logger.Warning?.Print(LogClass.Gpu, "Not Implemented!");
+
+            if (_currentEncoderType == EncoderType.Render)
+            {
+                var renderCommandEncoder = GetOrCreateRenderEncoder();
+
+                var scope = MTLBarrierScope.Buffers | MTLBarrierScope.Textures | MTLBarrierScope.RenderTargets;
+                MTLRenderStages stages = MTLRenderStages.RenderStageVertex | MTLRenderStages.RenderStageFragment;
+                renderCommandEncoder.MemoryBarrier(scope, stages, stages);
+            } else if (_currentEncoderType == EncoderType.Compute)
+            {
+                var computeCommandEncoder = GetOrCreateComputeEncoder();
+
+                // TODO: Should there be a barrier on render targets?
+                var scope = MTLBarrierScope.Buffers | MTLBarrierScope.Textures;
+                computeCommandEncoder.MemoryBarrier(scope);
+            } else
+            {
+                Logger.Warning?.Print(LogClass.Gpu, "Barrier called outside of a render or compute pass");
+            }
         }
 
         public void ClearBuffer(BufferHandle destination, int offset, int size, uint value)
@@ -205,20 +235,12 @@ namespace Ryujinx.Graphics.Metal
         {
             float[] colors = [color.Red, color.Green, color.Blue, color.Alpha];
 
-            Texture target = _encoderStateManager.RenderTargets[index];
-
-            _encoderStateManager.SwapStates();
-
-            _helperShader.ClearColor(target, colors);
+            _helperShader.ClearColor(index, colors);
         }
 
         public void ClearRenderTargetDepthStencil(int layer, int layerCount, float depthValue, bool depthMask, int stencilValue, int stencilMask)
         {
-            Texture target = _encoderStateManager.DepthStencil;
-
-            _encoderStateManager.SwapStates();
-
-            _helperShader.ClearDepthStencil(target, [depthValue], depthMask, stencilValue, stencilMask);
+            _helperShader.ClearDepthStencil([depthValue], depthMask, stencilValue, stencilMask);
         }
 
         public void CommandBufferBarrier()
@@ -558,6 +580,7 @@ namespace Ryujinx.Graphics.Metal
         public void Dispose()
         {
             EndCurrentPass();
+            _encoderStateManager.Dispose();
         }
     }
 }

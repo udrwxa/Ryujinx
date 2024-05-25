@@ -196,7 +196,34 @@ namespace Ryujinx.Graphics.Metal
 
         public PinnedSpan<byte> GetData(int layer, int level)
         {
-            throw new NotImplementedException();
+            var blitCommandEncoder = _pipeline.GetOrCreateBlitEncoder();
+
+            ulong bytesPerRow = (ulong)Info.GetMipStride(level);
+            ulong length = bytesPerRow * (ulong)Info.Height;
+            ulong bytesPerImage = 0;
+            if (MTLTexture.TextureType == MTLTextureType.Type3D)
+            {
+                bytesPerImage = length;
+            }
+
+            unsafe
+            {
+                var mtlBuffer = _device.NewBuffer(length, MTLResourceOptions.ResourceStorageModeShared);
+
+                blitCommandEncoder.CopyFromTexture(
+                    MTLTexture,
+                    (ulong)layer,
+                    (ulong)level,
+                    new MTLOrigin(),
+                    new MTLSize { width = MTLTexture.Width, height = MTLTexture.Height, depth = MTLTexture.Depth },
+                    mtlBuffer,
+                    0,
+                    bytesPerRow,
+                    bytesPerImage
+                );
+
+                return new PinnedSpan<byte>(mtlBuffer.Contents.ToPointer(), (int)length, () => mtlBuffer.Dispose());
+            }
         }
 
         // TODO: Handle array formats
@@ -250,6 +277,9 @@ namespace Ryujinx.Graphics.Metal
                     depth = Math.Max(1, depth >> 1);
                 }
             }
+
+            // Cleanup
+            mtlBuffer.Dispose();
         }
 
         public void SetData(IMemoryOwner<byte> data, int layer, int level)
@@ -281,6 +311,9 @@ namespace Ryujinx.Graphics.Metal
                     (ulong)level,
                     new MTLOrigin()
                 );
+
+                // Cleanup
+                mtlBuffer.Dispose();
             }
         }
 
@@ -313,6 +346,9 @@ namespace Ryujinx.Graphics.Metal
                     (ulong)level,
                     new MTLOrigin { x = (ulong)region.X, y = (ulong)region.Y }
                 );
+
+                // Cleanup
+                mtlBuffer.Dispose();
             }
         }
 

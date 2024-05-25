@@ -10,7 +10,7 @@ using System.Runtime.Versioning;
 namespace Ryujinx.Graphics.Metal
 {
     [SupportedOSPlatform("macos")]
-    struct EncoderStateManager
+    struct EncoderStateManager : IDisposable
     {
         private readonly Pipeline _pipeline;
 
@@ -18,7 +18,7 @@ namespace Ryujinx.Graphics.Metal
         private readonly DepthStencilCache _depthStencilCache;
 
         private EncoderState _currentState = new();
-        private EncoderState _backState = new();
+        private List<EncoderState> _backStates = new();
 
         public readonly MTLBuffer IndexBuffer => _currentState.IndexBuffer;
         public readonly MTLIndexType IndexType => _currentState.IndexType;
@@ -34,13 +34,41 @@ namespace Ryujinx.Graphics.Metal
             _depthStencilCache = new(device);
         }
 
-        public void SwapStates()
+        public void Dispose()
         {
-            (_currentState, _backState) = (_backState, _currentState);
+            // State
+            _currentState.FrontFaceStencil.Dispose();
+            _currentState.BackFaceStencil.Dispose();
 
-            if (_pipeline.CurrentEncoderType == EncoderType.Render)
+            _renderPipelineCache.Dispose();
+            _depthStencilCache.Dispose();
+        }
+
+        public void SaveState()
+        {
+            _backStates.Add(_currentState);
+        }
+
+        public void RestoreState()
+        {
+            if (_backStates.Count > 0)
             {
-                _pipeline.EndCurrentPass();
+                _currentState = _backStates[_backStates.Count - 1];
+                _backStates.RemoveAt(_backStates.Count - 1);
+
+                // Set all the inline state, since it might have changed
+                var renderCommandEncoder = _pipeline.GetOrCreateRenderEncoder();
+                SetDepthClamp(renderCommandEncoder);
+                SetScissors(renderCommandEncoder);
+                SetViewports(renderCommandEncoder);
+                SetVertexBuffers(renderCommandEncoder, _currentState.VertexBuffers);
+                SetBuffers(renderCommandEncoder, _currentState.UniformBuffers, true);
+                SetBuffers(renderCommandEncoder, _currentState.StorageBuffers, true);
+                SetCullMode(renderCommandEncoder);
+                SetFrontFace(renderCommandEncoder);
+            } else
+            {
+                Logger.Error?.Print(LogClass.Gpu, "No state to restore");
             }
         }
 
@@ -119,6 +147,9 @@ namespace Ryujinx.Graphics.Metal
             SetTextureAndSampler(renderCommandEncoder, ShaderStage.Vertex, _currentState.VertexTextures, _currentState.VertexSamplers);
             SetTextureAndSampler(renderCommandEncoder, ShaderStage.Fragment, _currentState.FragmentTextures, _currentState.FragmentSamplers);
 
+            // Cleanup
+            renderPassDescriptor.Dispose();
+
             return renderCommandEncoder;
         }
 
@@ -134,6 +165,7 @@ namespace Ryujinx.Graphics.Metal
                 SetDepthStencilState(renderCommandEncoder);
             }
 
+            // Clear the dirty flags
             _currentState.Dirty.Clear();
         }
 
@@ -192,15 +224,12 @@ namespace Ryujinx.Graphics.Metal
                 }
             }
 
-            renderPipelineDescriptor.VertexDescriptor = BuildVertexDescriptor(_currentState.VertexBuffers, _currentState.VertexAttribs);
+            var vertexDescriptor = BuildVertexDescriptor(_currentState.VertexBuffers, _currentState.VertexAttribs);
+            renderPipelineDescriptor.VertexDescriptor = vertexDescriptor;
 
             if (_currentState.VertexFunction != null)
             {
                 renderPipelineDescriptor.VertexFunction = _currentState.VertexFunction.Value;
-            }
-            else
-            {
-                return;
             }
 
             if (_currentState.FragmentFunction != null)
@@ -217,6 +246,10 @@ namespace Ryujinx.Graphics.Metal
                 _currentState.BlendColor.Green,
                 _currentState.BlendColor.Blue,
                 _currentState.BlendColor.Alpha);
+
+            // Cleanup
+            renderPipelineDescriptor.Dispose();
+            vertexDescriptor.Dispose();
         }
 
         public void UpdateIndexBuffer(BufferRange buffer, IndexType type)
@@ -269,6 +302,9 @@ namespace Ryujinx.Graphics.Metal
             if (depthStencil is Texture depthTexture)
             {
                 _currentState.DepthStencil = depthTexture;
+            } else if (depthStencil == null)
+            {
+                _currentState.DepthStencil = null;
             }
 
             // Requires recreating pipeline
@@ -295,15 +331,9 @@ namespace Ryujinx.Graphics.Metal
         // Inlineable
         public void UpdateStencilState(StencilTestDescriptor stencilTest)
         {
-            _currentState.BackFaceStencil = new MTLStencilDescriptor
-            {
-                StencilFailureOperation = stencilTest.BackSFail.Convert(),
-                DepthFailureOperation = stencilTest.BackDpFail.Convert(),
-                DepthStencilPassOperation = stencilTest.BackDpPass.Convert(),
-                StencilCompareFunction = stencilTest.BackFunc.Convert(),
-                ReadMask = (uint)stencilTest.BackFuncMask,
-                WriteMask = (uint)stencilTest.BackMask
-            };
+            // Cleanup old state
+            _currentState.FrontFaceStencil.Dispose();
+            _currentState.BackFaceStencil.Dispose();
 
             _currentState.FrontFaceStencil = new MTLStencilDescriptor
             {
@@ -313,6 +343,16 @@ namespace Ryujinx.Graphics.Metal
                 StencilCompareFunction = stencilTest.FrontFunc.Convert(),
                 ReadMask = (uint)stencilTest.FrontFuncMask,
                 WriteMask = (uint)stencilTest.FrontMask
+            };
+
+            _currentState.BackFaceStencil = new MTLStencilDescriptor
+            {
+                StencilFailureOperation = stencilTest.BackSFail.Convert(),
+                DepthFailureOperation = stencilTest.BackDpFail.Convert(),
+                DepthStencilPassOperation = stencilTest.BackDpPass.Convert(),
+                StencilCompareFunction = stencilTest.BackFunc.Convert(),
+                ReadMask = (uint)stencilTest.BackFuncMask,
+                WriteMask = (uint)stencilTest.BackMask
             };
 
             _currentState.StencilTestEnabled = stencilTest.TestEnable;
@@ -333,6 +373,9 @@ namespace Ryujinx.Graphics.Metal
 
             // Mark dirty
             _currentState.Dirty.DepthStencil = true;
+
+            // Cleanup
+            descriptor.Dispose();
         }
 
         // Inlineable
@@ -357,6 +400,9 @@ namespace Ryujinx.Graphics.Metal
 
             // Mark dirty
             _currentState.Dirty.DepthStencil = true;
+
+            // Cleanup
+            descriptor.Dispose();
         }
 
         // Inlineable
@@ -376,11 +422,6 @@ namespace Ryujinx.Graphics.Metal
         public void UpdateScissors(ReadOnlySpan<Rectangle<int>> regions)
         {
             int maxScissors = Math.Min(regions.Length, _currentState.Viewports.Length);
-
-            if (maxScissors == 0)
-            {
-                return;
-            }
 
             _currentState.Scissors = new MTLScissorRect[maxScissors];
 
