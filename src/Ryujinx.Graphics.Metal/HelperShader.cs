@@ -58,7 +58,7 @@ namespace Ryujinx.Graphics.Metal
             return EmbeddedResources.ReadAllText(string.Join('/', ShadersSourcePath, fileName));
         }
 
-        public void BlitColor(
+        public unsafe void BlitColor(
             ITexture source,
             ITexture destination,
             Extents2D srcRegion,
@@ -73,8 +73,32 @@ namespace Ryujinx.Graphics.Metal
 
             var viewport = new Viewport(new Rectangle<float>(dstRegion.X1, dstRegion.Y1, dstRegion.X2 - dstRegion.X1, dstRegion.Y2 - dstRegion.Y1), ViewportSwizzle.PositiveX, ViewportSwizzle.PositiveY, ViewportSwizzle.PositiveZ, ViewportSwizzle.PositiveW, 0, 1);
 
+            const int UVModifierBufferSize = 16;
+
+            float[] uvModifier = [
+                srcRegion.X1 / (float)source.Width,
+                srcRegion.Y1 / (float)source.Height,
+                (srcRegion.X2 - srcRegion.X1) / (float)source.Width,
+                (srcRegion.Y2 - srcRegion.Y1) / (float)source.Height
+            ];
+
+            var buffer = _device.NewBuffer(UVModifierBufferSize, MTLResourceOptions.ResourceStorageModeManaged);
+            var span = new Span<float>(buffer.Contents.ToPointer(), UVModifierBufferSize);
+            uvModifier.CopyTo(span);
+
+            buffer.DidModifyRange(new NSRange
+            {
+                location = 0,
+                length = UVModifierBufferSize
+            });
+
+            var handle = buffer.NativePtr;
+            var range = new BufferRange(Unsafe.As<IntPtr, BufferHandle>(ref handle), 0, UVModifierBufferSize);
+
             // Save current state
             _pipeline.SaveAndResetState();
+
+            _pipeline.SetUniformBuffers([new BufferAssignment(0, range)]);
 
             _pipeline.SetProgram(_programColorBlit);
             _pipeline.SetViewports([viewport]);
