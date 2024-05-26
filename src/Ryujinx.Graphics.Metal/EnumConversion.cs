@@ -95,8 +95,8 @@ namespace Ryujinx.Graphics.Metal
         {
             return frontFace switch
             {
-                FrontFace.Clockwise => MTLWinding.Clockwise,
-                FrontFace.CounterClockwise => MTLWinding.CounterClockwise,
+                FrontFace.Clockwise => MTLWinding.CounterClockwise,
+                FrontFace.CounterClockwise => MTLWinding.Clockwise,
                 _ => LogInvalidAndReturn(frontFace, nameof(FrontFace), MTLWinding.Clockwise)
             };
         }
