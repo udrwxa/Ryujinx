@@ -58,11 +58,9 @@ namespace Ryujinx.Graphics.Metal
             return EmbeddedResources.ReadAllText(string.Join('/', ShadersSourcePath, fileName));
         }
 
-        public unsafe void BlitColor(
+        public void BlitColor(
             ITexture source,
-            ITexture destination,
-            Extents2D srcRegion,
-            Extents2D dstRegion)
+            ITexture destination)
         {
             var sampler = _device.NewSamplerState(new MTLSamplerDescriptor
             {
@@ -71,37 +69,14 @@ namespace Ryujinx.Graphics.Metal
                 MipFilter = MTLSamplerMipFilter.NotMipmapped
             });
 
-            var viewport = new Viewport(new Rectangle<float>(dstRegion.X1, dstRegion.Y1, dstRegion.X2 - dstRegion.X1, dstRegion.Y2 - dstRegion.Y1), ViewportSwizzle.PositiveX, ViewportSwizzle.PositiveY, ViewportSwizzle.PositiveZ, ViewportSwizzle.PositiveW, 0, 1);
-
-            const int UVModifierBufferSize = 16;
-
-            float[] uvModifier = [
-                srcRegion.X1 / (float)source.Width,
-                srcRegion.Y1 / (float)source.Height,
-                (srcRegion.X2 - srcRegion.X1) / (float)source.Width,
-                (srcRegion.Y2 - srcRegion.Y1) / (float)source.Height
-            ];
-
-            var buffer = _device.NewBuffer(UVModifierBufferSize, MTLResourceOptions.ResourceStorageModeManaged);
-            var span = new Span<float>(buffer.Contents.ToPointer(), UVModifierBufferSize);
-            uvModifier.CopyTo(span);
-
-            buffer.DidModifyRange(new NSRange
-            {
-                location = 0,
-                length = UVModifierBufferSize
-            });
-
-            var handle = buffer.NativePtr;
-            var range = new BufferRange(Unsafe.As<IntPtr, BufferHandle>(ref handle), 0, UVModifierBufferSize);
-
             // Save current state
-            _pipeline.SaveAndResetState();
-
-            _pipeline.SetUniformBuffers([new BufferAssignment(0, range)]);
+            _pipeline.SaveState();
 
             _pipeline.SetProgram(_programColorBlit);
-            _pipeline.SetViewports([viewport]);
+            _pipeline.SetFaceCulling(false, Face.Front);
+            _pipeline.SetDepthTest(new DepthTestDescriptor(false, false, CompareOp.Always));
+            // Viewport and scissor needs to be set before render pass begin so as not to bind the old ones
+            _pipeline.SetViewports([]);
             _pipeline.SetScissors([]);
             _pipeline.SetRenderTargets([destination], null);
             _pipeline.SetTextureAndSampler(ShaderStage.Fragment, 0, source, new Sampler(sampler));
@@ -137,7 +112,6 @@ namespace Ryujinx.Graphics.Metal
             _pipeline.SetUniformBuffers([new BufferAssignment(0, range)]);
 
             _pipeline.SetProgram(_programsColorClear[index]);
-            _pipeline.SetBlendState(index, new BlendDescriptor(false, new ColorF(0f, 0f, 0f, 1f), BlendOp.Add, BlendFactor.One, BlendFactor.Zero, BlendOp.Add, BlendFactor.One, BlendFactor.Zero));
             _pipeline.SetFaceCulling(false, Face.Front);
             _pipeline.SetDepthTest(new DepthTestDescriptor(false, false, CompareOp.Always));
             // _pipeline.SetRenderTargetColorMasks([componentMask]);

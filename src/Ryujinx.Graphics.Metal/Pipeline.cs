@@ -51,11 +51,6 @@ namespace Ryujinx.Graphics.Metal
             _encoderStateManager.SaveState();
         }
 
-        public void SaveAndResetState()
-        {
-            _encoderStateManager.SaveAndResetState();
-        }
-
         public void RestoreState()
         {
             _encoderStateManager.RestoreState();
@@ -167,7 +162,7 @@ namespace Ryujinx.Graphics.Metal
             return computeCommandEncoder;
         }
 
-        public void Present(CAMetalDrawable drawable, ITexture texture, ImageCrop crop)
+        public void Present(CAMetalDrawable drawable, ITexture texture)
         {
             if (texture is not Texture tex)
             {
@@ -182,24 +177,7 @@ namespace Ryujinx.Graphics.Metal
             var textureInfo = new TextureCreateInfo((int)drawable.Texture.Width, (int)drawable.Texture.Height, (int)drawable.Texture.Depth, (int)drawable.Texture.MipmapLevelCount, (int)drawable.Texture.SampleCount, 0, 0, 0, Format.B8G8R8A8Unorm, 0, Target.Texture2D, SwizzleComponent.Red, SwizzleComponent.Green, SwizzleComponent.Blue, SwizzleComponent.Alpha);
             var dest = new Texture(_device, this, textureInfo, drawable.Texture, 0, 0);
 
-            // Regions
-            var srcRegion = new Extents2D(
-                crop.Left,
-                crop.Top,
-                crop.Right == 0 ? texture.Width : crop.Right,
-                crop.Bottom == 0 ? texture.Height : crop.Bottom
-            );
-            if (crop.FlipX)
-            {
-                srcRegion = new Extents2D(srcRegion.X2, srcRegion.Y1, srcRegion.X1, srcRegion.Y2);
-            }
-            if (crop.FlipY)
-            {
-                srcRegion = new Extents2D(srcRegion.X1, srcRegion.Y2, srcRegion.X2, srcRegion.Y1);
-            }
-            var dstRegion = new Extents2D(0, 0, (int)drawable.Texture.Width, (int)drawable.Texture.Height);
-
-            _helperShader.BlitColor(tex, dest, srcRegion, dstRegion);
+            _helperShader.BlitColor(tex, dest);
 
             EndCurrentPass();
 

@@ -14,7 +14,5 @@ namespace Ryujinx.Graphics.Metal
         public const int MaxVertexAttributes = 16;
         // TODO: Check this value
         public const int MaxVertexLayouts = 16;
-        public const int MaxTextures = 31;
-        public const int MaxSamplers = 31;
     }
 }

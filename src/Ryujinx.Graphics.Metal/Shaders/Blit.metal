@@ -33,8 +33,7 @@ vertex CopyVertexOut vertexMain(unsigned short vid [[vertex_id]]) {
 }
 
 fragment float4 fragmentMain(CopyVertexOut in [[stage_in]],
-                             constant float4& uvModifier [[buffer(0)]],
                              texture2d<float, access::sample> texture [[texture(0)]],
                              sampler sampler [[sampler(0)]]) {
-    return texture.sample(sampler, in.uv * uvModifier.zw + uvModifier.xy);
+    return texture.sample(sampler, in.uv);
 }
