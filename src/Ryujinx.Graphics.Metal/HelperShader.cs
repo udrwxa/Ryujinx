@@ -70,11 +70,9 @@ namespace Ryujinx.Graphics.Metal
             });
 
             // Save current state
-            _pipeline.SaveState();
+            _pipeline.SaveAndResetState();
 
             _pipeline.SetProgram(_programColorBlit);
-            _pipeline.SetFaceCulling(false, Face.Front);
-            _pipeline.SetDepthTest(new DepthTestDescriptor(false, false, CompareOp.Always));
             // Viewport and scissor needs to be set before render pass begin so as not to bind the old ones
             _pipeline.SetViewports([]);
             _pipeline.SetScissors([]);
@@ -112,6 +110,7 @@ namespace Ryujinx.Graphics.Metal
             _pipeline.SetUniformBuffers([new BufferAssignment(0, range)]);
 
             _pipeline.SetProgram(_programsColorClear[index]);
+            _pipeline.SetBlendState(index, new BlendDescriptor(false, new ColorF(0f, 0f, 0f, 1f), BlendOp.Add, BlendFactor.One, BlendFactor.Zero, BlendOp.Add, BlendFactor.One, BlendFactor.Zero));
             _pipeline.SetFaceCulling(false, Face.Front);
             _pipeline.SetDepthTest(new DepthTestDescriptor(false, false, CompareOp.Always));
             // _pipeline.SetRenderTargetColorMasks([componentMask]);

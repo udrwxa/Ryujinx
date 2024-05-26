@@ -51,6 +51,11 @@ namespace Ryujinx.Graphics.Metal
             _encoderStateManager.SaveState();
         }
 
+        public void SaveAndResetState()
+        {
+            _encoderStateManager.SaveAndResetState();
+        }
+
         public void RestoreState()
         {
             _encoderStateManager.RestoreState();

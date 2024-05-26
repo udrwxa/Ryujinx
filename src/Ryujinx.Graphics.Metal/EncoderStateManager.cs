@@ -44,9 +44,16 @@ namespace Ryujinx.Graphics.Metal
             _depthStencilCache.Dispose();
         }
 
-        public readonly void SaveState()
+        public void SaveState()
         {
             _backStates.Push(_currentState);
+            _currentState = _currentState.Clone();
+        }
+
+        public void SaveAndResetState()
+        {
+            _backStates.Push(_currentState);
+            _currentState = new();
         }
 
         public void RestoreState()
@@ -65,6 +72,9 @@ namespace Ryujinx.Graphics.Metal
                 SetBuffers(renderCommandEncoder, _currentState.StorageBuffers, true);
                 SetCullMode(renderCommandEncoder);
                 SetFrontFace(renderCommandEncoder);
+
+                // Mark the other state as dirty
+                _currentState.Dirty.MarkAll();
             }
             else
             {
@@ -184,8 +194,9 @@ namespace Ryujinx.Graphics.Metal
                     pipelineAttachment.SourceRGBBlendFactor = MTLBlendFactor.SourceAlpha;
                     pipelineAttachment.DestinationRGBBlendFactor = MTLBlendFactor.OneMinusSourceAlpha;
 
-                    if (_currentState.BlendDescriptors.TryGetValue(i, out BlendDescriptor blendDescriptor))
+                    if (_currentState.BlendDescriptors[i] != null)
                     {
+                        var blendDescriptor = _currentState.BlendDescriptors[i].Value;
                         pipelineAttachment.SetBlendingEnabled(blendDescriptor.Enable);
                         pipelineAttachment.AlphaBlendOperation = blendDescriptor.AlphaOp.Convert();
                         pipelineAttachment.RgbBlendOperation = blendDescriptor.ColorOp.Convert();
@@ -708,31 +719,39 @@ namespace Ryujinx.Graphics.Metal
             renderCommandEncoder.SetFrontFacingWinding(_currentState.Winding);
         }
 
-        private static void SetTextureAndSampler(MTLRenderCommandEncoder renderCommandEncoder, ShaderStage stage, Dictionary<ulong, MTLTexture> textures, Dictionary<ulong, MTLSamplerState> samplers)
+        private static void SetTextureAndSampler(MTLRenderCommandEncoder renderCommandEncoder, ShaderStage stage, MTLTexture?[] textures, MTLSamplerState?[] samplers)
         {
-            foreach (var texture in textures)
+            for (int i = 0; i < textures.Length; i++)
             {
-                switch (stage)
+                var texture = textures[i];
+                if (texture != null)
                 {
-                    case ShaderStage.Vertex:
-                        renderCommandEncoder.SetVertexTexture(texture.Value, texture.Key);
-                        break;
-                    case ShaderStage.Fragment:
-                        renderCommandEncoder.SetFragmentTexture(texture.Value, texture.Key);
-                        break;
+                    switch (stage)
+                    {
+                        case ShaderStage.Vertex:
+                            renderCommandEncoder.SetVertexTexture(texture.Value, (ulong)i);
+                            break;
+                        case ShaderStage.Fragment:
+                            renderCommandEncoder.SetFragmentTexture(texture.Value, (ulong)i);
+                            break;
+                    }
                 }
             }
 
-            foreach (var sampler in samplers)
+            for (int i = 0; i < samplers.Length; i++)
             {
-                switch (stage)
+                var sampler = samplers[i];
+                if (sampler != null)
                 {
-                    case ShaderStage.Vertex:
-                        renderCommandEncoder.SetVertexSamplerState(sampler.Value, sampler.Key);
-                        break;
-                    case ShaderStage.Fragment:
-                        renderCommandEncoder.SetFragmentSamplerState(sampler.Value, sampler.Key);
-                        break;
+                    switch (stage)
+                    {
+                        case ShaderStage.Vertex:
+                            renderCommandEncoder.SetVertexSamplerState(sampler.Value, (ulong)i);
+                            break;
+                        case ShaderStage.Fragment:
+                            renderCommandEncoder.SetFragmentSamplerState(sampler.Value, (ulong)i);
+                            break;
+                    }
                 }
             }
         }

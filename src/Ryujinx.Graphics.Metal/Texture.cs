@@ -189,9 +189,10 @@ namespace Ryujinx.Graphics.Metal
             return new Texture(_device, _pipeline, info, MTLTexture, firstLayer, firstLevel);
         }
 
+        // TODO: is this correct?
         public PinnedSpan<byte> GetData()
         {
-            throw new NotImplementedException();
+            return GetData(0, 0);
         }
 
         public PinnedSpan<byte> GetData(int layer, int level)
