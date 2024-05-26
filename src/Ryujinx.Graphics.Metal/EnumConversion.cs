@@ -93,6 +93,7 @@ namespace Ryujinx.Graphics.Metal
 
         public static MTLWinding Convert(this FrontFace frontFace)
         {
+            // The viewport is flipped vertically, therefore we need to switch the winding order as well
             return frontFace switch
             {
                 FrontFace.Clockwise => MTLWinding.CounterClockwise,
