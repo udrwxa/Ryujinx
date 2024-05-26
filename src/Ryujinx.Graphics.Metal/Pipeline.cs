@@ -183,7 +183,7 @@ namespace Ryujinx.Graphics.Metal
             var dest = new Texture(_device, this, textureInfo, drawable.Texture, 0, 0);
 
             // Regions
-            var srcRegion = new Extents2D(crop.Left, crop.Bottom, crop.Right, crop.Top);
+            var srcRegion = new Extents2D(crop.Left, crop.Top, crop.Right, crop.Bottom);
             var dstRegion = new Extents2D(0, 0, (int)drawable.Texture.Width, (int)drawable.Texture.Height);
 
             _helperShader.BlitColor(tex, dest, srcRegion, dstRegion);
