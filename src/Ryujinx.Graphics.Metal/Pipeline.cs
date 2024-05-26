@@ -189,6 +189,14 @@ namespace Ryujinx.Graphics.Metal
                 crop.Right == 0 ? texture.Width : crop.Right,
                 crop.Bottom == 0 ? texture.Height : crop.Bottom
             );
+            if (crop.FlipX)
+            {
+                srcRegion = new Extents2D(srcRegion.X2, srcRegion.Y1, srcRegion.X1, srcRegion.Y2);
+            }
+            if (crop.FlipY)
+            {
+                srcRegion = new Extents2D(srcRegion.X1, srcRegion.Y2, srcRegion.X2, srcRegion.Y1);
+            }
             var dstRegion = new Extents2D(0, 0, (int)drawable.Texture.Width, (int)drawable.Texture.Height);
 
             _helperShader.BlitColor(tex, dest, srcRegion, dstRegion);
