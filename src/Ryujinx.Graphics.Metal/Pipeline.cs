@@ -247,7 +247,7 @@ namespace Ryujinx.Graphics.Metal
 
         public void ClearRenderTargetDepthStencil(int layer, int layerCount, float depthValue, bool depthMask, int stencilValue, int stencilMask)
         {
-            _helperShader.ClearDepthStencil([depthValue], depthMask, stencilValue, stencilMask);
+            _helperShader.ClearDepthStencil(depthValue, depthMask, stencilValue, stencilMask);
         }
 
         public void CommandBufferBarrier()

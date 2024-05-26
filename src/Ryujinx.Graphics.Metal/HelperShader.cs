@@ -6,6 +6,7 @@ using SharpMetal.Foundation;
 using SharpMetal.Metal;
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using System.Runtime.Versioning;
 
@@ -91,23 +92,10 @@ namespace Ryujinx.Graphics.Metal
         {
             const int ClearColorBufferSize = 16;
 
-            var buffer = _device.NewBuffer(ClearColorBufferSize, MTLResourceOptions.ResourceStorageModeManaged);
-            var span = new Span<float>(buffer.Contents.ToPointer(), ClearColorBufferSize);
-            clearColor.CopyTo(span);
-
-            buffer.DidModifyRange(new NSRange
-            {
-                location = 0,
-                length = ClearColorBufferSize
-            });
-
-            var handle = buffer.NativePtr;
-            var range = new BufferRange(Unsafe.As<IntPtr, BufferHandle>(ref handle), 0, ClearColorBufferSize);
+            IntPtr ptr = new IntPtr(Unsafe.AsPointer(ref MemoryMarshal.GetReference(clearColor)));
 
             // Save current state
             _pipeline.SaveState();
-
-            _pipeline.SetUniformBuffers([new BufferAssignment(0, range)]);
 
             _pipeline.SetProgram(_programsColorClear[index]);
             _pipeline.SetBlendState(index, new BlendDescriptor(false, new ColorF(0f, 0f, 0f, 1f), BlendOp.Add, BlendFactor.One, BlendFactor.Zero, BlendOp.Add, BlendFactor.One, BlendFactor.Zero));
@@ -115,6 +103,7 @@ namespace Ryujinx.Graphics.Metal
             _pipeline.SetDepthTest(new DepthTestDescriptor(false, false, CompareOp.Always));
             // _pipeline.SetRenderTargetColorMasks([componentMask]);
             _pipeline.SetPrimitiveTopology(PrimitiveTopology.TriangleStrip);
+            _pipeline.GetOrCreateRenderEncoder().SetFragmentBytes(ptr, ClearColorBufferSize, 0);
             _pipeline.Draw(4, 1, 0, 0);
 
             // Restore previous state
@@ -122,30 +111,17 @@ namespace Ryujinx.Graphics.Metal
         }
 
         public unsafe void ClearDepthStencil(
-            ReadOnlySpan<float> depthValue,
+            float depthValue,
             bool depthMask,
             int stencilValue,
             int stencilMask)
         {
-            const int ClearColorBufferSize = 16;
+            const int ClearDepthBufferSize = 4;
 
-            var buffer = _device.NewBuffer(ClearColorBufferSize, MTLResourceOptions.ResourceStorageModeManaged);
-            var span = new Span<float>(buffer.Contents.ToPointer(), ClearColorBufferSize);
-            depthValue.CopyTo(span);
-
-            buffer.DidModifyRange(new NSRange
-            {
-                location = 0,
-                length = ClearColorBufferSize
-            });
-
-            var handle = buffer.NativePtr;
-            var range = new BufferRange(Unsafe.As<IntPtr, BufferHandle>(ref handle), 0, ClearColorBufferSize);
+            IntPtr ptr = new IntPtr(&depthValue);
 
             // Save current state
             _pipeline.SaveState();
-
-            _pipeline.SetUniformBuffers([new BufferAssignment(0, range)]);
 
             _pipeline.SetProgram(_programDepthStencilClear);
             _pipeline.SetFaceCulling(false, Face.Front);
@@ -153,6 +129,7 @@ namespace Ryujinx.Graphics.Metal
             _pipeline.SetPrimitiveTopology(PrimitiveTopology.TriangleStrip);
             _pipeline.SetDepthTest(new DepthTestDescriptor(true, depthMask, CompareOp.Always));
             // _pipeline.SetStencilTest(CreateStencilTestDescriptor(stencilMask != 0, stencilValue, 0xFF, stencilMask));
+            _pipeline.GetOrCreateRenderEncoder().SetFragmentBytes(ptr, ClearDepthBufferSize, 0);
             _pipeline.Draw(4, 1, 0, 0);
 
             // Restore previous state
