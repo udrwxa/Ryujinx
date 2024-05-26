@@ -480,12 +480,13 @@ namespace Ryujinx.Graphics.Metal
             for (int i = 0; i < viewports.Length; i++)
             {
                 var viewport = viewports[i];
+                // Y coordinate is inverted
                 _currentState.Viewports[i] = new MTLViewport
                 {
                     originX = viewport.Region.X,
-                    originY = viewport.Region.Y,
+                    originY = viewport.Region.Y + viewport.Region.Height,
                     width = viewport.Region.Width,
-                    height = viewport.Region.Height,
+                    height = -viewport.Region.Height,
                     znear = Clamp(viewport.DepthNear),
                     zfar = Clamp(viewport.DepthFar)
                 };
