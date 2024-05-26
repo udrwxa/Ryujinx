@@ -167,7 +167,7 @@ namespace Ryujinx.Graphics.Metal
             return computeCommandEncoder;
         }
 
-        public void Present(CAMetalDrawable drawable, ITexture texture)
+        public void Present(CAMetalDrawable drawable, ITexture texture, ImageCrop crop)
         {
             if (texture is not Texture tex)
             {
@@ -182,7 +182,11 @@ namespace Ryujinx.Graphics.Metal
             var textureInfo = new TextureCreateInfo((int)drawable.Texture.Width, (int)drawable.Texture.Height, (int)drawable.Texture.Depth, (int)drawable.Texture.MipmapLevelCount, (int)drawable.Texture.SampleCount, 0, 0, 0, Format.B8G8R8A8Unorm, 0, Target.Texture2D, SwizzleComponent.Red, SwizzleComponent.Green, SwizzleComponent.Blue, SwizzleComponent.Alpha);
             var dest = new Texture(_device, this, textureInfo, drawable.Texture, 0, 0);
 
-            _helperShader.BlitColor(tex, dest);
+            // Regions
+            var srcRegion = new Extents2D(crop.Left, crop.Bottom, crop.Right, crop.Top);
+            var dstRegion = new Extents2D(0, 0, (int)drawable.Texture.Width, (int)drawable.Texture.Height);
+
+            _helperShader.BlitColor(tex, dest, srcRegion, dstRegion);
 
             EndCurrentPass();
 

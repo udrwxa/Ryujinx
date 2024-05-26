@@ -60,7 +60,9 @@ namespace Ryujinx.Graphics.Metal
 
         public void BlitColor(
             ITexture source,
-            ITexture destination)
+            ITexture destination,
+            Extents2D srcRegion,
+            Extents2D dstRegion)
         {
             var sampler = _device.NewSamplerState(new MTLSamplerDescriptor
             {
@@ -69,12 +71,13 @@ namespace Ryujinx.Graphics.Metal
                 MipFilter = MTLSamplerMipFilter.NotMipmapped
             });
 
+            var viewport = new Viewport(new Rectangle<float>(dstRegion.X1, dstRegion.Y1, dstRegion.X2 - dstRegion.X1, dstRegion.Y2 - dstRegion.Y1), ViewportSwizzle.PositiveX, ViewportSwizzle.PositiveY, ViewportSwizzle.PositiveZ, ViewportSwizzle.PositiveW, 0, 1);
+
             // Save current state
             _pipeline.SaveAndResetState();
 
             _pipeline.SetProgram(_programColorBlit);
-            // Viewport and scissor needs to be set before render pass begin so as not to bind the old ones
-            _pipeline.SetViewports([]);
+            _pipeline.SetViewports([viewport]);
             _pipeline.SetScissors([]);
             _pipeline.SetRenderTargets([destination], null);
             _pipeline.SetTextureAndSampler(ShaderStage.Fragment, 0, source, new Sampler(sampler));
