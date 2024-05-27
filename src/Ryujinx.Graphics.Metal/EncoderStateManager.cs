@@ -720,20 +720,20 @@ namespace Ryujinx.Graphics.Metal
             renderCommandEncoder.SetFrontFacingWinding(_currentState.Winding);
         }
 
-        private static void SetTextureAndSampler(MTLRenderCommandEncoder renderCommandEncoder, ShaderStage stage, MTLTexture?[] textures, MTLSamplerState?[] samplers)
+        private static void SetTextureAndSampler(MTLRenderCommandEncoder renderCommandEncoder, ShaderStage stage, MTLTexture[] textures, MTLSamplerState[] samplers)
         {
             for (int i = 0; i < textures.Length; i++)
             {
                 var texture = textures[i];
-                if (texture != null)
+                if (texture != IntPtr.Zero)
                 {
                     switch (stage)
                     {
                         case ShaderStage.Vertex:
-                            renderCommandEncoder.SetVertexTexture(texture.Value, (ulong)i);
+                            renderCommandEncoder.SetVertexTexture(texture, (ulong)i);
                             break;
                         case ShaderStage.Fragment:
-                            renderCommandEncoder.SetFragmentTexture(texture.Value, (ulong)i);
+                            renderCommandEncoder.SetFragmentTexture(texture, (ulong)i);
                             break;
                     }
                 }
@@ -742,15 +742,15 @@ namespace Ryujinx.Graphics.Metal
             for (int i = 0; i < samplers.Length; i++)
             {
                 var sampler = samplers[i];
-                if (sampler != null)
+                if (sampler != IntPtr.Zero)
                 {
                     switch (stage)
                     {
                         case ShaderStage.Vertex:
-                            renderCommandEncoder.SetVertexSamplerState(sampler.Value, (ulong)i);
+                            renderCommandEncoder.SetVertexSamplerState(sampler, (ulong)i);
                             break;
                         case ShaderStage.Fragment:
-                            renderCommandEncoder.SetFragmentSamplerState(sampler.Value, (ulong)i);
+                            renderCommandEncoder.SetFragmentSamplerState(sampler, (ulong)i);
                             break;
                     }
                 }
