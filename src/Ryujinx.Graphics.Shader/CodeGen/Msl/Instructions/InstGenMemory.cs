@@ -169,7 +169,7 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl.Instructions
                 coordsExpr = GetSourceExpr(context, texOp.GetSource(coordsIndex), AggregateType.FP32);
             }
 
-            return $"tex_{samplerName}.calculate_unclamped_lod({samplerName}, {coordsExpr}){GetMaskMultiDest(texOp.Index)}";
+            return $"tex_{samplerName}.calculate_unclamped_lod(samp_{samplerName}, {coordsExpr}){GetMaskMultiDest(texOp.Index)}";
         }
 
         public static string Store(CodeGenContext context, AstOperation operation)
@@ -287,6 +287,11 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl.Instructions
 
         private static string GetMaskMultiDest(int mask)
         {
+            if (mask == 0x0)
+            {
+                return "";
+            }
+
             string swizzle = ".";
 
             for (int i = 0; i < 4; i++)
