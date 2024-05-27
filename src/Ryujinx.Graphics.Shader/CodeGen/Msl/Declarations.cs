@@ -111,8 +111,13 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
         {
             foreach (var memory in memories)
             {
+                string arraySize = "";
+                if ((memory.Type & AggregateType.Array) != 0)
+                {
+                    arraySize = $"[{memory.ArrayLength}]";
+                }
                 var typeName = GetVarTypeName(context, memory.Type & ~AggregateType.Array);
-                context.AppendLine($"{typeName} {memory.Name}[{memory.ArrayLength}];");
+                context.AppendLine($"{typeName} {memory.Name}{arraySize};");
             }
         }
 
