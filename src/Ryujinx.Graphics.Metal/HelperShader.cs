@@ -2,12 +2,9 @@ using Ryujinx.Common;
 using Ryujinx.Graphics.GAL;
 using Ryujinx.Graphics.Shader;
 using Ryujinx.Graphics.Shader.Translation;
-using SharpMetal.Foundation;
 using SharpMetal.Metal;
 using System;
 using System.Collections.Generic;
-using System.Runtime.InteropServices;
-using System.Runtime.CompilerServices;
 using System.Runtime.Versioning;
 
 namespace Ryujinx.Graphics.Metal
@@ -92,8 +89,6 @@ namespace Ryujinx.Graphics.Metal
         {
             const int ClearColorBufferSize = 16;
 
-            IntPtr ptr = new IntPtr(Unsafe.AsPointer(ref MemoryMarshal.GetReference(clearColor)));
-
             // Save current state
             _pipeline.SaveState();
 
@@ -103,7 +98,12 @@ namespace Ryujinx.Graphics.Metal
             _pipeline.SetDepthTest(new DepthTestDescriptor(false, false, CompareOp.Always));
             // _pipeline.SetRenderTargetColorMasks([componentMask]);
             _pipeline.SetPrimitiveTopology(PrimitiveTopology.TriangleStrip);
-            _pipeline.GetOrCreateRenderEncoder().SetFragmentBytes(ptr, ClearColorBufferSize, 0);
+
+            fixed (float* ptr = clearColor)
+            {
+                _pipeline.GetOrCreateRenderEncoder().SetFragmentBytes((IntPtr)ptr, ClearColorBufferSize, 0);
+            }
+
             _pipeline.Draw(4, 1, 0, 0);
 
             // Restore previous state
@@ -118,7 +118,7 @@ namespace Ryujinx.Graphics.Metal
         {
             const int ClearDepthBufferSize = 4;
 
-            IntPtr ptr = new IntPtr(&depthValue);
+            IntPtr ptr = new(&depthValue);
 
             // Save current state
             _pipeline.SaveState();
