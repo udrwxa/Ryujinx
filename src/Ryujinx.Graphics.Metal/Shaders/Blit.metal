@@ -16,7 +16,7 @@ vertex CopyVertexOut vertexMain(uint vid [[vertex_id]],
     out.uv.x = texCoord[low];
     out.uv.y = texCoord[2 + high];
     out.position.x = (float(low) - 0.5f) * 2.0f;
-    out.position.y = -(float(high) - 0.5f) * 2.0f;
+    out.position.y = (float(high) - 0.5f) * 2.0f;
     out.position.z = 0.0f;
     out.position.w = 1.0f;
 

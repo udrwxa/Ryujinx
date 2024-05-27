@@ -95,8 +95,8 @@ namespace Ryujinx.Graphics.Metal
                 int dstX0 = crop.FlipX ? _width - dstPaddingX : dstPaddingX;
                 int dstX1 = crop.FlipX ? dstPaddingX : _width - dstPaddingX;
 
-                int dstY0 = crop.FlipY ? dstPaddingY : _height - dstPaddingY;
-                int dstY1 = crop.FlipY ? _height - dstPaddingY : dstPaddingY;
+                int dstY0 = crop.FlipY ? _height - dstPaddingY : dstPaddingY;
+                int dstY1 = crop.FlipY ? dstPaddingY : _height - dstPaddingY;
 
                 if (_scalingFilter != null)
                 {
