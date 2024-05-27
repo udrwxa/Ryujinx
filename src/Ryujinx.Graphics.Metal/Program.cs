@@ -26,7 +26,7 @@ namespace Ryujinx.Graphics.Metal
                 var shaderLibrary = device.NewLibrary(StringHelper.NSString(shader.Code), new MTLCompileOptions(IntPtr.Zero), ref libraryError);
                 if (libraryError != IntPtr.Zero)
                 {
-                    Logger.Warning?.Print(LogClass.Gpu, $"Shader linking failed: \n{StringHelper.String(libraryError.LocalizedDescription)}");
+                    Logger.Warning?.Print(LogClass.Gpu, $"{shader.Stage} shader linking failed: \n{StringHelper.String(libraryError.LocalizedDescription)}");
                     _status = ProgramLinkStatus.Failure;
                     return;
                 }
