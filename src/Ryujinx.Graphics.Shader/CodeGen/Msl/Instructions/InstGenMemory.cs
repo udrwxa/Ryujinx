@@ -141,6 +141,37 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl.Instructions
             return GenerateLoadOrStore(context, operation, isStore: false);
         }
 
+        // TODO: check this
+        public static string Lod(CodeGenContext context, AstOperation operation)
+        {
+            AstTextureOperation texOp = (AstTextureOperation)operation;
+
+            int coordsCount = texOp.Type.GetDimensions();
+            int coordsIndex = 0;
+
+            string samplerName = GetSamplerName(context.Properties, texOp);
+
+            string coordsExpr;
+
+            if (coordsCount > 1)
+            {
+                string[] elems = new string[coordsCount];
+
+                for (int index = 0; index < coordsCount; index++)
+                {
+                    elems[index] = GetSourceExpr(context, texOp.GetSource(coordsIndex + index), AggregateType.FP32);
+                }
+
+                coordsExpr = "float" + coordsCount + "(" + string.Join(", ", elems) + ")";
+            }
+            else
+            {
+                coordsExpr = GetSourceExpr(context, texOp.GetSource(coordsIndex), AggregateType.FP32);
+            }
+
+            return $"tex_{samplerName}.calculate_unclamped_lod({samplerName}, {coordsExpr}){GetMaskMultiDest(texOp.Index)}";
+        }
+
         public static string Store(CodeGenContext context, AstOperation operation)
         {
             return GenerateLoadOrStore(context, operation, isStore: true);
