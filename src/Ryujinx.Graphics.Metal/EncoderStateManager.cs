@@ -15,6 +15,7 @@ namespace Ryujinx.Graphics.Metal
         private readonly Pipeline _pipeline;
 
         private readonly RenderPipelineCache _renderPipelineCache;
+        private readonly ComputePipelineCache _computePipelineCache;
         private readonly DepthStencilCache _depthStencilCache;
 
         private EncoderState _currentState = new();
@@ -33,6 +34,7 @@ namespace Ryujinx.Graphics.Metal
         {
             _pipeline = pipeline;
             _renderPipelineCache = new(device);
+            _computePipelineCache = new(device);
             _depthStencilCache = new(device);
 
             // Zero buffer
@@ -50,6 +52,7 @@ namespace Ryujinx.Graphics.Metal
             _currentState.BackFaceStencil.Dispose();
 
             _renderPipelineCache.Dispose();
+            _computePipelineCache.Dispose();
             _depthStencilCache.Dispose();
         }
 
