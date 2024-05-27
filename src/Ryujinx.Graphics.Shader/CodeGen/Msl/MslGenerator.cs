@@ -107,10 +107,6 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
                     {
                         args = args.Prepend("FragmentIn in [[stage_in]]").ToArray();
                     }
-                    else if (stage == ShaderStage.Compute)
-                    {
-                        args = args.Prepend("KernelIn in [[stage_in]]").ToArray();
-                    }
                 }
 
                 // TODO: add these only if they are used
@@ -118,6 +114,12 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
                 {
                     args = args.Append("uint vertex_id [[vertex_id]]").ToArray();
                     args = args.Append("uint instance_id [[instance_id]]").ToArray();
+                }
+                else if (stage == ShaderStage.Compute)
+                {
+                    args = args.Append("uint3 threadgroup_position_in_grid [[threadgroup_position_in_grid]]").ToArray();
+                    args = args.Append("uint3 thread_position_in_grid [[thread_position_in_grid]]").ToArray();
+                    args = args.Append("uint3 thread_position_in_threadgroup [[thread_position_in_threadgroup]]").ToArray();
                 }
 
                 foreach (var constantBuffer in context.Properties.ConstantBuffers.Values)
