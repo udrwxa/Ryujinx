@@ -206,11 +206,13 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl.Instructions
             }
             else
             {
-                texCall += "sample";
-
                 if (isGather)
                 {
-                    texCall += "_gather";
+                    texCall += "gather";
+                }
+                else
+                {
+                    texCall += "sample";
                 }
 
                 if (isShadow)
