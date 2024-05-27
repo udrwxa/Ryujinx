@@ -24,6 +24,7 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl.Instructions
                 inputsCount--;
             }
 
+            string fieldName = "";
             switch (storageKind)
             {
                 case StorageKind.ConstantBuffer:
@@ -45,6 +46,15 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl.Instructions
 
                     StructureField field = buffer.Type.Fields[fieldIndex.Value];
                     varName = buffer.Name;
+                    if ((field.Type & AggregateType.Array) != 0 && field.ArrayLength == 0)
+                    {
+                        // Unsized array, the buffer is indexed instead of the field
+                        fieldName = "." + field.Name;
+                    }
+                    else
+                    {
+                        varName += "->" + field.Name;
+                    }
                     varType = field.Type;
                     break;
 
@@ -126,6 +136,7 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl.Instructions
                     varName += $"[{GetSourceExpr(context, src, AggregateType.S32)}]";
                 }
             }
+            varName += fieldName;
 
             if (isStore)
             {
