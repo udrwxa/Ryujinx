@@ -656,6 +656,11 @@ namespace Ryujinx.Graphics.Metal
         // Inlineable
         public readonly void UpdateTextureAndSampler(ShaderStage stage, ulong binding, MTLTexture texture, MTLSamplerState sampler)
         {
+            if (binding > 30)
+            {
+                Logger.Warning?.Print(LogClass.Gpu, $"Texture and sampler binding ({binding}) must be <= 31");
+                return;
+            }
             switch (stage)
             {
                 case ShaderStage.Fragment:
@@ -665,10 +670,6 @@ namespace Ryujinx.Graphics.Metal
                 case ShaderStage.Vertex:
                     _currentState.VertexTextures[binding] = texture;
                     _currentState.VertexSamplers[binding] = sampler;
-                    break;
-                case ShaderStage.Compute:
-                    _currentState.ComputeTextures[binding] = texture;
-                    _currentState.ComputeSamplers[binding] = sampler;
                     break;
             }
 
