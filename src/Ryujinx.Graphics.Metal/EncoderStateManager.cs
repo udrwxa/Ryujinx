@@ -307,14 +307,15 @@ namespace Ryujinx.Graphics.Metal
         {
             Program prg = (Program)program;
 
-            if (prg.VertexFunction == IntPtr.Zero)
+            if (prg.VertexFunction == IntPtr.Zero && prg.ComputeFunction == IntPtr.Zero)
             {
-                Logger.Error?.PrintMsg(LogClass.Gpu, "Invalid Vertex Function!");
+                Logger.Error?.PrintMsg(LogClass.Gpu, "Program has neither vertex nor compute function");
                 return;
             }
 
             _currentState.VertexFunction = prg.VertexFunction;
             _currentState.FragmentFunction = prg.FragmentFunction;
+            _currentState.ComputeFunction = prg.ComputeFunction;
 
             // Mark dirty
             _currentState.Dirty.Pipeline = true;
@@ -664,6 +665,10 @@ namespace Ryujinx.Graphics.Metal
                 case ShaderStage.Vertex:
                     _currentState.VertexTextures[binding] = texture;
                     _currentState.VertexSamplers[binding] = sampler;
+                    break;
+                case ShaderStage.Compute:
+                    _currentState.ComputeTextures[binding] = texture;
+                    _currentState.ComputeSamplers[binding] = sampler;
                     break;
             }
 
