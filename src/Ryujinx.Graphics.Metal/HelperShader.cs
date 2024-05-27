@@ -89,9 +89,6 @@ namespace Ryujinx.Graphics.Metal
                 (region[2], region[3]) = (region[3], region[2]);
             }
 
-            // Save current state
-            _pipeline.SaveAndResetState();
-
             var rect = new Rectangle<float>(
                 MathF.Min(dstRegion.X1, dstRegion.X2),
                 MathF.Min(dstRegion.Y1, dstRegion.Y2),
@@ -112,12 +109,15 @@ namespace Ryujinx.Graphics.Metal
             int dstWidth = dst.Width;
             int dstHeight = dst.Height;
 
+            // Save current state
+            _pipeline.SaveAndResetState();
+
             _pipeline.SetProgram(_programColorBlit);
             _pipeline.SetViewports(viewports);
             _pipeline.SetScissors(stackalloc Rectangle<int>[] { new Rectangle<int>(0, 0, dstWidth, dstHeight) });
             _pipeline.SetRenderTargets([dst], null);
             _pipeline.SetTextureAndSampler(ShaderStage.Fragment, 0, src, sampler);
-            _pipeline.SetPrimitiveTopology(PrimitiveTopology.Triangles);
+            _pipeline.SetPrimitiveTopology(PrimitiveTopology.TriangleStrip);
 
             fixed (float* ptr = region)
             {
@@ -131,14 +131,12 @@ namespace Ryujinx.Graphics.Metal
         }
 
         public unsafe void DrawTexture(
-            Texture src,
+            ITexture src,
             ISampler srcSampler,
             Extents2DF srcRegion,
             Extents2DF dstRegion)
         {
             const int RegionBufferSize = 16;
-
-            _pipeline.SetTextureAndSampler(ShaderStage.Fragment, 0, src, srcSampler);
 
             Span<float> region = stackalloc float[RegionBufferSize / sizeof(float)];
 
@@ -155,11 +153,6 @@ namespace Ryujinx.Graphics.Metal
             if (dstRegion.Y1 > dstRegion.Y2)
             {
                 (region[2], region[3]) = (region[3], region[2]);
-            }
-
-            fixed (float* ptr = region)
-            {
-                _pipeline.GetOrCreateRenderEncoder().SetVertexBytes((IntPtr)ptr, RegionBufferSize, 0);
             }
 
             Span<Viewport> viewports = stackalloc Viewport[1];
@@ -182,12 +175,28 @@ namespace Ryujinx.Graphics.Metal
 
             scissors[0] = new Rectangle<int>(0, 0, 0xFFFF, 0xFFFF);
 
+            // Save current state
+            _pipeline.SaveState();
+
             _pipeline.SetProgram(_programColorBlit);
             _pipeline.SetViewports(viewports);
             _pipeline.SetScissors(scissors);
+            _pipeline.SetTextureAndSampler(ShaderStage.Fragment, 0, src, srcSampler);
             _pipeline.SetPrimitiveTopology(PrimitiveTopology.TriangleStrip);
             _pipeline.SetFaceCulling(false, Face.FrontAndBack);
+            // For some reason this results in a SIGSEGV
+            // _pipeline.SetStencilTest(CreateStencilTestDescriptor(false));
+            _pipeline.SetDepthTest(new DepthTestDescriptor(false, false, CompareOp.Always));
+
+            fixed (float* ptr = region)
+            {
+                _pipeline.GetOrCreateRenderEncoder().SetVertexBytes((IntPtr)ptr, RegionBufferSize, 0);
+            }
+
             _pipeline.Draw(4, 1, 0, 0);
+
+            // Restore previous state
+            _pipeline.RestoreState();
         }
 
         public unsafe void ClearColor(

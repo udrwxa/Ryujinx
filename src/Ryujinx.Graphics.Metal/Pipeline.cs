@@ -333,26 +333,7 @@ namespace Ryujinx.Graphics.Metal
 
         public void DrawTexture(ITexture texture, ISampler sampler, Extents2DF srcRegion, Extents2DF dstRegion)
         {
-            if (texture is Texture srcTexture)
-            {
-                var oldCullMode = _encoderStateManager.CullMode;
-                var oldStencilTestEnable = _encoderStateManager.StencilTestEnable;
-                var oldDepthTestEnable = _encoderStateManager.DepthTestEnable;
-                var oldDepthWriteEnable = _encoderStateManager.DepthWriteEnable;
-                var oldTopology = _encoderStateManager.Topology;
-                var oldViewports = _encoderStateManager.Viewports;
-
-                _encoderStateManager.UpdateCullMode(MTLCullMode.None);
-                _encoderStateManager.UpdateStencilState(false, false, false);
-
-                _helperShader.DrawTexture(srcTexture, sampler, srcRegion, dstRegion);
-
-                _encoderStateManager.UpdateCullMode(oldCullMode);
-                _encoderStateManager.UpdateStencilState(oldStencilTestEnable, oldDepthTestEnable, oldDepthWriteEnable);
-                _encoderStateManager.UpdatePrimitiveTopology(oldTopology);
-
-                _encoderStateManager.UpdateViewports(oldViewports);
-            }
+            _helperShader.DrawTexture(texture, sampler, srcRegion, dstRegion);
         }
 
         public void SetAlphaTest(bool enable, float reference, CompareOp op)
