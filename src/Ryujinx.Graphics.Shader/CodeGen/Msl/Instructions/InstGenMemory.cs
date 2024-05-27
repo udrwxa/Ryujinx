@@ -220,22 +220,31 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl.Instructions
                     texCall += "_compare";
                 }
 
-                texCall += $"(samp_{samplerName}";
+                texCall += $"(samp_{samplerName}, ";
             }
 
             int coordsCount = texOp.Type.GetDimensions();
 
             int pCount = coordsCount;
 
+            bool appended = false;
             void Append(string str)
             {
-                texCall += ", " + str;
+                if (appended)
+                {
+                    texCall += ", ";
+                }
+                else {
+                    appended = true;
+                }
+                texCall += str;
             }
 
             AggregateType coordType = intCoords ? AggregateType.S32 : AggregateType.FP32;
 
             string AssemblePVector(int count)
             {
+                string coords;
                 if (count > 1)
                 {
                     string[] elems = new string[count];
@@ -245,14 +254,16 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl.Instructions
                         elems[index] = Src(coordType);
                     }
 
-                    string prefix = intCoords ? "int" : "float";
-
-                    return prefix + count + "(" + string.Join(", ", elems) + ")";
+                    coords = string.Join(", ", elems);
                 }
                 else
                 {
-                    return Src(coordType);
+                    coords = Src(coordType);
                 }
+
+                string prefix = intCoords ? "uint" : "float";
+
+                return prefix + (count > 1 ? count : "") + "(" + coords + ")";
             }
 
             Append(AssemblePVector(pCount));
