@@ -124,7 +124,7 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
             }
             else
             {
-                if (inputs.Any())
+                if (inputs.Any() || context.Definitions.Stage == ShaderStage.Fragment)
                 {
                     string prefix = "";
 
@@ -135,9 +135,6 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
                             break;
                         case ShaderStage.Fragment:
                             context.AppendLine($"struct FragmentIn");
-                            break;
-                        case ShaderStage.Compute:
-                            context.AppendLine($"struct KernelIn");
                             break;
                     }
 
