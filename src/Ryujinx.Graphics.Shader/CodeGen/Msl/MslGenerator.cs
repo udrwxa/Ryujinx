@@ -97,16 +97,16 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
                     returnType = "void";
                 }
 
-                if (context.AttributeUsage.UsedInputAttributes != 0)
+                if (stage == ShaderStage.Vertex)
                 {
-                    if (stage == ShaderStage.Vertex)
+                    if (context.AttributeUsage.UsedInputAttributes != 0)
                     {
                         args = args.Prepend("VertexIn in [[stage_in]]").ToArray();
                     }
-                    else if (stage == ShaderStage.Fragment)
-                    {
-                        args = args.Prepend("FragmentIn in [[stage_in]]").ToArray();
-                    }
+                }
+                else if (stage == ShaderStage.Fragment)
+                {
+                    args = args.Prepend("FragmentIn in [[stage_in]]").ToArray();
                 }
 
                 // TODO: add these only if they are used
