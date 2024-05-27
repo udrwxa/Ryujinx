@@ -20,18 +20,10 @@ namespace Ryujinx.Graphics.Metal
         private EncoderState _currentState = new();
         private readonly Stack<EncoderState> _backStates = [];
 
-        public readonly MTLCullMode CullMode => _currentState.CullMode;
-        public readonly bool StencilTestEnable => _currentState.StencilTestEnabled;
-        public readonly bool DepthTestEnable => _currentState.DepthWriteEnabled;
-        public readonly bool DepthWriteEnable => _currentState.DepthWriteEnabled;
-        public readonly MTLViewport[] Viewports => _currentState.Viewports;
-        public readonly MTLScissorRect[] Scissors => _currentState.Scissors;
         public readonly MTLBuffer IndexBuffer => _currentState.IndexBuffer;
         public readonly MTLIndexType IndexType => _currentState.IndexType;
         public readonly ulong IndexBufferOffset => _currentState.IndexBufferOffset;
         public readonly PrimitiveTopology Topology => _currentState.Topology;
-        public readonly Texture[] RenderTargets => _currentState.RenderTargets;
-        public readonly Texture DepthStencil => _currentState.DepthStencil;
 
         public EncoderStateManager(MTLDevice device, Pipeline pipeline)
         {
@@ -410,30 +402,6 @@ namespace Ryujinx.Graphics.Metal
             descriptor.Dispose();
         }
 
-        public void UpdateStencilState(bool stencilTestEnable, bool depthTestEnable, bool depthWriteEnable)
-        {
-            _currentState.StencilTestEnabled = stencilTestEnable;
-            _currentState.DepthCompareFunction = depthTestEnable ? _currentState.DepthCompareFunction : MTLCompareFunction.Always;
-            _currentState.DepthWriteEnabled = depthWriteEnable;
-
-            var descriptor = new MTLDepthStencilDescriptor
-            {
-                DepthCompareFunction = _currentState.DepthCompareFunction,
-                DepthWriteEnabled = _currentState.DepthWriteEnabled
-            };
-
-            if (_currentState.StencilTestEnabled)
-            {
-                descriptor.BackFaceStencil = _currentState.BackFaceStencil;
-                descriptor.FrontFaceStencil = _currentState.FrontFaceStencil;
-            }
-
-            // _currentState.DepthStencilState = device.NewDepthStencilState(descriptor);
-
-            // Mark dirty
-            _currentState.Dirty.DepthStencil = true;
-        }
-
         // Inlineable
         public void UpdateDepthState(DepthTestDescriptor depthTest)
         {
@@ -502,18 +470,6 @@ namespace Ryujinx.Graphics.Metal
             }
         }
 
-        public void UpdateScissors(MTLScissorRect[] scissors)
-        {
-            _currentState.Scissors = scissors;
-
-            // Inline update
-            if (_pipeline.CurrentEncoderType == EncoderType.Render && _pipeline.CurrentEncoder != null)
-            {
-                var renderCommandEncoder = new MTLRenderCommandEncoder(_pipeline.CurrentEncoder.Value);
-                SetScissors(renderCommandEncoder);
-            }
-        }
-
         // Inlineable
         public void UpdateViewports(ReadOnlySpan<Viewport> viewports)
         {
@@ -538,18 +494,6 @@ namespace Ryujinx.Graphics.Metal
                     zfar = Clamp(viewport.DepthFar)
                 };
             }
-
-            // Inline update
-            if (_pipeline.CurrentEncoderType == EncoderType.Render && _pipeline.CurrentEncoder != null)
-            {
-                var renderCommandEncoder = new MTLRenderCommandEncoder(_pipeline.CurrentEncoder.Value);
-                SetViewports(renderCommandEncoder);
-            }
-        }
-
-        public void UpdateViewports(MTLViewport[] viewports)
-        {
-            _currentState.Viewports = viewports;
 
             // Inline update
             if (_pipeline.CurrentEncoderType == EncoderType.Render && _pipeline.CurrentEncoder != null)
@@ -631,18 +575,6 @@ namespace Ryujinx.Graphics.Metal
         public void UpdateCullMode(bool enable, Face face)
         {
             _currentState.CullMode = enable ? face.Convert() : MTLCullMode.None;
-
-            // Inline update
-            if (_pipeline.CurrentEncoderType == EncoderType.Render && _pipeline.CurrentEncoder != null)
-            {
-                var renderCommandEncoder = new MTLRenderCommandEncoder(_pipeline.CurrentEncoder.Value);
-                SetCullMode(renderCommandEncoder);
-            }
-        }
-
-        public void UpdateCullMode(MTLCullMode cullMode)
-        {
-            _currentState.CullMode = cullMode;
 
             // Inline update
             if (_pipeline.CurrentEncoderType == EncoderType.Render && _pipeline.CurrentEncoder != null)
