@@ -116,6 +116,7 @@ namespace Ryujinx.Graphics.Metal
             _pipeline.SetViewports(viewports);
             _pipeline.SetScissors(stackalloc Rectangle<int>[] { new Rectangle<int>(0, 0, dstWidth, dstHeight) });
             _pipeline.SetRenderTargets([dst], null);
+            _pipeline.SetClearLoadAction(true);
             _pipeline.SetTextureAndSampler(ShaderStage.Fragment, 0, src, sampler);
             _pipeline.SetPrimitiveTopology(PrimitiveTopology.TriangleStrip);
 

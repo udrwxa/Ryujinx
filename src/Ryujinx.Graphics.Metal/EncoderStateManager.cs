@@ -88,6 +88,11 @@ namespace Ryujinx.Graphics.Metal
             }
         }
 
+        public void SetClearLoadAction(bool clear)
+        {
+            _currentState.ClearLoadAction = clear;
+        }
+
         public MTLRenderCommandEncoder CreateRenderCommandEncoder()
         {
             // Initialise Pass & State
@@ -99,7 +104,7 @@ namespace Ryujinx.Graphics.Metal
                 {
                     var passAttachment = renderPassDescriptor.ColorAttachments.Object((ulong)i);
                     passAttachment.Texture = _currentState.RenderTargets[i].MTLTexture;
-                    passAttachment.LoadAction = MTLLoadAction.Load;
+                    passAttachment.LoadAction = _currentState.ClearLoadAction ? MTLLoadAction.Clear : MTLLoadAction.Load;
                     passAttachment.StoreAction = MTLStoreAction.Store;
                 }
             }
