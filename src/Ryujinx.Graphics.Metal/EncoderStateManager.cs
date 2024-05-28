@@ -157,8 +157,8 @@ namespace Ryujinx.Graphics.Metal
             SetVertexBuffers(renderCommandEncoder, _currentState.VertexBuffers);
             SetRenderBuffers(renderCommandEncoder, _currentState.UniformBuffers, true);
             SetRenderBuffers(renderCommandEncoder, _currentState.StorageBuffers, true);
-            SetTextureAndSampler(renderCommandEncoder, ShaderStage.Vertex, _currentState.VertexTextures, _currentState.VertexSamplers);
-            SetTextureAndSampler(renderCommandEncoder, ShaderStage.Fragment, _currentState.FragmentTextures, _currentState.FragmentSamplers);
+            SetRenderTextureAndSampler(renderCommandEncoder, ShaderStage.Vertex, _currentState.VertexTextures, _currentState.VertexSamplers);
+            SetRenderTextureAndSampler(renderCommandEncoder, ShaderStage.Fragment, _currentState.FragmentTextures, _currentState.FragmentSamplers);
 
             // Cleanup
             renderPassDescriptor.Dispose();
@@ -174,6 +174,8 @@ namespace Ryujinx.Graphics.Metal
             // Rebind all the state
             SetComputeBuffers(computeCommandEncoder, _currentState.UniformBuffers);
             SetComputeBuffers(computeCommandEncoder, _currentState.StorageBuffers);
+            SetComputeTextureAndSampler(computeCommandEncoder, _currentState.ComputeTextures, _currentState.ComputeSamplers);
+            SetComputeTextureAndSampler(computeCommandEncoder, _currentState.ComputeTextures, _currentState.ComputeSamplers);
 
             // Cleanup
             descriptor.Dispose();
@@ -671,14 +673,26 @@ namespace Ryujinx.Graphics.Metal
                     _currentState.VertexTextures[binding] = texture;
                     _currentState.VertexSamplers[binding] = sampler;
                     break;
+                case ShaderStage.Compute:
+                    _currentState.ComputeTextures[binding] = texture;
+                    _currentState.ComputeSamplers[binding] = sampler;
+                    break;
             }
 
-            if (_pipeline.CurrentEncoderType == EncoderType.Render && _pipeline.CurrentEncoder != null)
+            if (_pipeline.CurrentEncoder != null)
             {
-                var renderCommandEncoder = new MTLRenderCommandEncoder(_pipeline.CurrentEncoder.Value);
-                // TODO: Only update the new ones
-                SetTextureAndSampler(renderCommandEncoder, ShaderStage.Vertex, _currentState.VertexTextures, _currentState.VertexSamplers);
-                SetTextureAndSampler(renderCommandEncoder, ShaderStage.Fragment, _currentState.FragmentTextures, _currentState.FragmentSamplers);
+                if (_pipeline.CurrentEncoderType == EncoderType.Render)
+                {
+                    var renderCommandEncoder = new MTLRenderCommandEncoder(_pipeline.CurrentEncoder.Value);
+                    // TODO: Only update the new ones
+                    SetRenderTextureAndSampler(renderCommandEncoder, ShaderStage.Vertex, _currentState.VertexTextures, _currentState.VertexSamplers);
+                    SetRenderTextureAndSampler(renderCommandEncoder, ShaderStage.Fragment, _currentState.FragmentTextures, _currentState.FragmentSamplers);
+                }
+                else
+                {
+                    var computeCommandEncoder = new MTLComputeCommandEncoder(_pipeline.CurrentEncoder.Value);
+                    SetComputeTextureAndSampler(computeCommandEncoder, _currentState.ComputeTextures, _currentState.ComputeSamplers);
+                }
             }
         }
 
@@ -792,7 +806,7 @@ namespace Ryujinx.Graphics.Metal
             renderCommandEncoder.SetFrontFacingWinding(_currentState.Winding);
         }
 
-        private static void SetTextureAndSampler(MTLRenderCommandEncoder renderCommandEncoder, ShaderStage stage, MTLTexture[] textures, MTLSamplerState[] samplers)
+        private static void SetRenderTextureAndSampler(MTLRenderCommandEncoder renderCommandEncoder, ShaderStage stage, MTLTexture[] textures, MTLSamplerState[] samplers)
         {
             for (int i = 0; i < textures.Length; i++)
             {
@@ -825,6 +839,27 @@ namespace Ryujinx.Graphics.Metal
                             renderCommandEncoder.SetFragmentSamplerState(sampler, (ulong)i);
                             break;
                     }
+                }
+            }
+        }
+
+        private static void SetComputeTextureAndSampler(MTLComputeCommandEncoder computeCommandEncoder, MTLTexture[] textures, MTLSamplerState[] samplers)
+        {
+            for (int i = 0; i < textures.Length; i++)
+            {
+                var texture = textures[i];
+                if (texture != IntPtr.Zero)
+                {
+                    computeCommandEncoder.SetTexture(texture, (ulong)i);
+                }
+            }
+
+            for (int i = 0; i < samplers.Length; i++)
+            {
+                var sampler = samplers[i];
+                if (sampler != IntPtr.Zero)
+                {
+                    computeCommandEncoder.SetSamplerState(sampler, (ulong)i);
                 }
             }
         }
