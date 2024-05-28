@@ -497,11 +497,11 @@ namespace Ryujinx.Graphics.Metal
 
         public void SetTextureAndSampler(ShaderStage stage, int binding, ITexture texture, ISampler sampler)
         {
-            if (texture is Texture tex)
+            if (texture is TextureBase tex)
             {
                 if (sampler is Sampler samp)
                 {
-                    var mtlTexture = tex.MTLTexture;
+                    var mtlTexture = tex.GetHandle();
                     var mtlSampler = samp.GetSampler();
                     var index = (ulong)binding;
 

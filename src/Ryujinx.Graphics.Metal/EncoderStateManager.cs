@@ -110,7 +110,7 @@ namespace Ryujinx.Graphics.Metal
                 if (_currentState.RenderTargets[i] != null)
                 {
                     var passAttachment = renderPassDescriptor.ColorAttachments.Object((ulong)i);
-                    passAttachment.Texture = _currentState.RenderTargets[i].MTLTexture;
+                    passAttachment.Texture = _currentState.RenderTargets[i].GetHandle();
                     passAttachment.LoadAction = _currentState.ClearLoadAction ? MTLLoadAction.Clear : MTLLoadAction.Load;
                     passAttachment.StoreAction = MTLStoreAction.Store;
                 }
@@ -121,19 +121,19 @@ namespace Ryujinx.Graphics.Metal
 
             if (_currentState.DepthStencil != null)
             {
-                switch (_currentState.DepthStencil.MTLTexture.PixelFormat)
+                switch (_currentState.DepthStencil.GetHandle().PixelFormat)
                 {
                     // Depth Only Attachment
                     case MTLPixelFormat.Depth16Unorm:
                     case MTLPixelFormat.Depth32Float:
-                        depthAttachment.Texture = _currentState.DepthStencil.MTLTexture;
+                        depthAttachment.Texture = _currentState.DepthStencil.GetHandle();
                         depthAttachment.LoadAction = MTLLoadAction.Load;
                         depthAttachment.StoreAction = MTLStoreAction.Store;
                         break;
 
                     // Stencil Only Attachment
                     case MTLPixelFormat.Stencil8:
-                        stencilAttachment.Texture = _currentState.DepthStencil.MTLTexture;
+                        stencilAttachment.Texture = _currentState.DepthStencil.GetHandle();
                         stencilAttachment.LoadAction = MTLLoadAction.Load;
                         stencilAttachment.StoreAction = MTLStoreAction.Store;
                         break;
@@ -141,16 +141,16 @@ namespace Ryujinx.Graphics.Metal
                     // Combined Attachment
                     case MTLPixelFormat.Depth24UnormStencil8:
                     case MTLPixelFormat.Depth32FloatStencil8:
-                        depthAttachment.Texture = _currentState.DepthStencil.MTLTexture;
+                        depthAttachment.Texture = _currentState.DepthStencil.GetHandle();
                         depthAttachment.LoadAction = MTLLoadAction.Load;
                         depthAttachment.StoreAction = MTLStoreAction.Store;
 
-                        stencilAttachment.Texture = _currentState.DepthStencil.MTLTexture;
+                        stencilAttachment.Texture = _currentState.DepthStencil.GetHandle();
                         stencilAttachment.LoadAction = MTLLoadAction.Load;
                         stencilAttachment.StoreAction = MTLStoreAction.Store;
                         break;
                     default:
-                        Logger.Error?.PrintMsg(LogClass.Gpu, $"Unsupported Depth/Stencil Format: {_currentState.DepthStencil.MTLTexture.PixelFormat}!");
+                        Logger.Error?.PrintMsg(LogClass.Gpu, $"Unsupported Depth/Stencil Format: {_currentState.DepthStencil.GetHandle().PixelFormat}!");
                         break;
                 }
             }
@@ -234,7 +234,7 @@ namespace Ryujinx.Graphics.Metal
                 if (_currentState.RenderTargets[i] != null)
                 {
                     var pipelineAttachment = renderPipelineDescriptor.ColorAttachments.Object((ulong)i);
-                    pipelineAttachment.PixelFormat = _currentState.RenderTargets[i].MTLTexture.PixelFormat;
+                    pipelineAttachment.PixelFormat = _currentState.RenderTargets[i].GetHandle().PixelFormat;
                     pipelineAttachment.SourceAlphaBlendFactor = MTLBlendFactor.SourceAlpha;
                     pipelineAttachment.DestinationAlphaBlendFactor = MTLBlendFactor.OneMinusSourceAlpha;
                     pipelineAttachment.SourceRGBBlendFactor = MTLBlendFactor.SourceAlpha;
@@ -257,27 +257,27 @@ namespace Ryujinx.Graphics.Metal
 
             if (_currentState.DepthStencil != null)
             {
-                switch (_currentState.DepthStencil.MTLTexture.PixelFormat)
+                switch (_currentState.DepthStencil.GetHandle().PixelFormat)
                 {
                     // Depth Only Attachment
                     case MTLPixelFormat.Depth16Unorm:
                     case MTLPixelFormat.Depth32Float:
-                        renderPipelineDescriptor.DepthAttachmentPixelFormat = _currentState.DepthStencil.MTLTexture.PixelFormat;
+                        renderPipelineDescriptor.DepthAttachmentPixelFormat = _currentState.DepthStencil.GetHandle().PixelFormat;
                         break;
 
                     // Stencil Only Attachment
                     case MTLPixelFormat.Stencil8:
-                        renderPipelineDescriptor.StencilAttachmentPixelFormat = _currentState.DepthStencil.MTLTexture.PixelFormat;
+                        renderPipelineDescriptor.StencilAttachmentPixelFormat = _currentState.DepthStencil.GetHandle().PixelFormat;
                         break;
 
                     // Combined Attachment
                     case MTLPixelFormat.Depth24UnormStencil8:
                     case MTLPixelFormat.Depth32FloatStencil8:
-                        renderPipelineDescriptor.DepthAttachmentPixelFormat = _currentState.DepthStencil.MTLTexture.PixelFormat;
-                        renderPipelineDescriptor.StencilAttachmentPixelFormat = _currentState.DepthStencil.MTLTexture.PixelFormat;
+                        renderPipelineDescriptor.DepthAttachmentPixelFormat = _currentState.DepthStencil.GetHandle().PixelFormat;
+                        renderPipelineDescriptor.StencilAttachmentPixelFormat = _currentState.DepthStencil.GetHandle().PixelFormat;
                         break;
                     default:
-                        Logger.Error?.PrintMsg(LogClass.Gpu, $"Unsupported Depth/Stencil Format: {_currentState.DepthStencil.MTLTexture.PixelFormat}!");
+                        Logger.Error?.PrintMsg(LogClass.Gpu, $"Unsupported Depth/Stencil Format: {_currentState.DepthStencil.GetHandle().PixelFormat}!");
                         break;
                 }
             }

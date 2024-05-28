@@ -10,27 +10,24 @@ using System.Runtime.Versioning;
 namespace Ryujinx.Graphics.Metal
 {
     [SupportedOSPlatform("macos")]
-    class TextureBuffer : ITexture, IDisposable
+    class TextureBuffer : Texture, ITexture, IDisposable
     {
-        private readonly TextureCreateInfo _info;
-        private readonly Pipeline _pipeline;
-        private readonly MTLDevice _device;
+        private MTLTexture? _mtlTexture;
 
         private MTLBuffer? _bufferHandle;
         private int _offset;
         private int _size;
 
-        public MTLTexture? MTLTexture;
-        public TextureCreateInfo Info => _info;
-        public int Width => Info.Width;
-        public int Height => Info.Height;
-        public int Depth => Info.Depth;
+        public TextureBuffer(MTLDevice device, Pipeline pipeline, TextureCreateInfo info) : base(device, pipeline, info) { }
 
-        public TextureBuffer(MTLDevice device, Pipeline pipeline, TextureCreateInfo info)
+        public override MTLTexture GetHandle()
         {
-            _device = device;
-            _pipeline = pipeline;
-            _info = info;
+            if (_mtlTexture == null)
+            {
+                throw new InvalidOperationException("Texture view was not created.");
+            }
+
+            return _mtlTexture.Value;
         }
 
         public void CreateView()
@@ -45,7 +42,7 @@ namespace Ryujinx.Graphics.Metal
                 Height = (ulong)Info.Height
             };
 
-            MTLTexture = _bufferHandle.Value.NewTexture(descriptor, (ulong)_offset, (ulong)_size);
+            _mtlTexture = _bufferHandle.Value.NewTexture(descriptor, (ulong)_offset, (ulong)_size);
         }
 
         public void CopyTo(ITexture destination, int firstLayer, int firstLevel)
@@ -82,16 +79,6 @@ namespace Ryujinx.Graphics.Metal
         public void CopyTo(BufferRange range, int layer, int level, int stride)
         {
             throw new NotImplementedException();
-        }
-
-        public void Release()
-        {
-            Dispose();
-        }
-
-        public void Dispose()
-        {
-            MTLTexture?.Dispose();
         }
 
         public void SetData(IMemoryOwner<byte> data)
@@ -132,6 +119,16 @@ namespace Ryujinx.Graphics.Metal
 
                 CreateView();
             }
+        }
+
+        public void Release()
+        {
+            Dispose();
+        }
+
+        public void Dispose()
+        {
+            _mtlTexture?.Dispose();
         }
     }
 }
