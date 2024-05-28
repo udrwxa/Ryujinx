@@ -48,6 +48,12 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
 
             PrintBlock(context, function.MainBlock, isMainFunc);
 
+            // In case the shader hasn't returned, return
+            if (isMainFunc && stage != ShaderStage.Compute)
+            {
+                context.AppendLine("return out;");
+            }
+
             context.LeaveScope();
         }
 
