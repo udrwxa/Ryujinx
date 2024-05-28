@@ -321,7 +321,14 @@ namespace Ryujinx.Graphics.Metal
 
             if (prg.VertexFunction == IntPtr.Zero && prg.ComputeFunction == IntPtr.Zero)
             {
-                Logger.Error?.PrintMsg(LogClass.Gpu, "No vertex or compute function");
+                if (prg.FragmentFunction == IntPtr.Zero)
+                {
+                    Logger.Error?.PrintMsg(LogClass.Gpu, "No compute function");
+                }
+                else
+                {
+                    Logger.Error?.PrintMsg(LogClass.Gpu, "No vertex function");
+                }
                 return;
             }
 
