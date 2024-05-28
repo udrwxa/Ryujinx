@@ -69,7 +69,6 @@ namespace Ryujinx.Graphics.Metal
         public MTLRenderCommandEncoder GetOrCreateRenderEncoder()
         {
             MTLRenderCommandEncoder renderCommandEncoder;
-
             if (_currentEncoder == null || _currentEncoderType != EncoderType.Render)
             {
                 renderCommandEncoder = BeginRenderPass();
@@ -79,7 +78,7 @@ namespace Ryujinx.Graphics.Metal
                 renderCommandEncoder = new MTLRenderCommandEncoder(_currentEncoder.Value);
             }
 
-            _encoderStateManager.RebindState(renderCommandEncoder);
+            _encoderStateManager.RebindRenderState(renderCommandEncoder);
 
             return renderCommandEncoder;
         }
@@ -99,15 +98,19 @@ namespace Ryujinx.Graphics.Metal
 
         public MTLComputeCommandEncoder GetOrCreateComputeEncoder()
         {
-            if (_currentEncoder != null)
+            MTLComputeCommandEncoder computeCommandEncoder;
+            if (_currentEncoder == null || _currentEncoderType != EncoderType.Compute)
             {
-                if (_currentEncoderType == EncoderType.Compute)
-                {
-                    return new MTLComputeCommandEncoder(_currentEncoder.Value);
-                }
+                computeCommandEncoder = BeginComputePass();
+            }
+            else
+            {
+                computeCommandEncoder = new MTLComputeCommandEncoder(_currentEncoder.Value);
             }
 
-            return BeginComputePass();
+            _encoderStateManager.RebindComputeState(computeCommandEncoder);
+
+            return computeCommandEncoder;
         }
 
         public void EndCurrentPass()
@@ -276,7 +279,11 @@ namespace Ryujinx.Graphics.Metal
 
         public void DispatchCompute(int groupsX, int groupsY, int groupsZ)
         {
-            Logger.Warning?.Print(LogClass.Gpu, "Not Implemented!");
+            var computeCommandEncoder = GetOrCreateComputeEncoder();
+
+            computeCommandEncoder.DispatchThreadgroups(
+                new MTLSize{width = (ulong)groupsX, height = (ulong)groupsY, depth = (ulong)groupsZ},
+                new MTLSize{width = 1, height = 1, depth = 1});
         }
 
         public void Draw(int vertexCount, int instanceCount, int firstVertex, int firstInstance)

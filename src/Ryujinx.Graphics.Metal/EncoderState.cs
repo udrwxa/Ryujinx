@@ -8,20 +8,23 @@ namespace Ryujinx.Graphics.Metal
 {
     public struct DirtyFlags
     {
-        public bool Pipeline = false;
+        public bool RenderPipeline = false;
+        public bool ComputePipeline = false;
         public bool DepthStencil = false;
 
         public DirtyFlags() { }
 
         public void MarkAll()
         {
-            Pipeline = true;
+            RenderPipeline = true;
+            ComputePipeline = true;
             DepthStencil = true;
         }
 
         public void Clear()
         {
-            Pipeline = false;
+            RenderPipeline = false;
+            ComputePipeline = false;
             DepthStencil = false;
         }
     }
@@ -95,8 +98,8 @@ namespace Ryujinx.Graphics.Metal
             clone.FragmentSamplers = (MTLSamplerState[])FragmentSamplers.Clone();
             clone.VertexTextures = (MTLTexture[])VertexTextures.Clone();
             clone.VertexSamplers = (MTLSamplerState[])VertexSamplers.Clone();
-            clone.FragmentTextures = (MTLTexture[])VertexTextures.Clone();
-            clone.FragmentSamplers = (MTLSamplerState[])VertexSamplers.Clone();
+            clone.ComputeTextures = (MTLTexture[])VertexTextures.Clone();
+            clone.ComputeSamplers = (MTLSamplerState[])VertexSamplers.Clone();
             clone.BlendDescriptors = (BlendDescriptor?[])BlendDescriptors.Clone();
             clone.VertexBuffers = (VertexBufferDescriptor[])VertexBuffers.Clone();
             clone.VertexAttribs = (VertexAttribDescriptor[])VertexAttribs.Clone();

@@ -34,7 +34,7 @@ namespace Ryujinx.Graphics.Metal
                 switch (shaders[index].Stage)
                 {
                     case ShaderStage.Compute:
-                        ComputeFunction = shaderLibrary.NewFunction(StringHelper.NSString("computeMain"));
+                        ComputeFunction = shaderLibrary.NewFunction(StringHelper.NSString("kernelMain"));
                         break;
                     case ShaderStage.Vertex:
                         VertexFunction = shaderLibrary.NewFunction(StringHelper.NSString("vertexMain"));
