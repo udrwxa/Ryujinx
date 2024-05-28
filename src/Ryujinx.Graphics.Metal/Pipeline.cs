@@ -162,8 +162,7 @@ namespace Ryujinx.Graphics.Metal
         {
             EndCurrentPass();
 
-            var descriptor = new MTLComputePassDescriptor();
-            var computeCommandEncoder = _commandBuffer.ComputeCommandEncoder(descriptor);
+            var computeCommandEncoder = _encoderStateManager.CreateComputeCommandEncoder();
 
             _currentEncoder = computeCommandEncoder;
             _currentEncoderType = EncoderType.Compute;
