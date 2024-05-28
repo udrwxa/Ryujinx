@@ -35,7 +35,6 @@ namespace Ryujinx.Graphics.Metal
 
         public void CreateView()
         {
-            Console.WriteLine($"Creating texture buffer view -> pixelFormat: {FormatTable.GetFormat(Info.Format)} width: {Info.Width}, height: {Info.Height}, depth: {Info.Depth}");
             var descriptor = new MTLTextureDescriptor
             {
                 PixelFormat = FormatTable.GetFormat(Info.Format),

@@ -98,8 +98,8 @@ namespace Ryujinx.Graphics.Metal
             clone.FragmentSamplers = (MTLSamplerState[])FragmentSamplers.Clone();
             clone.VertexTextures = (MTLTexture[])VertexTextures.Clone();
             clone.VertexSamplers = (MTLSamplerState[])VertexSamplers.Clone();
-            clone.ComputeTextures = (MTLTexture[])VertexTextures.Clone();
-            clone.ComputeSamplers = (MTLSamplerState[])VertexSamplers.Clone();
+            clone.ComputeTextures = (MTLTexture[])ComputeTextures.Clone();
+            clone.ComputeSamplers = (MTLSamplerState[])ComputeSamplers.Clone();
             clone.BlendDescriptors = (BlendDescriptor?[])BlendDescriptors.Clone();
             clone.VertexBuffers = (VertexBufferDescriptor[])VertexBuffers.Clone();
             clone.VertexAttribs = (VertexAttribDescriptor[])VertexAttribs.Clone();

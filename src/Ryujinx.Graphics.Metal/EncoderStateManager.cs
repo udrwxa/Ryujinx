@@ -640,10 +640,18 @@ namespace Ryujinx.Graphics.Metal
             }
 
             // Inline update
-            if (_pipeline.CurrentEncoderType == EncoderType.Render && _pipeline.CurrentEncoder != null)
+            if (_pipeline.CurrentEncoder != null)
             {
-                var renderCommandEncoder = new MTLRenderCommandEncoder(_pipeline.CurrentEncoder.Value);
-                SetRenderBuffers(renderCommandEncoder, _currentState.UniformBuffers, true);
+                if (_pipeline.CurrentEncoderType == EncoderType.Render)
+                {
+                    var renderCommandEncoder = new MTLRenderCommandEncoder(_pipeline.CurrentEncoder.Value);
+                    SetRenderBuffers(renderCommandEncoder, _currentState.UniformBuffers, true);
+                }
+                else if (_pipeline.CurrentEncoderType == EncoderType.Compute)
+                {
+                    var computeCommandEncoder = new MTLComputeCommandEncoder(_pipeline.CurrentEncoder.Value);
+                    SetComputeBuffers(computeCommandEncoder, _currentState.UniformBuffers);
+                }
             }
         }
 
@@ -667,10 +675,18 @@ namespace Ryujinx.Graphics.Metal
             }
 
             // Inline update
-            if (_pipeline.CurrentEncoderType == EncoderType.Render && _pipeline.CurrentEncoder != null)
+            if (_pipeline.CurrentEncoder != null)
             {
-                var renderCommandEncoder = new MTLRenderCommandEncoder(_pipeline.CurrentEncoder.Value);
-                SetRenderBuffers(renderCommandEncoder, _currentState.StorageBuffers, true);
+                if (_pipeline.CurrentEncoderType == EncoderType.Render)
+                {
+                    var renderCommandEncoder = new MTLRenderCommandEncoder(_pipeline.CurrentEncoder.Value);
+                    SetRenderBuffers(renderCommandEncoder, _currentState.StorageBuffers, true);
+                }
+                else if (_pipeline.CurrentEncoderType == EncoderType.Compute)
+                {
+                    var computeCommandEncoder = new MTLComputeCommandEncoder(_pipeline.CurrentEncoder.Value);
+                    SetComputeBuffers(computeCommandEncoder, _currentState.StorageBuffers);
+                }
             }
         }
 
