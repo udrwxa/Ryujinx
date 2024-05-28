@@ -57,11 +57,20 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
             ShaderStage stage,
             bool isMainFunc = false)
         {
-            string[] args = new string[function.InArguments.Length + function.OutArguments.Length];
+            int additionalArgCount = isMainFunc ? 0 : CodeGenContext.additionalArgCount;
 
+            string[] args = new string[additionalArgCount + function.InArguments.Length + function.OutArguments.Length];
+
+            // All non-main functions need to be able to access the support_buffer as well
+            if (!isMainFunc)
+            {
+                args[0] = "constant Struct_support_buffer* support_buffer";
+            }
+
+            int argIndex = additionalArgCount;
             for (int i = 0; i < function.InArguments.Length; i++)
             {
-                args[i] = $"{Declarations.GetVarTypeName(context, function.InArguments[i])} {OperandManager.GetArgumentName(i)}";
+                args[argIndex++] = $"{Declarations.GetVarTypeName(context, function.InArguments[i])} {OperandManager.GetArgumentName(i)}";
             }
 
             for (int i = 0; i < function.OutArguments.Length; i++)
@@ -69,7 +78,7 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
                 int j = i + function.InArguments.Length;
 
                 // Likely need to be made into pointers
-                args[j] = $"out {Declarations.GetVarTypeName(context, function.OutArguments[i])} {OperandManager.GetArgumentName(j)}";
+                args[argIndex++] = $"out {Declarations.GetVarTypeName(context, function.OutArguments[i])} {OperandManager.GetArgumentName(j)}";
             }
 
             string funcKeyword = "inline";
