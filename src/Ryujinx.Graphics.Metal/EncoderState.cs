@@ -1,6 +1,7 @@
 using Ryujinx.Graphics.GAL;
 using SharpMetal.Metal;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.Versioning;
 
 namespace Ryujinx.Graphics.Metal
@@ -59,6 +60,8 @@ namespace Ryujinx.Graphics.Metal
 
         public MTLStencilDescriptor BackFaceStencil = new();
         public MTLStencilDescriptor FrontFaceStencil = new();
+        public int BackRefValue = 0;
+        public int FrontRefValue = 0;
         public bool StencilTestEnabled = false;
 
         public PrimitiveTopology Topology = PrimitiveTopology.Triangles;
@@ -71,6 +74,8 @@ namespace Ryujinx.Graphics.Metal
         // Changes to attachments take recreation!
         public Texture DepthStencil = default;
         public Texture[] RenderTargets = new Texture[Constants.MaxColorAttachments];
+
+        public MTLColorWriteMask[] RenderTargetMasks = Enumerable.Repeat(MTLColorWriteMask.All, Constants.MaxColorAttachments).ToArray();
         public BlendDescriptor?[] BlendDescriptors = new BlendDescriptor?[Constants.MaxColorAttachments];
         public ColorF BlendColor = new();
 
@@ -80,9 +85,12 @@ namespace Ryujinx.Graphics.Metal
         // Dirty flags
         public DirtyFlags Dirty = new();
 
+        // Only to be used for present
+        public bool ClearLoadAction = false;
+
         public EncoderState() { }
 
-        public EncoderState Clone()
+        public readonly EncoderState Clone()
         {
             // Certain state (like viewport and scissor) doesn't need to be cloned, as it is always reacreated when assigned to
             EncoderState clone = this;

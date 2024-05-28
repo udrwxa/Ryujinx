@@ -25,15 +25,24 @@ namespace Ryujinx.Graphics.Metal
         public readonly MTLIndexType IndexType => _currentState.IndexType;
         public readonly ulong IndexBufferOffset => _currentState.IndexBufferOffset;
         public readonly PrimitiveTopology Topology => _currentState.Topology;
-        public readonly Texture[] RenderTargets => _currentState.RenderTargets;
-        public readonly Texture DepthStencil => _currentState.DepthStencil;
 
-        public EncoderStateManager(MTLDevice device, Pipeline pipeline)
+        // RGBA32F is the biggest format
+        private const int ZeroBufferSize = 4 * 4;
+        private readonly MTLBuffer _zeroBuffer;
+
+        public unsafe EncoderStateManager(MTLDevice device, Pipeline pipeline)
         {
             _pipeline = pipeline;
             _renderPipelineCache = new(device);
             _computePipelineCache = new(device);
             _depthStencilCache = new(device);
+
+            // Zero buffer
+            byte[] zeros = new byte[ZeroBufferSize];
+            fixed (byte* ptr = zeros)
+            {
+                _zeroBuffer = device.NewBuffer((IntPtr)ptr, ZeroBufferSize, MTLResourceOptions.ResourceStorageModeShared);
+            }
         }
 
         public void Dispose()
@@ -75,6 +84,7 @@ namespace Ryujinx.Graphics.Metal
                 SetRenderBuffers(renderCommandEncoder, _currentState.StorageBuffers, true);
                 SetCullMode(renderCommandEncoder);
                 SetFrontFace(renderCommandEncoder);
+                SetStencilRefValue(renderCommandEncoder);
 
                 // Mark the other state as dirty
                 _currentState.Dirty.MarkAll();
@@ -83,6 +93,11 @@ namespace Ryujinx.Graphics.Metal
             {
                 Logger.Error?.Print(LogClass.Gpu, "No state to restore");
             }
+        }
+
+        public void SetClearLoadAction(bool clear)
+        {
+            _currentState.ClearLoadAction = clear;
         }
 
         public MTLRenderCommandEncoder CreateRenderCommandEncoder()
@@ -96,7 +111,7 @@ namespace Ryujinx.Graphics.Metal
                 {
                     var passAttachment = renderPassDescriptor.ColorAttachments.Object((ulong)i);
                     passAttachment.Texture = _currentState.RenderTargets[i].MTLTexture;
-                    passAttachment.LoadAction = MTLLoadAction.Load;
+                    passAttachment.LoadAction = _currentState.ClearLoadAction ? MTLLoadAction.Clear : MTLLoadAction.Load;
                     passAttachment.StoreAction = MTLStoreAction.Store;
                 }
             }
@@ -130,9 +145,7 @@ namespace Ryujinx.Graphics.Metal
                         depthAttachment.LoadAction = MTLLoadAction.Load;
                         depthAttachment.StoreAction = MTLStoreAction.Store;
 
-                        var unpackedFormat = FormatTable.PackedStencilToXFormat(_currentState.DepthStencil.MTLTexture.PixelFormat);
-                        var stencilView = _currentState.DepthStencil.MTLTexture.NewTextureView(unpackedFormat);
-                        stencilAttachment.Texture = stencilView;
+                        stencilAttachment.Texture = _currentState.DepthStencil.MTLTexture;
                         stencilAttachment.LoadAction = MTLLoadAction.Load;
                         stencilAttachment.StoreAction = MTLStoreAction.Store;
                         break;
@@ -152,6 +165,7 @@ namespace Ryujinx.Graphics.Metal
             SetDepthClamp(renderCommandEncoder);
             SetCullMode(renderCommandEncoder);
             SetFrontFace(renderCommandEncoder);
+            SetStencilRefValue(renderCommandEncoder);
             SetViewports(renderCommandEncoder);
             SetScissors(renderCommandEncoder);
             SetVertexBuffers(renderCommandEncoder, _currentState.VertexBuffers);
@@ -225,6 +239,7 @@ namespace Ryujinx.Graphics.Metal
                     pipelineAttachment.DestinationAlphaBlendFactor = MTLBlendFactor.OneMinusSourceAlpha;
                     pipelineAttachment.SourceRGBBlendFactor = MTLBlendFactor.SourceAlpha;
                     pipelineAttachment.DestinationRGBBlendFactor = MTLBlendFactor.OneMinusSourceAlpha;
+                    pipelineAttachment.WriteMask = _currentState.RenderTargetMasks[i];
 
                     if (_currentState.BlendDescriptors[i] != null)
                     {
@@ -396,6 +411,34 @@ namespace Ryujinx.Graphics.Metal
             }
         }
 
+        public void UpdateRenderTargetColorMasks(ReadOnlySpan<uint> componentMask)
+        {
+            _currentState.RenderTargetMasks = new MTLColorWriteMask[Constants.MaxColorAttachments];
+
+            for (int i = 0; i < componentMask.Length; i++)
+            {
+                bool red = (componentMask[i] & (0x1 << 0)) != 0;
+                bool green = (componentMask[i] & (0x1 << 1)) != 0;
+                bool blue = (componentMask[i] & (0x1 << 2)) != 0;
+                bool alpha = (componentMask[i] & (0x1 << 3)) != 0;
+
+                var mask = MTLColorWriteMask.None;
+
+                mask |= red ? MTLColorWriteMask.Red : 0;
+                mask |= green ? MTLColorWriteMask.Green : 0;
+                mask |= blue ? MTLColorWriteMask.Blue : 0;
+                mask |= alpha ? MTLColorWriteMask.Alpha : 0;
+
+                _currentState.RenderTargetMasks[i] = mask;
+            }
+
+            // Requires recreating pipeline
+            if (_pipeline.CurrentEncoderType == EncoderType.Render)
+            {
+                _pipeline.EndCurrentPass();
+            }
+        }
+
         public void UpdateVertexAttribs(ReadOnlySpan<VertexAttribDescriptor> vertexAttribs)
         {
             _currentState.VertexAttribs = vertexAttribs.ToArray();
@@ -452,6 +495,8 @@ namespace Ryujinx.Graphics.Metal
             }
 
             _currentState.DepthStencilState = _depthStencilCache.GetOrCreate(descriptor);
+
+            UpdateStencilRefValue(stencilTest.FrontFuncRef, stencilTest.BackFuncRef);
 
             // Mark dirty
             _currentState.Dirty.DepthStencil = true;
@@ -655,6 +700,19 @@ namespace Ryujinx.Graphics.Metal
             }
         }
 
+        private void UpdateStencilRefValue(int frontRef, int backRef)
+        {
+            _currentState.FrontRefValue = frontRef;
+            _currentState.BackRefValue = backRef;
+
+            // Inline update
+            if (_pipeline.CurrentEncoderType == EncoderType.Render && _pipeline.CurrentEncoder != null)
+            {
+                var renderCommandEncoder = new MTLRenderCommandEncoder(_pipeline.CurrentEncoder.Value);
+                SetStencilRefValue(renderCommandEncoder);
+            }
+        }
+
         // Inlineable
         public readonly void UpdateTextureAndSampler(ShaderStage stage, ulong binding, MTLTexture texture, MTLSamplerState sampler)
         {
@@ -736,20 +794,67 @@ namespace Ryujinx.Graphics.Metal
             var vertexDescriptor = new MTLVertexDescriptor();
             uint indexMask = 0;
 
-            // TODO: Handle 'zero' buffers
             for (int i = 0; i < attribDescriptors.Length; i++)
             {
-                var attrib = vertexDescriptor.Attributes.Object((ulong)i);
-                attrib.Format = attribDescriptors[i].Format.Convert();
-                indexMask |= 1u << attribDescriptors[i].BufferIndex;
-                attrib.BufferIndex = (ulong)attribDescriptors[i].BufferIndex;
-                attrib.Offset = (ulong)attribDescriptors[i].Offset;
+                if (attribDescriptors[i].IsZero)
+                {
+                    var attrib = vertexDescriptor.Attributes.Object((ulong)i);
+                    attrib.Format = attribDescriptors[i].Format.Convert();
+                    indexMask |= 1u << bufferDescriptors.Length;
+                    attrib.BufferIndex = (ulong)bufferDescriptors.Length;
+                    attrib.Offset = 0;
+                }
+                else
+                {
+                    var attrib = vertexDescriptor.Attributes.Object((ulong)i);
+                    attrib.Format = attribDescriptors[i].Format.Convert();
+                    indexMask |= 1u << attribDescriptors[i].BufferIndex;
+                    attrib.BufferIndex = (ulong)attribDescriptors[i].BufferIndex;
+                    attrib.Offset = (ulong)attribDescriptors[i].Offset;
+                }
             }
 
             for (int i = 0; i < bufferDescriptors.Length; i++)
             {
                 var layout = vertexDescriptor.Layouts.Object((ulong)i);
-                layout.Stride = (indexMask & (1u << i)) != 0 ? (ulong)bufferDescriptors[i].Stride : 0;
+
+                if ((indexMask & (1u << i)) != 0)
+                {
+                    layout.Stride = (ulong)bufferDescriptors[i].Stride;
+
+                    if (layout.Stride == 0)
+                    {
+                        layout.Stride = 1;
+                        layout.StepFunction = MTLVertexStepFunction.Constant;
+                        layout.StepRate = 0;
+                    }
+                    else
+                    {
+                        if (bufferDescriptors[i].Divisor > 0)
+                        {
+                            layout.StepFunction = MTLVertexStepFunction.PerInstance;
+                            layout.StepRate = (ulong)bufferDescriptors[i].Divisor;
+                        }
+                        else
+                        {
+                            layout.StepFunction = MTLVertexStepFunction.PerVertex;
+                            layout.StepRate = 1;
+                        }
+                    }
+                }
+                else
+                {
+                    layout.Stride = 0;
+                }
+            }
+
+            // Zero buffer
+            if ((indexMask & (1u << bufferDescriptors.Length)) != 0)
+            {
+                var layout = vertexDescriptor.Layouts.Object((ulong)bufferDescriptors.Length);
+                layout.Stride = 1;
+                layout.StepFunction = MTLVertexStepFunction.Constant;
+                layout.StepRate = 0;
             }
 
             return vertexDescriptor;
@@ -771,6 +876,14 @@ namespace Ryujinx.Graphics.Metal
                     });
                 }
             }
+
+            // Zero buffer
+            buffers.Add(new BufferInfo
+            {
+                Handle = _zeroBuffer.NativePtr,
+                Offset = 0,
+                Index = bufferDescriptors.Length
+            });
 
             SetRenderBuffers(renderCommandEncoder, buffers);
         }
@@ -804,6 +917,11 @@ namespace Ryujinx.Graphics.Metal
         private readonly void SetFrontFace(MTLRenderCommandEncoder renderCommandEncoder)
         {
             renderCommandEncoder.SetFrontFacingWinding(_currentState.Winding);
+        }
+
+        private readonly void SetStencilRefValue(MTLRenderCommandEncoder renderCommandEncoder)
+        {
+            renderCommandEncoder.SetStencilReferenceValues((uint)_currentState.FrontRefValue, (uint)_currentState.BackRefValue);
         }
 
         private static void SetRenderTextureAndSampler(MTLRenderCommandEncoder renderCommandEncoder, ShaderStage stage, MTLTexture[] textures, MTLSamplerState[] samplers)
