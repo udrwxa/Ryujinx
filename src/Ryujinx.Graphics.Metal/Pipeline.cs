@@ -272,13 +272,13 @@ namespace Ryujinx.Graphics.Metal
                 (ulong)size);
         }
 
-        public void DispatchCompute(int groupsX, int groupsY, int groupsZ)
+        public void DispatchCompute(int groupsX, int groupsY, int groupsZ, int groupSizeX, int groupSizeY, int groupSizeZ)
         {
             var computeCommandEncoder = GetOrCreateComputeEncoder();
 
             computeCommandEncoder.DispatchThreadgroups(
                 new MTLSize{width = (ulong)groupsX, height = (ulong)groupsY, depth = (ulong)groupsZ},
-                new MTLSize{width = 1, height = 1, depth = 1});
+                new MTLSize{width = (ulong)groupSizeX, height = (ulong)groupSizeY, depth = (ulong)groupSizeZ});
         }
 
         public void Draw(int vertexCount, int instanceCount, int firstVertex, int firstInstance)

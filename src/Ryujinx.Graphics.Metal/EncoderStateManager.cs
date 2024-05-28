@@ -688,7 +688,7 @@ namespace Ryujinx.Graphics.Metal
                     SetRenderTextureAndSampler(renderCommandEncoder, ShaderStage.Vertex, _currentState.VertexTextures, _currentState.VertexSamplers);
                     SetRenderTextureAndSampler(renderCommandEncoder, ShaderStage.Fragment, _currentState.FragmentTextures, _currentState.FragmentSamplers);
                 }
-                else
+                else if (_pipeline.CurrentEncoderType == EncoderType.Compute)
                 {
                     var computeCommandEncoder = new MTLComputeCommandEncoder(_pipeline.CurrentEncoder.Value);
                     SetComputeTextureAndSampler(computeCommandEncoder, _currentState.ComputeTextures, _currentState.ComputeSamplers);
