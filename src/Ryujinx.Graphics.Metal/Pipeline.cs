@@ -276,6 +276,11 @@ namespace Ryujinx.Graphics.Metal
             _helperShader.ClearDepthStencil(depthValue, depthMask, stencilValue, stencilMask, depthStencil.Width, depthStencil.Height);
         }
 
+        public void ConvertI18ToI16(MTLBuffer src, MTLBuffer dst, int srcOffset, int size)
+        {
+            _helperShader.ConvertI8ToI16(src, dst, srcOffset, size);
+        }
+
         public void CommandBufferBarrier()
         {
             Logger.Warning?.Print(LogClass.Gpu, "Not Implemented!");
@@ -418,7 +423,7 @@ namespace Ryujinx.Graphics.Metal
 
         public void SetIndexBuffer(BufferRange buffer, IndexType type)
         {
-            _encoderStateManager.UpdateIndexBuffer(buffer, type);
+            _encoderStateManager.UpdateIndexBuffer(_device, buffer, type);
         }
 
         public void SetImage(ShaderStage stage, int binding, ITexture texture, Format imageFormat)

@@ -244,7 +244,7 @@ namespace Ryujinx.Graphics.Metal
             _pipeline.GetOrCreateComputeEncoder().SetBuffer(dst, 0, 2);
 
             _pipeline.SetProgram(_programStrideChange);
-            _pipeline.DispatchCompute(1 + elems / ConvertElementsPerWorkgroup, 1, 1, 0, 0, 0);
+            _pipeline.DispatchCompute(1 + elems / ConvertElementsPerWorkgroup, 1, 1, 1, 1, 1);
 
             // Restore previous state
             _pipeline.RestoreState();

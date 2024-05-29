@@ -349,14 +349,30 @@ namespace Ryujinx.Graphics.Metal
             computeCommandEncoder.SetComputePipelineState(pipelineState);
         }
 
-        public void UpdateIndexBuffer(BufferRange buffer, IndexType type)
+        public void UpdateIndexBuffer(MTLDevice device, BufferRange buffer, IndexType type)
         {
             if (buffer.Handle != BufferHandle.Null)
             {
-                _currentState.IndexType = type.Convert();
-                _currentState.IndexBufferOffset = (ulong)buffer.Offset;
-                var handle = buffer.Handle;
-                _currentState.IndexBuffer = new(Unsafe.As<BufferHandle, IntPtr>(ref handle));
+                if (type == GAL.IndexType.UByte)
+                {
+                    var handle = buffer.Handle;
+                    MTLBuffer src = new(Unsafe.As<BufferHandle, IntPtr>(ref handle));
+                    MTLBuffer dst = device.NewBuffer(src.Length * 2, MTLResourceOptions.ResourceStorageModeShared);
+
+                    _pipeline.ConvertI18ToI16(src, dst, buffer.Offset, buffer.Size);
+
+                    _currentState.IndexBuffer = dst;
+                    _currentState.IndexType = MTLIndexType.UInt16;
+                    _currentState.IndexBufferOffset = 0;
+                }
+                else
+                {
+                    var handle = buffer.Handle;
+                    _currentState.IndexBuffer = new(Unsafe.As<BufferHandle, IntPtr>(ref handle));
+                    _currentState.IndexType = type.Convert();
+                    _currentState.IndexBufferOffset = (ulong)buffer.Offset;
+                }
+
             }
         }
 
