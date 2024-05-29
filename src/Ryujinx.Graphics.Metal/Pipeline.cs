@@ -407,10 +407,6 @@ namespace Ryujinx.Graphics.Metal
             {
                 _encoderStateManager.UpdateTexture(stage, (ulong)binding, tex.GetHandle());
             }
-            else
-            {
-                throw new NotImplementedException();
-            }
         }
 
         public void SetImageArray(ShaderStage stage, int binding, IImageArray array)
