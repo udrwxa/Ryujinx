@@ -10,10 +10,8 @@ using System.Runtime.Versioning;
 namespace Ryujinx.Graphics.Metal
 {
     [SupportedOSPlatform("macos")]
-    class Texture : TextureBase, ITexture, IDisposable
+    class Texture : TextureBase, ITexture
     {
-        private MTLTexture _mtlTexture;
-
         public Texture(MTLDevice device, Pipeline pipeline, TextureCreateInfo info) : base(device, pipeline, info)
         {
             var descriptor = new MTLTextureDescriptor
@@ -93,11 +91,6 @@ namespace Ryujinx.Graphics.Metal
                 blue = swizzleB,
                 alpha = swizzleA
             };
-        }
-
-        public override MTLTexture GetHandle()
-        {
-            return _mtlTexture;
         }
 
         public void CopyTo(ITexture destination, int firstLayer, int firstLevel)
@@ -338,16 +331,6 @@ namespace Ryujinx.Graphics.Metal
         public void SetStorage(BufferRange buffer)
         {
             throw new NotImplementedException();
-        }
-
-        public void Release()
-        {
-            Dispose();
-        }
-
-        public void Dispose()
-        {
-            _mtlTexture.Dispose();
         }
     }
 }

@@ -10,25 +10,13 @@ using System.Runtime.Versioning;
 namespace Ryujinx.Graphics.Metal
 {
     [SupportedOSPlatform("macos")]
-    class TextureBuffer : Texture, ITexture, IDisposable
+    class TextureBuffer : Texture, ITexture
     {
-        private MTLTexture? _mtlTexture;
-
         private MTLBuffer? _bufferHandle;
         private int _offset;
         private int _size;
 
         public TextureBuffer(MTLDevice device, Pipeline pipeline, TextureCreateInfo info) : base(device, pipeline, info) { }
-
-        public override MTLTexture GetHandle()
-        {
-            if (_mtlTexture == null)
-            {
-                throw new InvalidOperationException("Texture view was not created.");
-            }
-
-            return _mtlTexture.Value;
-        }
 
         public void CreateView()
         {
@@ -119,16 +107,6 @@ namespace Ryujinx.Graphics.Metal
 
                 CreateView();
             }
-        }
-
-        public void Release()
-        {
-            Dispose();
-        }
-
-        public void Dispose()
-        {
-            _mtlTexture?.Dispose();
         }
     }
 }
