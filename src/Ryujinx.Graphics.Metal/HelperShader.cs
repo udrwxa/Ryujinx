@@ -12,7 +12,9 @@ namespace Ryujinx.Graphics.Metal
     [SupportedOSPlatform("macos")]
     class HelperShader : IDisposable
     {
+        private const int ConvertElementsPerWorkgroup = 32 * 100; // Work group size of 32 times 100 elements.
         private const string ShadersSourcePath = "/Ryujinx.Graphics.Metal/Shaders";
+
         private readonly Pipeline _pipeline;
         private MTLDevice _device;
 
@@ -202,6 +204,47 @@ namespace Ryujinx.Graphics.Metal
             }
 
             _pipeline.Draw(4, 1, 0, 0);
+
+            // Restore previous state
+            _pipeline.RestoreState();
+        }
+
+        public void ConvertI8ToI16(MTLBuffer src, MTLBuffer dst, int srcOffset, int size)
+        {
+            ChangeStride(src, dst, srcOffset, size, 1, 2);
+        }
+
+        public unsafe void ChangeStride(
+            MTLBuffer src,
+            MTLBuffer dst,
+            int srcOffset,
+            int size,
+            int stride,
+            int newStride)
+        {
+            int elems = size / stride;
+
+            const int ParamsBufferSize = 16;
+
+            // Save current state
+            _pipeline.SaveAndResetState();
+
+            Span<int> shaderParams = stackalloc int[ParamsBufferSize / sizeof(int)];
+
+            shaderParams[0] = stride;
+            shaderParams[1] = newStride;
+            shaderParams[2] = size;
+            shaderParams[3] = srcOffset;
+
+            fixed (int* ptr = shaderParams)
+            {
+                _pipeline.GetOrCreateComputeEncoder().SetBytes((IntPtr)ptr, ParamsBufferSize, 0);
+            }
+            _pipeline.GetOrCreateComputeEncoder().SetBuffer(src, 0, 1);
+            _pipeline.GetOrCreateComputeEncoder().SetBuffer(dst, 0, 2);
+
+            _pipeline.SetProgram(_programStrideChange);
+            _pipeline.DispatchCompute(1 + elems / ConvertElementsPerWorkgroup, 1, 1, 0, 0, 0);
 
             // Restore previous state
             _pipeline.RestoreState();
