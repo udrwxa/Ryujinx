@@ -36,13 +36,13 @@ namespace Ryujinx.Graphics.Metal
         public MTLFunction? FragmentFunction = null;
         public MTLFunction? ComputeFunction = null;
 
-        public MTLTexture[] FragmentTextures = new MTLTexture[Constants.MaxTextures];
+        public TextureBase[] FragmentTextures = new TextureBase[Constants.MaxTextures];
         public MTLSamplerState[] FragmentSamplers = new MTLSamplerState[Constants.MaxSamplers];
 
-        public MTLTexture[] VertexTextures = new MTLTexture[Constants.MaxTextures];
+        public TextureBase[] VertexTextures = new TextureBase[Constants.MaxTextures];
         public MTLSamplerState[] VertexSamplers = new MTLSamplerState[Constants.MaxSamplers];
 
-        public MTLTexture[] ComputeTextures = new MTLTexture[Constants.MaxTextures];
+        public TextureBase[] ComputeTextures = new TextureBase[Constants.MaxTextures];
         public MTLSamplerState[] ComputeSamplers = new MTLSamplerState[Constants.MaxSamplers];
 
         public List<BufferInfo> UniformBuffers = [];
@@ -94,11 +94,11 @@ namespace Ryujinx.Graphics.Metal
         {
             // Certain state (like viewport and scissor) doesn't need to be cloned, as it is always reacreated when assigned to
             EncoderState clone = this;
-            clone.FragmentTextures = (MTLTexture[])FragmentTextures.Clone();
+            clone.FragmentTextures = (TextureBase[])FragmentTextures.Clone();
             clone.FragmentSamplers = (MTLSamplerState[])FragmentSamplers.Clone();
-            clone.VertexTextures = (MTLTexture[])VertexTextures.Clone();
+            clone.VertexTextures = (TextureBase[])VertexTextures.Clone();
             clone.VertexSamplers = (MTLSamplerState[])VertexSamplers.Clone();
-            clone.ComputeTextures = (MTLTexture[])ComputeTextures.Clone();
+            clone.ComputeTextures = (TextureBase[])ComputeTextures.Clone();
             clone.ComputeSamplers = (MTLSamplerState[])ComputeSamplers.Clone();
             clone.BlendDescriptors = (BlendDescriptor?[])BlendDescriptors.Clone();
             clone.VertexBuffers = (VertexBufferDescriptor[])VertexBuffers.Clone();

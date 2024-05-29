@@ -12,6 +12,8 @@ namespace Ryujinx.Graphics.Metal
     [SupportedOSPlatform("macos")]
     abstract class TextureBase : IDisposable
     {
+        private bool _disposed;
+
         protected readonly TextureCreateInfo _info;
         protected readonly Pipeline _pipeline;
         protected readonly MTLDevice _device;
@@ -32,9 +34,9 @@ namespace Ryujinx.Graphics.Metal
 
         public MTLTexture GetHandle()
         {
-            if (_mtlTexture == IntPtr.Zero)
+            if (_disposed)
             {
-                throw new InvalidOperationException("Texture view was not created.");
+                return new MTLTexture(IntPtr.Zero);
             }
 
             return _mtlTexture;
@@ -51,6 +53,7 @@ namespace Ryujinx.Graphics.Metal
             {
                 _mtlTexture.Dispose();
             }
+            _disposed = true;
         }
     }
 }

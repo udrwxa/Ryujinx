@@ -744,7 +744,7 @@ namespace Ryujinx.Graphics.Metal
         }
 
         // Inlineable
-        public readonly void UpdateTexture(ShaderStage stage, ulong binding, MTLTexture texture)
+        public readonly void UpdateTexture(ShaderStage stage, ulong binding, TextureBase texture)
         {
             if (binding > 30)
             {
@@ -818,7 +818,7 @@ namespace Ryujinx.Graphics.Metal
         }
 
         // Inlineable
-        public readonly void UpdateTextureAndSampler(ShaderStage stage, ulong binding, MTLTexture texture, MTLSamplerState sampler)
+        public readonly void UpdateTextureAndSampler(ShaderStage stage, ulong binding, TextureBase texture, MTLSamplerState sampler)
         {
             UpdateTexture(stage, binding, texture);
             UpdateSampler(stage, binding, sampler);
@@ -994,17 +994,23 @@ namespace Ryujinx.Graphics.Metal
             renderCommandEncoder.SetStencilReferenceValues((uint)_currentState.FrontRefValue, (uint)_currentState.BackRefValue);
         }
 
-        private static void SetRenderTexture(MTLRenderCommandEncoder renderCommandEncoder, ShaderStage stage, ulong binding, MTLTexture texture)
+        private static void SetRenderTexture(MTLRenderCommandEncoder renderCommandEncoder, ShaderStage stage, ulong binding, TextureBase texture)
         {
-            if (texture != IntPtr.Zero)
+            if (texture == null)
+            {
+                return;
+            }
+
+            var textureHandle = texture.GetHandle();
+            if (textureHandle != IntPtr.Zero)
             {
                 switch (stage)
                 {
                     case ShaderStage.Vertex:
-                        renderCommandEncoder.SetVertexTexture(texture, binding);
+                        renderCommandEncoder.SetVertexTexture(textureHandle, binding);
                         break;
                     case ShaderStage.Fragment:
-                        renderCommandEncoder.SetFragmentTexture(texture, binding);
+                        renderCommandEncoder.SetFragmentTexture(textureHandle, binding);
                         break;
                 }
             }
@@ -1026,11 +1032,17 @@ namespace Ryujinx.Graphics.Metal
             }
         }
 
-        private static void SetComputeTexture(MTLComputeCommandEncoder computeCommandEncoder, ulong binding, MTLTexture texture)
+        private static void SetComputeTexture(MTLComputeCommandEncoder computeCommandEncoder, ulong binding, TextureBase texture)
         {
-            if (texture != IntPtr.Zero)
+            if (texture == null)
             {
-                computeCommandEncoder.SetTexture(texture, binding);
+                return;
+            }
+
+            var textureHandle = texture.GetHandle();
+            if (textureHandle != IntPtr.Zero)
+            {
+                computeCommandEncoder.SetTexture(textureHandle, binding);
             }
         }
 

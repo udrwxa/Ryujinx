@@ -405,7 +405,7 @@ namespace Ryujinx.Graphics.Metal
         {
             if (texture is TextureBase tex)
             {
-                _encoderStateManager.UpdateTexture(stage, (ulong)binding, tex.GetHandle());
+                _encoderStateManager.UpdateTexture(stage, (ulong)binding, tex);
             }
         }
 
@@ -504,11 +504,10 @@ namespace Ryujinx.Graphics.Metal
             {
                 if (sampler is Sampler samp)
                 {
-                    var mtlTexture = tex.GetHandle();
                     var mtlSampler = samp.GetSampler();
                     var index = (ulong)binding;
 
-                    _encoderStateManager.UpdateTextureAndSampler(stage, index, mtlTexture, mtlSampler);
+                    _encoderStateManager.UpdateTextureAndSampler(stage, index, tex, mtlSampler);
                 }
             }
         }
