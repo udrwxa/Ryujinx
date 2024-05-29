@@ -171,8 +171,16 @@ namespace Ryujinx.Graphics.Metal
             SetVertexBuffers(renderCommandEncoder, _currentState.VertexBuffers);
             SetRenderBuffers(renderCommandEncoder, _currentState.UniformBuffers, true);
             SetRenderBuffers(renderCommandEncoder, _currentState.StorageBuffers, true);
-            SetRenderTextureAndSampler(renderCommandEncoder, ShaderStage.Vertex, _currentState.VertexTextures, _currentState.VertexSamplers);
-            SetRenderTextureAndSampler(renderCommandEncoder, ShaderStage.Fragment, _currentState.FragmentTextures, _currentState.FragmentSamplers);
+            for (ulong i = 0; i < Constants.MaxTextures; i++)
+            {
+                SetRenderTexture(renderCommandEncoder, ShaderStage.Vertex, i, _currentState.VertexTextures[i]);
+                SetRenderTexture(renderCommandEncoder, ShaderStage.Fragment, i, _currentState.FragmentTextures[i]);
+            }
+            for (ulong i = 0; i < Constants.MaxSamplers; i++)
+            {
+                SetRenderSampler(renderCommandEncoder, ShaderStage.Vertex, i, _currentState.VertexSamplers[i]);
+                SetRenderSampler(renderCommandEncoder, ShaderStage.Fragment, i, _currentState.FragmentSamplers[i]);
+            }
 
             // Cleanup
             renderPassDescriptor.Dispose();
@@ -188,8 +196,14 @@ namespace Ryujinx.Graphics.Metal
             // Rebind all the state
             SetComputeBuffers(computeCommandEncoder, _currentState.UniformBuffers);
             SetComputeBuffers(computeCommandEncoder, _currentState.StorageBuffers);
-            SetComputeTextureAndSampler(computeCommandEncoder, _currentState.ComputeTextures, _currentState.ComputeSamplers);
-            SetComputeTextureAndSampler(computeCommandEncoder, _currentState.ComputeTextures, _currentState.ComputeSamplers);
+            for (ulong i = 0; i < Constants.MaxTextures; i++)
+            {
+                SetComputeTexture(computeCommandEncoder, i, _currentState.ComputeTextures[i]);
+            }
+            for (ulong i = 0; i < Constants.MaxSamplers; i++)
+            {
+                SetComputeSampler(computeCommandEncoder, i, _currentState.ComputeSamplers[i]);
+            }
 
             // Cleanup
             descriptor.Dispose();
@@ -730,25 +744,59 @@ namespace Ryujinx.Graphics.Metal
         }
 
         // Inlineable
-        public readonly void UpdateTextureAndSampler(ShaderStage stage, ulong binding, MTLTexture texture, MTLSamplerState sampler)
+        public readonly void UpdateTexture(ShaderStage stage, ulong binding, MTLTexture texture)
         {
             if (binding > 30)
             {
-                Logger.Warning?.Print(LogClass.Gpu, $"Texture and sampler binding ({binding}) must be <= 31");
+                Logger.Warning?.Print(LogClass.Gpu, $"Texture binding ({binding}) must be <= 30");
                 return;
             }
             switch (stage)
             {
                 case ShaderStage.Fragment:
                     _currentState.FragmentTextures[binding] = texture;
-                    _currentState.FragmentSamplers[binding] = sampler;
                     break;
                 case ShaderStage.Vertex:
                     _currentState.VertexTextures[binding] = texture;
-                    _currentState.VertexSamplers[binding] = sampler;
                     break;
                 case ShaderStage.Compute:
                     _currentState.ComputeTextures[binding] = texture;
+                    break;
+            }
+
+            if (_pipeline.CurrentEncoder != null)
+            {
+                if (_pipeline.CurrentEncoderType == EncoderType.Render)
+                {
+                    var renderCommandEncoder = new MTLRenderCommandEncoder(_pipeline.CurrentEncoder.Value);
+                    SetRenderTexture(renderCommandEncoder, ShaderStage.Vertex, binding, texture);
+                    SetRenderTexture(renderCommandEncoder, ShaderStage.Fragment, binding, texture);
+                }
+                else if (_pipeline.CurrentEncoderType == EncoderType.Compute)
+                {
+                    var computeCommandEncoder = new MTLComputeCommandEncoder(_pipeline.CurrentEncoder.Value);
+                    SetComputeTexture(computeCommandEncoder, binding, texture);
+                }
+            }
+        }
+
+        // Inlineable
+        public readonly void UpdateSampler(ShaderStage stage, ulong binding, MTLSamplerState sampler)
+        {
+            if (binding > 15)
+            {
+                Logger.Warning?.Print(LogClass.Gpu, $"Sampler binding ({binding}) must be <= 15");
+                return;
+            }
+            switch (stage)
+            {
+                case ShaderStage.Fragment:
+                    _currentState.FragmentSamplers[binding] = sampler;
+                    break;
+                case ShaderStage.Vertex:
+                    _currentState.VertexSamplers[binding] = sampler;
+                    break;
+                case ShaderStage.Compute:
                     _currentState.ComputeSamplers[binding] = sampler;
                     break;
             }
@@ -758,16 +806,22 @@ namespace Ryujinx.Graphics.Metal
                 if (_pipeline.CurrentEncoderType == EncoderType.Render)
                 {
                     var renderCommandEncoder = new MTLRenderCommandEncoder(_pipeline.CurrentEncoder.Value);
-                    // TODO: Only update the new ones
-                    SetRenderTextureAndSampler(renderCommandEncoder, ShaderStage.Vertex, _currentState.VertexTextures, _currentState.VertexSamplers);
-                    SetRenderTextureAndSampler(renderCommandEncoder, ShaderStage.Fragment, _currentState.FragmentTextures, _currentState.FragmentSamplers);
+                    SetRenderSampler(renderCommandEncoder, ShaderStage.Vertex, binding, sampler);
+                    SetRenderSampler(renderCommandEncoder, ShaderStage.Fragment, binding, sampler);
                 }
                 else if (_pipeline.CurrentEncoderType == EncoderType.Compute)
                 {
                     var computeCommandEncoder = new MTLComputeCommandEncoder(_pipeline.CurrentEncoder.Value);
-                    SetComputeTextureAndSampler(computeCommandEncoder, _currentState.ComputeTextures, _currentState.ComputeSamplers);
+                    SetComputeSampler(computeCommandEncoder, binding, sampler);
                 }
             }
+        }
+
+        // Inlineable
+        public readonly void UpdateTextureAndSampler(ShaderStage stage, ulong binding, MTLTexture texture, MTLSamplerState sampler)
+        {
+            UpdateTexture(stage, binding, texture);
+            UpdateSampler(stage, binding, sampler);
         }
 
         private readonly void SetDepthStencilState(MTLRenderCommandEncoder renderCommandEncoder)
@@ -940,61 +994,51 @@ namespace Ryujinx.Graphics.Metal
             renderCommandEncoder.SetStencilReferenceValues((uint)_currentState.FrontRefValue, (uint)_currentState.BackRefValue);
         }
 
-        private static void SetRenderTextureAndSampler(MTLRenderCommandEncoder renderCommandEncoder, ShaderStage stage, MTLTexture[] textures, MTLSamplerState[] samplers)
+        private static void SetRenderTexture(MTLRenderCommandEncoder renderCommandEncoder, ShaderStage stage, ulong binding, MTLTexture texture)
         {
-            for (int i = 0; i < textures.Length; i++)
+            if (texture != IntPtr.Zero)
             {
-                var texture = textures[i];
-                if (texture != IntPtr.Zero)
+                switch (stage)
                 {
-                    switch (stage)
-                    {
-                        case ShaderStage.Vertex:
-                            renderCommandEncoder.SetVertexTexture(texture, (ulong)i);
-                            break;
-                        case ShaderStage.Fragment:
-                            renderCommandEncoder.SetFragmentTexture(texture, (ulong)i);
-                            break;
-                    }
-                }
-            }
-
-            for (int i = 0; i < samplers.Length; i++)
-            {
-                var sampler = samplers[i];
-                if (sampler != IntPtr.Zero)
-                {
-                    switch (stage)
-                    {
-                        case ShaderStage.Vertex:
-                            renderCommandEncoder.SetVertexSamplerState(sampler, (ulong)i);
-                            break;
-                        case ShaderStage.Fragment:
-                            renderCommandEncoder.SetFragmentSamplerState(sampler, (ulong)i);
-                            break;
-                    }
+                    case ShaderStage.Vertex:
+                        renderCommandEncoder.SetVertexTexture(texture, binding);
+                        break;
+                    case ShaderStage.Fragment:
+                        renderCommandEncoder.SetFragmentTexture(texture, binding);
+                        break;
                 }
             }
         }
 
-        private static void SetComputeTextureAndSampler(MTLComputeCommandEncoder computeCommandEncoder, MTLTexture[] textures, MTLSamplerState[] samplers)
+        private static void SetRenderSampler(MTLRenderCommandEncoder renderCommandEncoder, ShaderStage stage, ulong binding, MTLSamplerState sampler)
         {
-            for (int i = 0; i < textures.Length; i++)
+            if (sampler != IntPtr.Zero)
             {
-                var texture = textures[i];
-                if (texture != IntPtr.Zero)
+                switch (stage)
                 {
-                    computeCommandEncoder.SetTexture(texture, (ulong)i);
+                    case ShaderStage.Vertex:
+                        renderCommandEncoder.SetVertexSamplerState(sampler, binding);
+                        break;
+                    case ShaderStage.Fragment:
+                        renderCommandEncoder.SetFragmentSamplerState(sampler, binding);
+                        break;
                 }
             }
+        }
 
-            for (int i = 0; i < samplers.Length; i++)
+        private static void SetComputeTexture(MTLComputeCommandEncoder computeCommandEncoder, ulong binding, MTLTexture texture)
+        {
+            if (texture != IntPtr.Zero)
             {
-                var sampler = samplers[i];
-                if (sampler != IntPtr.Zero)
-                {
-                    computeCommandEncoder.SetSamplerState(sampler, (ulong)i);
-                }
+                computeCommandEncoder.SetTexture(texture, binding);
+            }
+        }
+
+        private static void SetComputeSampler(MTLComputeCommandEncoder computeCommandEncoder, ulong binding, MTLSamplerState sampler)
+        {
+            if (sampler != IntPtr.Zero)
+            {
+                computeCommandEncoder.SetSamplerState(sampler, binding);
             }
         }
     }
