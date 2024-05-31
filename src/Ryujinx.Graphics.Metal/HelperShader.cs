@@ -24,6 +24,7 @@ namespace Ryujinx.Graphics.Metal
         private readonly List<IProgram> _programsColorClear = new();
         private readonly IProgram _programDepthStencilClear;
         private readonly IProgram _programStrideChange;
+        private readonly IProgram _programConvertD32S8ToD24S8;
 
         public HelperShader(MetalRenderer renderer, MTLDevice device)
         {
@@ -61,6 +62,12 @@ namespace Ryujinx.Graphics.Metal
             _programStrideChange = new Program(
             [
                 new ShaderSource(strideChangeSource, ShaderStage.Compute, TargetLanguage.Msl)
+            ], device);
+
+            var convertD32ToD24S8Source = ReadMsl("ConvertD32S8ToD24S8.metal");
+            _programConvertD32S8ToD24S8 = new Program(
+            [
+                new ShaderSource(convertD32ToD24S8Source, ShaderStage.Compute, TargetLanguage.Msl)
             ], device);
         }
 
@@ -211,21 +218,24 @@ namespace Ryujinx.Graphics.Metal
             _pipeline.RestoreState();
         }
 
-        public void ConvertI8ToI16(MetalRenderer renderer, MTLBuffer src, MTLBuffer dst, int srcOffset, int size)
+        public void ConvertI8ToI16(MetalRenderer renderer, BufferHolder src, BufferHolder dst, int srcOffset, int size)
         {
             ChangeStride(renderer, src, dst, srcOffset, size, 1, 2);
         }
 
         public unsafe void ChangeStride(
             MetalRenderer renderer,
-            MTLBuffer src,
-            MTLBuffer dst,
+            BufferHolder src,
+            BufferHolder dst,
             int srcOffset,
             int size,
             int stride,
             int newStride)
         {
             int elems = size / stride;
+
+            var srcBuffer = src.GetBuffer();
+            var dstBuffer = dst.GetBuffer();
 
             const int ParamsBufferSize = 16;
 
@@ -244,11 +254,58 @@ namespace Ryujinx.Graphics.Metal
             buffer.Holder.SetDataUnchecked<int>(buffer.Offset, shaderParams);
 
             _pipeline.SetUniformBuffers([new BufferAssignment(0, buffer.Range)]);
-            _pipeline.GetOrCreateComputeEncoder().SetBuffer(src, 0, 1);
-            _pipeline.GetOrCreateComputeEncoder().SetBuffer(dst, 0, 2);
+
+            Span<MTLBuffer> sbRanges = new MTLBuffer[2];
+
+            sbRanges[0] = srcBuffer;
+            sbRanges[1] = dstBuffer;
+
+            _pipeline.SetStorageBuffers(1, sbRanges);
 
             _pipeline.SetProgram(_programStrideChange);
             _pipeline.DispatchCompute(1 + elems / ConvertElementsPerWorkgroup, 1, 1, 64, 1, 1);
+
+            // Restore previous state
+            _pipeline.RestoreState();
+        }
+
+        public unsafe void ConvertD32S8ToD24S8(
+            MetalRenderer renderer,
+            BufferHolder srcHolder,
+            MTLBuffer dst,
+            int pixelCount,
+            int dstOffset)
+        {
+            int inSize = pixelCount * 2 * sizeof(int);
+            int outSize = pixelCount * sizeof(int);
+
+            var src = srcHolder.GetBuffer();
+
+            const int ParamsBufferSize = sizeof(int) * 2;
+
+            Span<int> shaderParams = stackalloc int[2];
+
+            shaderParams[0] = pixelCount;
+            shaderParams[1] = dstOffset;
+
+            using var buffer = renderer.BufferManager.ReserveOrCreate(ParamsBufferSize);
+
+            buffer.Holder.SetDataUnchecked<int>(buffer.Offset, shaderParams);
+
+            // Save current state
+            _pipeline.SaveAndResetState();
+
+            _pipeline.SetUniformBuffers([new BufferAssignment(0, buffer.Range)]);
+
+            Span<MTLBuffer> sbRanges = new MTLBuffer[2];
+
+            sbRanges[0] = src;
+            sbRanges[1] = dst;
+
+            _pipeline.SetStorageBuffers(1, sbRanges);
+
+            _pipeline.SetProgram(_programConvertD32S8ToD24S8);
+            _pipeline.DispatchCompute(1 + inSize / ConvertElementsPerWorkgroup, 1, 1, 0, 0, 0);
 
             // Restore previous state
             _pipeline.RestoreState();
@@ -334,7 +391,7 @@ namespace Ryujinx.Graphics.Metal
             _pipeline.SetPrimitiveTopology(PrimitiveTopology.TriangleStrip);
             _pipeline.SetViewports(viewports);
             _pipeline.SetDepthTest(new DepthTestDescriptor(true, depthMask, CompareOp.Always));
-            // _pipeline.SetStencilTest(CreateStencilTestDescriptor(stencilMask != 0, stencilValue, 0xFF, stencilMask));
+            _pipeline.SetStencilTest(CreateStencilTestDescriptor(stencilMask != 0, stencilValue, 0xFF, stencilMask));
             _pipeline.Draw(4, 1, 0, 0);
 
             // Restore previous state

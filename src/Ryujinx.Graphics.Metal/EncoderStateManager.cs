@@ -12,6 +12,7 @@ namespace Ryujinx.Graphics.Metal
     [SupportedOSPlatform("macos")]
     struct EncoderStateManager : IDisposable
     {
+        private readonly MetalRenderer _renderer;
         private readonly Pipeline _pipeline;
 
         private readonly RenderPipelineCache _renderPipelineCache;
@@ -32,8 +33,9 @@ namespace Ryujinx.Graphics.Metal
         private const int ZeroBufferSize = 4 * 4;
         private readonly MTLBuffer _zeroBuffer;
 
-        public unsafe EncoderStateManager(MTLDevice device, Pipeline pipeline)
+        public unsafe EncoderStateManager(MTLDevice device, MetalRenderer renderer, Pipeline pipeline)
         {
+            _renderer = renderer;
             _pipeline = pipeline;
             _renderPipelineCache = new(device);
             _computePipelineCache = new(device);
@@ -675,17 +677,22 @@ namespace Ryujinx.Graphics.Metal
         {
             _currentState.UniformBuffers = [];
 
-            foreach (BufferAssignment buffer in buffers)
+            for (int i = 0; i < buffers.Length; i++)
             {
-                if (buffer.Range.Size != 0)
+                var assignment = buffers[i];
+                var buffer = assignment.Range;
+                var index = assignment.Binding;
+
+                var mtlBuffer = buffer.Handle == BufferHandle.Null
+                    ? new MTLBuffer(IntPtr.Zero)
+                    : _renderer.BufferManager.GetBuffer(buffer.Handle, buffer.Write);
+
+                _currentState.UniformBuffers.Add(new BufferInfo
                 {
-                    _currentState.UniformBuffers.Add(new BufferInfo
-                    {
-                        Handle = buffer.Range.Handle.ToIntPtr(),
-                        Offset = buffer.Range.Offset,
-                        Index = buffer.Binding
-                    });
-                }
+                    Handle = mtlBuffer,
+                    Offset = buffer.Offset,
+                    Index = index
+                });
             }
 
             // Inline update
@@ -709,18 +716,23 @@ namespace Ryujinx.Graphics.Metal
         {
             _currentState.StorageBuffers = [];
 
-            foreach (BufferAssignment buffer in buffers)
+            for (int i = 0; i < buffers.Length; i++)
             {
-                if (buffer.Range.Size != 0)
+                var assignment = buffers[i];
+                var buffer = assignment.Range;
+                var index = assignment.Binding;
+
+                var mtlBuffer = buffer.Handle == BufferHandle.Null
+                    ? new MTLBuffer(IntPtr.Zero)
+                    : _renderer.BufferManager.GetBuffer(buffer.Handle, buffer.Write);
+
+                // TODO: DONT offset the binding by 15
+                _currentState.StorageBuffers.Add(new BufferInfo
                 {
-                    // TODO: DONT offset the binding by 15
-                    _currentState.StorageBuffers.Add(new BufferInfo
-                    {
-                        Handle = buffer.Range.Handle.ToIntPtr(),
-                        Offset = buffer.Range.Offset,
-                        Index = buffer.Binding + 15
-                    });
-                }
+                    Handle = mtlBuffer,
+                    Offset = buffer.Offset,
+                    Index = index + 15
+                });
             }
 
             // Inline update

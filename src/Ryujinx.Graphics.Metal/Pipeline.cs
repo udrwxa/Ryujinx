@@ -45,7 +45,7 @@ namespace Ryujinx.Graphics.Metal
             _commandQueue = commandQueue;
 
             _commandBuffer = _commandQueue.CommandBuffer();
-            _encoderStateManager = new EncoderStateManager(_device, this);
+            _encoderStateManager = new EncoderStateManager(_device, renderer, this);
 
             EndRenderPassDelegate = EndRenderPass;
         }
@@ -317,12 +317,12 @@ namespace Ryujinx.Graphics.Metal
 
         public void ConvertI18ToI16(MTLBuffer src, MTLBuffer dst, int srcOffset, int size)
         {
-            _renderer.HelperShader.ConvertI8ToI16(
-                _renderer,
-                src,
-                dst,
-                srcOffset,
-                size);
+            // _renderer.HelperShader.ConvertI8ToI16(
+            //     _renderer,
+            //     src,
+            //     dst,
+            //     srcOffset,
+            //     size);
         }
 
         public void CommandBufferBarrier()
@@ -334,15 +334,10 @@ namespace Ryujinx.Graphics.Metal
         {
             var blitCommandEncoder = GetOrCreateBlitEncoder();
 
-            MTLBuffer sourceBuffer = new(Unsafe.As<BufferHandle, IntPtr>(ref source));
-            MTLBuffer destinationBuffer = new(Unsafe.As<BufferHandle, IntPtr>(ref destination));
+            var src = _renderer.BufferManager.GetBuffer(source, srcOffset, size, false);
+            var dst = _renderer.BufferManager.GetBuffer(destination, dstOffset, size, true);
 
-            blitCommandEncoder.CopyFromBuffer(
-                sourceBuffer,
-                (ulong)srcOffset,
-                destinationBuffer,
-                (ulong)dstOffset,
-                (ulong)size);
+            BufferHolder.Copy(src, dst, srcOffset, dstOffset, size);
         }
 
         public void DispatchCompute(int groupsX, int groupsY, int groupsZ, int groupSizeX, int groupSizeY, int groupSizeZ)
@@ -575,6 +570,11 @@ namespace Ryujinx.Graphics.Metal
         public void SetStorageBuffers(ReadOnlySpan<BufferAssignment> buffers)
         {
             _encoderStateManager.UpdateStorageBuffers(buffers);
+        }
+
+        public void SetStorageBuffers(int first, ReadOnlySpan<MTLBuffer> buffers)
+        {
+            // _encoderStateManager.UpdateStorageBuffers();
         }
 
         public void SetTextureAndSampler(ShaderStage stage, int binding, ITexture texture, ISampler sampler)

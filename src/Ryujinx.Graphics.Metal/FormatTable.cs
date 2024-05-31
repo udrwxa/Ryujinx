@@ -167,6 +167,11 @@ namespace Ryujinx.Graphics.Metal
             _table[(int)format] = mtlFormat;
         }
 
+        public static bool IsD24S8(Format format)
+        {
+            return format == Format.D24UnormS8Uint || format == Format.S8UintD24Unorm || format == Format.X8UintD24Unorm;
+        }
+
         public static MTLPixelFormat GetFormat(Format format)
         {
             var mtlFormat = _table[(int)format];

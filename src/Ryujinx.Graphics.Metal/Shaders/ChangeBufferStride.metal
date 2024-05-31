@@ -40,12 +40,12 @@ kernel void kernelMain(constant int4& stride_arguments [[buffer(0)]],
     int dstOffset = startCopy * targetStride;
 
     // Perform the copies for this region
-    for (int i=0; i<copyCount; i++) {
-        for (int j=0; j<sourceStride; j++) {
+    for (int i = 0; i < copyCount; i++) {
+        for (int j = 0; j < sourceStride; j++) {
             out_data[dstOffset++] = in_data[srcOffset++];
         }
 
-        for (int j=0; j<strideRemainder; j++) {
+        for (int j = 0; j < strideRemainder; j++) {
             out_data[dstOffset++] = uint8_t(0);
         }
     }

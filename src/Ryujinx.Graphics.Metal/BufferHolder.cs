@@ -183,10 +183,9 @@ namespace Ryujinx.Graphics.Metal
 
             if (!_cachedConvertedBuffers.TryGetValue(offset, size, key, out var holder))
             {
-                // holder = _gd.BufferManager.Create(_gd, (size * 2 + 3) & ~3, baseType: BufferAllocationType.DeviceLocal);
-                //
-                // _gd.PipelineInternal.EndRenderPass();
-                // _gd.HelperShader.ConvertI8ToI16(_gd, cbs, this, holder, offset, size);
+                holder = _renderer.BufferManager.Create((size * 2 + 3) & ~3);
+
+                _renderer.HelperShader.ConvertI8ToI16(_renderer, this, holder, offset, size);
 
                 key.SetBuffer(holder.GetBuffer());
 

@@ -12,6 +12,7 @@ namespace Ryujinx.Graphics.Metal
 
         protected readonly TextureCreateInfo _info;
         protected readonly Pipeline _pipeline;
+        protected readonly MetalRenderer _renderer;
         protected readonly MTLDevice _device;
 
         protected MTLTexture _mtlTexture;
@@ -19,11 +20,13 @@ namespace Ryujinx.Graphics.Metal
         public TextureCreateInfo Info => _info;
         public int Width => Info.Width;
         public int Height => Info.Height;
-        public int Depth => Info.Depth;
+        public int Layers => Info.GetDepthOrLayers();
+        public MTLPixelFormat MTLFormat { get; }
 
-        public TextureBase(MTLDevice device, Pipeline pipeline, TextureCreateInfo info)
+        public TextureBase(MTLDevice device, MetalRenderer renderer, Pipeline pipeline, TextureCreateInfo info)
         {
             _device = device;
+            _renderer = renderer;
             _pipeline = pipeline;
             _info = info;
         }
