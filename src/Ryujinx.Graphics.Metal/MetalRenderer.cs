@@ -2,7 +2,6 @@ using Ryujinx.Common.Configuration;
 using Ryujinx.Common.Logging;
 using Ryujinx.Graphics.GAL;
 using Ryujinx.Graphics.Shader.Translation;
-using SharpMetal.Foundation;
 using SharpMetal.Metal;
 using SharpMetal.QuartzCore;
 using System;
@@ -20,6 +19,7 @@ namespace Ryujinx.Graphics.Metal
 
         private Pipeline _pipeline;
         private Window _window;
+        internal BufferManager BufferManager { get; private set; }
 
         public event EventHandler<ScreenCaptureImageInfo> ScreenCaptured;
         public bool PreferThreading => true;
@@ -47,18 +47,12 @@ namespace Ryujinx.Graphics.Metal
 
             _window = new Window(this, layer);
             _pipeline = new Pipeline(_device, _queue);
+            BufferManager = new BufferManager(this, _device);
         }
 
         public void BackgroundContextAction(Action action, bool alwaysBackground = false)
         {
             Logger.Warning?.Print(LogClass.Gpu, "Not Implemented!");
-        }
-
-        public BufferHandle CreateBuffer(IntPtr pointer, int size)
-        {
-            var buffer = _device.NewBuffer(pointer, (ulong)size, MTLResourceOptions.ResourceStorageModeShared);
-            var bufferPtr = buffer.NativePtr;
-            return Unsafe.As<IntPtr, BufferHandle>(ref bufferPtr);
         }
 
         public BufferHandle CreateBufferSparse(ReadOnlySpan<BufferRange> storageBuffers)
@@ -73,12 +67,14 @@ namespace Ryujinx.Graphics.Metal
 
         public BufferHandle CreateBuffer(int size, BufferAccess access)
         {
-            var buffer = _device.NewBuffer((ulong)size, MTLResourceOptions.ResourceStorageModeShared);
-            buffer.SetPurgeableState(MTLPurgeableState.NonVolatile);
-
-            var bufferPtr = buffer.NativePtr;
-            return Unsafe.As<IntPtr, BufferHandle>(ref bufferPtr);
+            return BufferManager.CreateWithHandle(size);
         }
+
+        public BufferHandle CreateBuffer(nint pointer, int size)
+        {
+            return BufferManager.CreateHostImported(pointer, size);
+        }
+
 
         public IProgram CreateProgram(ShaderSource[] shaders, ShaderInfo info)
         {
@@ -118,14 +114,12 @@ namespace Ryujinx.Graphics.Metal
 
         public void DeleteBuffer(BufferHandle buffer)
         {
-            MTLBuffer mtlBuffer = new(Unsafe.As<BufferHandle, IntPtr>(ref buffer));
-            mtlBuffer.SetPurgeableState(MTLPurgeableState.Empty);
+            BufferManager.Delete(buffer);
         }
 
-        public unsafe PinnedSpan<byte> GetBufferData(BufferHandle buffer, int offset, int size)
+        public PinnedSpan<byte> GetBufferData(BufferHandle buffer, int offset, int size)
         {
-            MTLBuffer mtlBuffer = new(Unsafe.As<BufferHandle, IntPtr>(ref buffer));
-            return new PinnedSpan<byte>(IntPtr.Add(mtlBuffer.Contents, offset).ToPointer(), size);
+            return BufferManager.GetData(buffer, offset, size);
         }
 
         public Capabilities GetCapabilities()
@@ -212,18 +206,9 @@ namespace Ryujinx.Graphics.Metal
             throw new NotImplementedException();
         }
 
-        public unsafe void SetBufferData(BufferHandle buffer, int offset, ReadOnlySpan<byte> data)
+        public void SetBufferData(BufferHandle buffer, int offset, ReadOnlySpan<byte> data)
         {
-            var blitEncoder = _pipeline.GetOrCreateBlitEncoder();
-
-            using MTLBuffer src = _device.NewBuffer((ulong)data.Length, MTLResourceOptions.ResourceStorageModeManaged);
-            {
-                var span = new Span<byte>(src.Contents.ToPointer(), data.Length);
-                data.CopyTo(span);
-
-                MTLBuffer dst = new(Unsafe.As<BufferHandle, IntPtr>(ref buffer));
-                blitEncoder.CopyFromBuffer(src, 0, dst, (ulong)offset, (ulong)data.Length);
-            }
+            BufferManager.SetData(buffer, offset, data, _pipeline.EndRenderPassDelegate);
         }
 
         public void UpdateCounters()

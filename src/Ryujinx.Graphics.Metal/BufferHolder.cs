@@ -41,6 +41,26 @@ namespace Ryujinx.Graphics.Metal
             return _mtlBuffer;
         }
 
+        public MTLBuffer GetBuffer(bool isWrite = false)
+        {
+            if (isWrite)
+            {
+                SignalWrite(0, Size);
+            }
+
+            return _mtlBuffer;
+        }
+
+        public MTLBuffer GetBuffer(int offset, int size, bool isWrite = false)
+        {
+            if (isWrite)
+            {
+                SignalWrite(offset, size);
+            }
+
+            return _mtlBuffer;
+        }
+
         public void SignalWrite(int offset, int size)
         {
             if (offset == 0 && size == Size)
@@ -79,7 +99,7 @@ namespace Ryujinx.Graphics.Metal
             throw new NullReferenceException("Buffer is not mapped!");
         }
 
-        public unsafe void SetData(int offset, ReadOnlySpan<byte> data)
+        public unsafe void SetData(int offset, ReadOnlySpan<byte> data, Action endRenderPass = null)
         {
             int dataSize = Math.Min(data.Length, Size - offset);
             if (dataSize == 0)
@@ -134,6 +154,16 @@ namespace Ryujinx.Graphics.Metal
             }
 
             throw new InvalidOperationException("Failed to read buffer data.");
+        }
+
+        public static unsafe void Copy(
+            MTLBuffer src,
+            MTLBuffer dst,
+            int srcOffset,
+            int dstOffset,
+            int size)
+        {
+
         }
 
         public MTLBuffer GetBufferI8ToI16(int offset, int size)

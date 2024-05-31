@@ -25,6 +25,8 @@ namespace Ryujinx.Graphics.Metal
         private readonly MTLCommandQueue _commandQueue;
         private readonly HelperShader _helperShader;
 
+        public readonly Action EndRenderPassDelegate;
+
         private MTLCommandBuffer _commandBuffer;
         public MTLCommandBuffer CommandBuffer => _commandBuffer;
 
@@ -44,6 +46,8 @@ namespace Ryujinx.Graphics.Metal
 
             _commandBuffer = _commandQueue.CommandBuffer();
             _encoderStateManager = new EncoderStateManager(_device, this);
+
+            EndRenderPassDelegate = EndRenderPass;
         }
 
         public void SaveState()
@@ -135,6 +139,16 @@ namespace Ryujinx.Graphics.Metal
                         throw new ArgumentOutOfRangeException();
                 }
 
+                _currentEncoderType = EncoderType.None;
+            }
+        }
+
+        public void EndRenderPass()
+        {
+            if (_currentEncoder != null && _currentEncoderType == EncoderType.Render)
+            {
+                new MTLRenderCommandEncoder(_currentEncoder.Value).EndEncoding();
+                _currentEncoder = null;
                 _currentEncoderType = EncoderType.None;
             }
         }
