@@ -1,3 +1,4 @@
+using Ryujinx.Common.Logging;
 using Ryujinx.Graphics.GAL;
 using SharpMetal.Metal;
 using System;
@@ -63,13 +64,16 @@ namespace Ryujinx.Graphics.Metal
         {
             var buffer = _device.NewBuffer((ulong)size, MTLResourceOptions.ResourceStorageModeShared);
 
-            var holder = new BufferHolder(_renderer, _device, buffer, size);
+            if (buffer != IntPtr.Zero)
+            {
+                var holder = new BufferHolder(_renderer, _device, buffer, size);
 
-            BufferCount++;
+                return holder;
+            }
 
-            _buffers.Add(holder);
+            Logger.Error?.Print(LogClass.Gpu, $"Failed to create buffer with size 0x{size:X}.");
 
-            return holder;
+            return null;
         }
 
         public BufferHandle CreateHostImported(nint pointer, int size)
@@ -115,6 +119,7 @@ namespace Ryujinx.Graphics.Metal
             }
             else
             {
+                // Create a temporary buffer.
                 BufferHandle handle = CreateWithHandle(size, out BufferHolder holder);
 
                 return new ScopedTemporaryBuffer(this, holder, handle, 0, size, false);

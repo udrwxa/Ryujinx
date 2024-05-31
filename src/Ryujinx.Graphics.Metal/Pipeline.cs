@@ -21,6 +21,7 @@ namespace Ryujinx.Graphics.Metal
     [SupportedOSPlatform("macos")]
     class Pipeline : IPipeline, IDisposable
     {
+        private readonly MetalRenderer _renderer;
         private readonly MTLDevice _device;
         private readonly MTLCommandQueue _commandQueue;
         private readonly HelperShader _helperShader;
@@ -38,11 +39,10 @@ namespace Ryujinx.Graphics.Metal
 
         private EncoderStateManager _encoderStateManager;
 
-        public Pipeline(MTLDevice device, MTLCommandQueue commandQueue)
+        public Pipeline(MetalRenderer renderer, MTLDevice device, MTLCommandQueue commandQueue)
         {
             _device = device;
             _commandQueue = commandQueue;
-            _helperShader = new HelperShader(_device, this);
 
             _commandBuffer = _commandQueue.CommandBuffer();
             _encoderStateManager = new EncoderStateManager(_device, this);
@@ -194,7 +194,13 @@ namespace Ryujinx.Graphics.Metal
             var textureInfo = new TextureCreateInfo((int)drawable.Texture.Width, (int)drawable.Texture.Height, (int)drawable.Texture.Depth, (int)drawable.Texture.MipmapLevelCount, (int)drawable.Texture.SampleCount, 0, 0, 0, Format.B8G8R8A8Unorm, 0, Target.Texture2D, SwizzleComponent.Red, SwizzleComponent.Green, SwizzleComponent.Blue, SwizzleComponent.Alpha);
             var dst = new Texture(_device, this, textureInfo, drawable.Texture, 0, 0);
 
-            _helperShader.BlitColor(src, dst, srcRegion, dstRegion, isLinear);
+            _renderer.HelperShader.BlitColor(
+                _renderer,
+                src,
+                dst,
+                srcRegion,
+                dstRegion,
+                isLinear);
 
             EndCurrentPass();
 
@@ -214,7 +220,13 @@ namespace Ryujinx.Graphics.Metal
             Extents2D dstRegion,
             bool linearFilter)
         {
-            _helperShader.BlitColor(src, dst, srcRegion, dstRegion, linearFilter);
+            _renderer.HelperShader.BlitColor(
+                _renderer,
+                src,
+                dst,
+                srcRegion,
+                dstRegion,
+                linearFilter);
         }
 
         public void Barrier()
@@ -273,7 +285,13 @@ namespace Ryujinx.Graphics.Metal
                 return;
             }
 
-            _helperShader.ClearColor(index, colors, componentMask, dst.Width, dst.Height);
+            _renderer.HelperShader.Clear(
+                _renderer,
+                index,
+                colors,
+                componentMask,
+                dst.Width,
+                dst.Height);
         }
 
         public void ClearRenderTargetDepthStencil(int layer, int layerCount, float depthValue, bool depthMask, int stencilValue, int stencilMask)
@@ -287,12 +305,24 @@ namespace Ryujinx.Graphics.Metal
                 return;
             }
 
-            _helperShader.ClearDepthStencil(depthValue, depthMask, stencilValue, stencilMask, depthStencil.Width, depthStencil.Height);
+            _renderer.HelperShader.Clear(
+                _renderer,
+                depthValue,
+                depthMask,
+                stencilValue,
+                stencilMask,
+                depthStencil.Width,
+                depthStencil.Height);
         }
 
         public void ConvertI18ToI16(MTLBuffer src, MTLBuffer dst, int srcOffset, int size)
         {
-            _helperShader.ConvertI8ToI16(src, dst, srcOffset, size);
+            _renderer.HelperShader.ConvertI8ToI16(
+                _renderer,
+                src,
+                dst,
+                srcOffset,
+                size);
         }
 
         public void CommandBufferBarrier()
@@ -387,7 +417,12 @@ namespace Ryujinx.Graphics.Metal
 
         public void DrawTexture(ITexture texture, ISampler sampler, Extents2DF srcRegion, Extents2DF dstRegion)
         {
-            _helperShader.DrawTexture(texture, sampler, srcRegion, dstRegion);
+            _renderer.HelperShader.DrawTexture(
+                _renderer,
+                texture,
+                sampler,
+                srcRegion,
+                dstRegion);
         }
 
         public void SetAlphaTest(bool enable, float reference, CompareOp op)

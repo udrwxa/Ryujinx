@@ -25,10 +25,9 @@ namespace Ryujinx.Graphics.Metal
         private readonly IProgram _programDepthStencilClear;
         private readonly IProgram _programStrideChange;
 
-        public HelperShader(MTLDevice device, Pipeline pipeline)
+        public HelperShader(MetalRenderer renderer, MTLDevice device)
         {
             _device = device;
-            _pipeline = pipeline;
 
             _samplerNearest = new Sampler(_device, SamplerCreateInfo.Create(MinFilter.Nearest, MagFilter.Nearest));
             _samplerLinear = new Sampler(_device, SamplerCreateInfo.Create(MinFilter.Linear, MagFilter.Linear));
@@ -71,6 +70,7 @@ namespace Ryujinx.Graphics.Metal
         }
 
         public unsafe void BlitColor(
+            MetalRenderer renderer,
             ITexture src,
             ITexture dst,
             Extents2D srcRegion,
@@ -98,13 +98,19 @@ namespace Ryujinx.Graphics.Metal
                 (region[2], region[3]) = (region[3], region[2]);
             }
 
+            using var buffer = renderer.BufferManager.ReserveOrCreate(RegionBufferSize);
+
+            buffer.Holder.SetDataUnchecked<float>(buffer.Offset, region);
+
+            _pipeline.SetUniformBuffers([new BufferAssignment(1, buffer.Range)]);
+
+            Span<Viewport> viewports = stackalloc Viewport[1];
+
             var rect = new Rectangle<float>(
                 MathF.Min(dstRegion.X1, dstRegion.X2),
                 MathF.Min(dstRegion.Y1, dstRegion.Y2),
                 MathF.Abs(dstRegion.X2 - dstRegion.X1),
                 MathF.Abs(dstRegion.Y2 - dstRegion.Y1));
-
-            Span<Viewport> viewports = stackalloc Viewport[1];
 
             viewports[0] = new Viewport(
                 rect,
@@ -128,12 +134,6 @@ namespace Ryujinx.Graphics.Metal
             _pipeline.SetClearLoadAction(true);
             _pipeline.SetTextureAndSampler(ShaderStage.Fragment, 0, src, sampler);
             _pipeline.SetPrimitiveTopology(PrimitiveTopology.TriangleStrip);
-
-            fixed (float* ptr = region)
-            {
-                _pipeline.GetOrCreateRenderEncoder().SetVertexBytes((IntPtr)ptr, RegionBufferSize, 0);
-            }
-
             _pipeline.Draw(4, 1, 0, 0);
 
             // Restore previous state
@@ -141,6 +141,7 @@ namespace Ryujinx.Graphics.Metal
         }
 
         public unsafe void DrawTexture(
+            MetalRenderer renderer,
             ITexture src,
             ISampler srcSampler,
             Extents2DF srcRegion,
@@ -165,8 +166,13 @@ namespace Ryujinx.Graphics.Metal
                 (region[2], region[3]) = (region[3], region[2]);
             }
 
+            var bufferHandle = renderer.BufferManager.CreateWithHandle(RegionBufferSize);
+
+            renderer.BufferManager.SetData<float>(bufferHandle, 0, region);
+
+            _pipeline.SetUniformBuffers([new BufferAssignment(1, new BufferRange(bufferHandle, 0, RegionBufferSize))]);
+
             Span<Viewport> viewports = stackalloc Viewport[1];
-            Span<Rectangle<int>> scissors = stackalloc Rectangle<int>[1];
 
             var rect = new Rectangle<float>(
                 MathF.Min(dstRegion.X1, dstRegion.X2),
@@ -183,6 +189,8 @@ namespace Ryujinx.Graphics.Metal
                 0f,
                 1f);
 
+            Span<Rectangle<int>> scissors = stackalloc Rectangle<int>[1];
+
             scissors[0] = new Rectangle<int>(0, 0, 0xFFFF, 0xFFFF);
 
             // Save current state
@@ -197,24 +205,19 @@ namespace Ryujinx.Graphics.Metal
             // For some reason this results in a SIGSEGV
             // _pipeline.SetStencilTest(CreateStencilTestDescriptor(false));
             _pipeline.SetDepthTest(new DepthTestDescriptor(false, false, CompareOp.Always));
-
-            fixed (float* ptr = region)
-            {
-                _pipeline.GetOrCreateRenderEncoder().SetVertexBytes((IntPtr)ptr, RegionBufferSize, 0);
-            }
-
             _pipeline.Draw(4, 1, 0, 0);
 
             // Restore previous state
             _pipeline.RestoreState();
         }
 
-        public void ConvertI8ToI16(MTLBuffer src, MTLBuffer dst, int srcOffset, int size)
+        public void ConvertI8ToI16(MetalRenderer renderer, MTLBuffer src, MTLBuffer dst, int srcOffset, int size)
         {
-            ChangeStride(src, dst, srcOffset, size, 1, 2);
+            ChangeStride(renderer, src, dst, srcOffset, size, 1, 2);
         }
 
         public unsafe void ChangeStride(
+            MetalRenderer renderer,
             MTLBuffer src,
             MTLBuffer dst,
             int srcOffset,
@@ -236,10 +239,11 @@ namespace Ryujinx.Graphics.Metal
             shaderParams[2] = size;
             shaderParams[3] = srcOffset;
 
-            fixed (int* ptr = shaderParams)
-            {
-                _pipeline.GetOrCreateComputeEncoder().SetBytes((IntPtr)ptr, ParamsBufferSize, 0);
-            }
+            using var buffer = renderer.BufferManager.ReserveOrCreate(ParamsBufferSize);
+
+            buffer.Holder.SetDataUnchecked<int>(buffer.Offset, shaderParams);
+
+            _pipeline.SetUniformBuffers([new BufferAssignment(0, buffer.Range)]);
             _pipeline.GetOrCreateComputeEncoder().SetBuffer(src, 0, 1);
             _pipeline.GetOrCreateComputeEncoder().SetBuffer(dst, 0, 2);
 
@@ -250,7 +254,8 @@ namespace Ryujinx.Graphics.Metal
             _pipeline.RestoreState();
         }
 
-        public unsafe void ClearColor(
+        public unsafe void Clear(
+            MetalRenderer renderer,
             int index,
             ReadOnlySpan<float> clearColor,
             uint componentMask,
@@ -262,9 +267,14 @@ namespace Ryujinx.Graphics.Metal
             // Save current state
             _pipeline.SaveState();
 
+            using var buffer = renderer.BufferManager.ReserveOrCreate(ClearColorBufferSize);
+
+            buffer.Holder.SetDataUnchecked(buffer.Offset, clearColor);
+
+            _pipeline.SetUniformBuffers([new BufferAssignment(1, buffer.Range)]);
+
             Span<Viewport> viewports = stackalloc Viewport[1];
 
-            // TODO: Set exact viewport!
             viewports[0] = new Viewport(
                 new Rectangle<float>(0, 0, dstWidth, dstHeight),
                 ViewportSwizzle.PositiveX,
@@ -281,19 +291,14 @@ namespace Ryujinx.Graphics.Metal
             _pipeline.SetRenderTargetColorMasks([componentMask]);
             _pipeline.SetPrimitiveTopology(PrimitiveTopology.TriangleStrip);
             _pipeline.SetViewports(viewports);
-
-            fixed (float* ptr = clearColor)
-            {
-                _pipeline.GetOrCreateRenderEncoder().SetFragmentBytes((IntPtr)ptr, ClearColorBufferSize, 0);
-            }
-
             _pipeline.Draw(4, 1, 0, 0);
 
             // Restore previous state
             _pipeline.RestoreState();
         }
 
-        public unsafe void ClearDepthStencil(
+        public unsafe void Clear(
+            MetalRenderer renderer,
             float depthValue,
             bool depthMask,
             int stencilValue,
@@ -303,10 +308,14 @@ namespace Ryujinx.Graphics.Metal
         {
             const int ClearDepthBufferSize = 4;
 
-            IntPtr ptr = new(&depthValue);
-
             // Save current state
             _pipeline.SaveState();
+
+            using var buffer = renderer.BufferManager.ReserveOrCreate(ClearDepthBufferSize);
+
+            buffer.Holder.SetDataUnchecked<float>(buffer.Offset, stackalloc float[] { depthValue });
+
+            _pipeline.SetUniformBuffers([new BufferAssignment(1, buffer.Range)]);
 
             Span<Viewport> viewports = stackalloc Viewport[1];
 
@@ -326,7 +335,6 @@ namespace Ryujinx.Graphics.Metal
             _pipeline.SetViewports(viewports);
             _pipeline.SetDepthTest(new DepthTestDescriptor(true, depthMask, CompareOp.Always));
             // _pipeline.SetStencilTest(CreateStencilTestDescriptor(stencilMask != 0, stencilValue, 0xFF, stencilMask));
-            _pipeline.GetOrCreateRenderEncoder().SetFragmentBytes(ptr, ClearDepthBufferSize, 0);
             _pipeline.Draw(4, 1, 0, 0);
 
             // Restore previous state

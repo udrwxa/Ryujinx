@@ -5,7 +5,6 @@ using Ryujinx.Graphics.Shader.Translation;
 using SharpMetal.Metal;
 using SharpMetal.QuartzCore;
 using System;
-using System.Runtime.CompilerServices;
 using System.Runtime.Versioning;
 
 namespace Ryujinx.Graphics.Metal
@@ -19,7 +18,9 @@ namespace Ryujinx.Graphics.Metal
 
         private Pipeline _pipeline;
         private Window _window;
+
         internal BufferManager BufferManager { get; private set; }
+        internal HelperShader HelperShader { get; private set; }
 
         public event EventHandler<ScreenCaptureImageInfo> ScreenCaptured;
         public bool PreferThreading => true;
@@ -46,8 +47,10 @@ namespace Ryujinx.Graphics.Metal
             layer.FramebufferOnly = false;
 
             _window = new Window(this, layer);
-            _pipeline = new Pipeline(_device, _queue);
+            _pipeline = new Pipeline(this, _device, _queue);
+
             BufferManager = new BufferManager(this, _device);
+            HelperShader = new HelperShader(this, _device);
         }
 
         public void BackgroundContextAction(Action action, bool alwaysBackground = false)

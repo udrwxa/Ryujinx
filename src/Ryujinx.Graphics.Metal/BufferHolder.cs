@@ -2,6 +2,7 @@ using Ryujinx.Graphics.GAL;
 using SharpMetal.Metal;
 using System;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 
 namespace Ryujinx.Graphics.Metal
@@ -41,7 +42,7 @@ namespace Ryujinx.Graphics.Metal
             return _mtlBuffer;
         }
 
-        public MTLBuffer GetBuffer(bool isWrite = false)
+        public MTLBuffer GetBuffer(bool isWrite)
         {
             if (isWrite)
             {
@@ -142,6 +143,11 @@ namespace Ryujinx.Graphics.Metal
             {
                 data[..dataSize].CopyTo(new Span<byte>((void*)(_map + offset), dataSize));
             }
+        }
+
+        public void SetDataUnchecked<T>(int offset, ReadOnlySpan<T> data) where T : unmanaged
+        {
+            SetDataUnchecked(offset, MemoryMarshal.AsBytes(data));
         }
 
         public unsafe Span<byte> GetDataStorage(int offset, int size)
