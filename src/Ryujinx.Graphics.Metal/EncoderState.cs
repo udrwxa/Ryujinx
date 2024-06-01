@@ -38,10 +38,10 @@ namespace Ryujinx.Graphics.Metal
         public TextureBase[] ComputeTextures = new TextureBase[Constants.MaxTextures];
         public MTLSamplerState[] ComputeSamplers = new MTLSamplerState[Constants.MaxSamplers];
 
-        public List<BufferInfo> UniformBuffers = [];
-        public List<BufferInfo> StorageBuffers = [];
+        public BufferAssignment[] UniformBuffers = [];
+        public BufferAssignment[] StorageBuffers = [];
 
-        public MTLBuffer IndexBuffer = default;
+        public BufferRange IndexBuffer = default;
         public MTLIndexType IndexType = MTLIndexType.UInt16;
         public ulong IndexBufferOffset = 0;
 

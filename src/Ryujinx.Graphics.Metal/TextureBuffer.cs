@@ -14,7 +14,7 @@ namespace Ryujinx.Graphics.Metal
         private int _offset;
         private int _size;
 
-        public TextureBuffer(MTLDevice device, Pipeline pipeline, TextureCreateInfo info) : base(device, pipeline, info) { }
+        public TextureBuffer(MTLDevice device, MetalRenderer renderer, Pipeline pipeline, TextureCreateInfo info) : base(device, renderer, pipeline, info) { }
 
         public void CreateView()
         {

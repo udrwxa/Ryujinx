@@ -10,7 +10,7 @@ using System.Runtime.Versioning;
 
 namespace Ryujinx.Graphics.Metal
 {
-    enum EncoderType
+    public enum EncoderType
     {
         Blit,
         Compute,
@@ -19,11 +19,11 @@ namespace Ryujinx.Graphics.Metal
     }
 
     [SupportedOSPlatform("macos")]
-    class Pipeline : IPipeline, IDisposable
+    public class Pipeline : IPipeline, IDisposable
     {
         private readonly MTLDevice _device;
         private readonly MTLCommandQueue _commandQueue;
-        private readonly HelperShader _helperShader;
+        private readonly MetalRenderer _renderer;
 
         private MTLCommandBuffer _commandBuffer;
         public MTLCommandBuffer CommandBuffer => _commandBuffer;
@@ -36,14 +36,14 @@ namespace Ryujinx.Graphics.Metal
 
         private EncoderStateManager _encoderStateManager;
 
-        public Pipeline(MTLDevice device, MTLCommandQueue commandQueue)
+        public Pipeline(MTLDevice device, MetalRenderer renderer, MTLCommandQueue commandQueue)
         {
             _device = device;
+            _renderer = renderer;
             _commandQueue = commandQueue;
-            _helperShader = new HelperShader(_device, this);
 
             _commandBuffer = _commandQueue.CommandBuffer();
-            _encoderStateManager = new EncoderStateManager(_device, this);
+            _encoderStateManager = new EncoderStateManager(_device, _renderer, this);
         }
 
         public void SaveState()
@@ -178,9 +178,9 @@ namespace Ryujinx.Graphics.Metal
         {
             // TODO: Clean this up
             var textureInfo = new TextureCreateInfo((int)drawable.Texture.Width, (int)drawable.Texture.Height, (int)drawable.Texture.Depth, (int)drawable.Texture.MipmapLevelCount, (int)drawable.Texture.SampleCount, 0, 0, 0, Format.B8G8R8A8Unorm, 0, Target.Texture2D, SwizzleComponent.Red, SwizzleComponent.Green, SwizzleComponent.Blue, SwizzleComponent.Alpha);
-            var dst = new Texture(_device, this, textureInfo, drawable.Texture, 0, 0);
+            var dst = new Texture(_device, _renderer, this, textureInfo, drawable.Texture, 0, 0);
 
-            _helperShader.BlitColor(src, dst, srcRegion, dstRegion, isLinear);
+            _renderer.HelperShader.BlitColor(src, dst, srcRegion, dstRegion, isLinear);
 
             EndCurrentPass();
 
@@ -200,7 +200,7 @@ namespace Ryujinx.Graphics.Metal
             Extents2D dstRegion,
             bool linearFilter)
         {
-            _helperShader.BlitColor(src, dst, srcRegion, dstRegion, linearFilter);
+            _renderer.HelperShader.BlitColor(src, dst, srcRegion, dstRegion, linearFilter);
         }
 
         public void Barrier()
@@ -235,10 +235,11 @@ namespace Ryujinx.Graphics.Metal
         {
             var blitCommandEncoder = GetOrCreateBlitEncoder();
 
+            var mtlBuffer = _renderer.BufferManager.GetBuffer(destination, offset, size, true);
+
             // Might need a closer look, range's count, lower, and upper bound
             // must be a multiple of 4
-            MTLBuffer mtlBuffer = new(Unsafe.As<BufferHandle, IntPtr>(ref destination));
-            blitCommandEncoder.FillBuffer(mtlBuffer,
+            blitCommandEncoder.FillBuffer(mtlBuffer.Value,
                 new NSRange
                 {
                     location = (ulong)offset,
@@ -259,7 +260,7 @@ namespace Ryujinx.Graphics.Metal
                 return;
             }
 
-            _helperShader.ClearColor(index, colors, componentMask, dst.Width, dst.Height);
+            _renderer.HelperShader.ClearColor(index, colors, componentMask, dst.Width, dst.Height);
         }
 
         public void ClearRenderTargetDepthStencil(int layer, int layerCount, float depthValue, bool depthMask, int stencilValue, int stencilMask)
@@ -273,7 +274,7 @@ namespace Ryujinx.Graphics.Metal
                 return;
             }
 
-            _helperShader.ClearDepthStencil(depthValue, depthMask, stencilValue, stencilMask, depthStencil.Width, depthStencil.Height);
+            _renderer.HelperShader.ClearDepthStencil(depthValue, depthMask, stencilValue, stencilMask, depthStencil.Width, depthStencil.Height);
         }
 
         public void CommandBufferBarrier()
@@ -281,19 +282,12 @@ namespace Ryujinx.Graphics.Metal
             Logger.Warning?.Print(LogClass.Gpu, "Not Implemented!");
         }
 
-        public void CopyBuffer(BufferHandle source, BufferHandle destination, int srcOffset, int dstOffset, int size)
+        public void CopyBuffer(BufferHandle src, BufferHandle dst, int srcOffset, int dstOffset, int size)
         {
-            var blitCommandEncoder = GetOrCreateBlitEncoder();
+            var srcBuffer = _renderer.BufferManager.GetBuffer(src, srcOffset, size, false);
+            var dstBuffer = _renderer.BufferManager.GetBuffer(src, dstOffset, size, true);
 
-            MTLBuffer sourceBuffer = new(Unsafe.As<BufferHandle, IntPtr>(ref source));
-            MTLBuffer destinationBuffer = new(Unsafe.As<BufferHandle, IntPtr>(ref destination));
-
-            blitCommandEncoder.CopyFromBuffer(
-                sourceBuffer,
-                (ulong)srcOffset,
-                destinationBuffer,
-                (ulong)dstOffset,
-                (ulong)size);
+            BufferHolder.Copy(this, srcBuffer.Value, dstBuffer.Value, srcOffset, dstOffset, size);
         }
 
         public void DispatchCompute(int groupsX, int groupsY, int groupsZ, int groupSizeX, int groupSizeY, int groupSizeZ)
@@ -327,11 +321,13 @@ namespace Ryujinx.Graphics.Metal
             // TODO: Support topology re-indexing to provide support for TriangleFans
             var primitiveType = _encoderStateManager.Topology.Convert();
 
+            var indexBuffer = _renderer.BufferManager.GetBuffer(_encoderStateManager.IndexBuffer.Handle, false, out _);
+
             renderCommandEncoder.DrawIndexedPrimitives(
                 primitiveType,
                 (ulong)indexCount,
                 _encoderStateManager.IndexType,
-                _encoderStateManager.IndexBuffer,
+                indexBuffer.Value,
                 _encoderStateManager.IndexBufferOffset,
                 (ulong)instanceCount,
                 firstVertex,
@@ -368,7 +364,7 @@ namespace Ryujinx.Graphics.Metal
 
         public void DrawTexture(ITexture texture, ISampler sampler, Extents2DF srcRegion, Extents2DF dstRegion)
         {
-            _helperShader.DrawTexture(texture, sampler, srcRegion, dstRegion);
+            _renderer.HelperShader.DrawTexture(texture, sampler, srcRegion, dstRegion);
         }
 
         public void SetAlphaTest(bool enable, float reference, CompareOp op)
