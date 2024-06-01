@@ -28,7 +28,7 @@ namespace Ryujinx.Graphics.Metal
 
             Size = size;
 
-            _map = buffer.NativePtr + offset;
+            _map = buffer.Contents + offset;
         }
 
         public BufferHandle GetHandle()
