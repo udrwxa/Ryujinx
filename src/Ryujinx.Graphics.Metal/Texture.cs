@@ -1,3 +1,4 @@
+using Ryujinx.Common.Logging;
 using Ryujinx.Graphics.GAL;
 using SharpMetal.Foundation;
 using SharpMetal.Metal;
@@ -172,7 +173,13 @@ namespace Ryujinx.Graphics.Metal
 
             var buffer = _renderer.BufferManager.GetBuffer(range.Handle, true);
 
-            if (PrepareOutputBuffer(hostSize, buffer, out MTLBuffer copyToBuffer, out BufferHolder tempCopyHolder))
+            if (!buffer.HasValue)
+            {
+                Logger.Error?.PrintMsg(LogClass.Gpu, "Null buffer!");
+                return;
+            }
+
+            if (PrepareOutputBuffer(hostSize, buffer.Value, out MTLBuffer copyToBuffer, out BufferHolder tempCopyHolder))
             {
                 offset = 0;
             }
@@ -181,7 +188,7 @@ namespace Ryujinx.Graphics.Metal
 
             if (tempCopyHolder != null)
             {
-                CopyDataToOutputBuffer(tempCopyHolder, buffer, hostSize, range.Offset);
+                CopyDataToOutputBuffer(tempCopyHolder, buffer.Value, hostSize, range.Offset);
                 tempCopyHolder.Dispose();
             }
         }

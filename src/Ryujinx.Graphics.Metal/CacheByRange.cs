@@ -15,12 +15,12 @@ namespace Ryujinx.Graphics.Metal
     {
         // Used to notify the pipeline that bindings have invalidated on dispose.
         private readonly MetalRenderer _renderer;
-        private MTLBuffer _buffer;
+        private MTLBuffer? _buffer;
 
         public I8ToI16CacheKey(MetalRenderer renderer)
         {
             _renderer = renderer;
-            _buffer = new MTLBuffer(IntPtr.Zero);
+            _buffer = null;
         }
 
         public readonly bool KeyEqual(ICacheKey other)
@@ -37,8 +37,11 @@ namespace Ryujinx.Graphics.Metal
         {
             // TODO: Tell pipeline buffer is dirty!
             // _renderer.PipelineInternal.DirtyIndexBuffer(_buffer);
-            _buffer.SetPurgeableState(MTLPurgeableState.Empty);
-            _buffer.Dispose();
+            if (_buffer.HasValue)
+            {
+                _buffer.Value.SetPurgeableState(MTLPurgeableState.Empty);
+                _buffer.Value.Dispose();
+            }
         }
     }
 
@@ -50,14 +53,14 @@ namespace Ryujinx.Graphics.Metal
 
         // Used to notify the pipeline that bindings have invalidated on dispose.
         private readonly MetalRenderer _renderer;
-        private MTLBuffer _buffer;
+        private MTLBuffer? _buffer;
 
         public AlignedVertexBufferCacheKey(MetalRenderer renderer, int stride, int alignment)
         {
             _renderer = renderer;
             _stride = stride;
             _alignment = alignment;
-            _buffer = new MTLBuffer(IntPtr.Zero);
+            _buffer = null;
         }
 
         public readonly bool KeyEqual(ICacheKey other)
@@ -76,8 +79,11 @@ namespace Ryujinx.Graphics.Metal
         {
             // TODO: Tell pipeline buffer is dirty!
             // _renderer.PipelineInternal.DirtyVertexBuffer(_buffer);
-            _buffer.SetPurgeableState(MTLPurgeableState.Empty);
-            _buffer.Dispose();
+            if (_buffer.HasValue)
+            {
+                _buffer.Value.SetPurgeableState(MTLPurgeableState.Empty);
+                _buffer.Value.Dispose();
+            }
         }
     }
 
@@ -90,14 +96,14 @@ namespace Ryujinx.Graphics.Metal
 
         // Used to notify the pipeline that bindings have invalidated on dispose.
         private readonly MetalRenderer _renderer;
-        private MTLBuffer _buffer;
+        private MTLBuffer? _buffer;
 
         public TopologyConversionCacheKey(MetalRenderer renderer, /*IndexBufferPattern pattern, */int indexSize)
         {
             _renderer = renderer;
             // _pattern = pattern;
             _indexSize = indexSize;
-            _buffer = new MTLBuffer(IntPtr.Zero);
+            _buffer = null;
         }
 
         public readonly bool KeyEqual(ICacheKey other)
@@ -116,11 +122,15 @@ namespace Ryujinx.Graphics.Metal
         {
             // TODO: Tell pipeline buffer is dirty!
             // _renderer.PipelineInternal.DirtyVertexBuffer(_buffer);
-            _buffer.SetPurgeableState(MTLPurgeableState.Empty);
-            _buffer.Dispose();
+            if (_buffer.HasValue)
+            {
+                _buffer.Value.SetPurgeableState(MTLPurgeableState.Empty);
+                _buffer.Value.Dispose();
+            }
         }
     }
 
+    [SupportedOSPlatform("macos")]
     readonly struct Dependency
     {
         private readonly BufferHolder _buffer;
@@ -142,6 +152,7 @@ namespace Ryujinx.Graphics.Metal
         }
     }
 
+    [SupportedOSPlatform("macos")]
     struct CacheByRange<T> where T : IDisposable
     {
         private struct Entry

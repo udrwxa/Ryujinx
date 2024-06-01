@@ -26,8 +26,9 @@ namespace Ryujinx.Graphics.Metal
         private readonly IProgram _programStrideChange;
         private readonly IProgram _programConvertD32S8ToD24S8;
 
-        public HelperShader(MetalRenderer renderer, MTLDevice device)
+        public HelperShader(Pipeline pipeline, MTLDevice device)
         {
+            _pipeline = pipeline;
             _device = device;
 
             _samplerNearest = new Sampler(_device, SamplerCreateInfo.Create(MinFilter.Nearest, MagFilter.Nearest));

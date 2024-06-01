@@ -50,7 +50,7 @@ namespace Ryujinx.Graphics.Metal
             _pipeline = new Pipeline(this, _device, _queue);
 
             BufferManager = new BufferManager(this, _device);
-            HelperShader = new HelperShader(this, _device);
+            HelperShader = new HelperShader(_pipeline, _device);
         }
 
         public void BackgroundContextAction(Action action, bool alwaysBackground = false)

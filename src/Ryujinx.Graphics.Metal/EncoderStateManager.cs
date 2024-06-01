@@ -357,22 +357,25 @@ namespace Ryujinx.Graphics.Metal
             {
                 if (type == GAL.IndexType.UByte)
                 {
-                    var handle = buffer.Handle;
-                    MTLBuffer src = new(Unsafe.As<BufferHandle, IntPtr>(ref handle));
-                    MTLBuffer dst = device.NewBuffer(src.Length * 2, MTLResourceOptions.ResourceStorageModeShared);
+                    var index = _renderer.BufferManager.GetBufferI8ToI16(buffer.Handle, buffer.Offset, buffer.Size);
 
-                    _pipeline.ConvertI18ToI16(src, dst, buffer.Offset, buffer.Size);
-
-                    _currentState.IndexBuffer = dst;
-                    _currentState.IndexType = MTLIndexType.UInt16;
-                    _currentState.IndexBufferOffset = 0;
+                    if (index.HasValue)
+                    {
+                        _currentState.IndexBuffer = index.Value;
+                        _currentState.IndexType = MTLIndexType.UInt16;
+                        _currentState.IndexBufferOffset = 0;
+                    }
                 }
                 else
                 {
-                    var handle = buffer.Handle;
-                    _currentState.IndexBuffer = new(Unsafe.As<BufferHandle, IntPtr>(ref handle));
-                    _currentState.IndexType = type.Convert();
-                    _currentState.IndexBufferOffset = (ulong)buffer.Offset;
+                    var index = _renderer.BufferManager.GetBuffer(buffer.Handle, buffer.Offset, buffer.Size, false);
+
+                    if (index.HasValue)
+                    {
+                        _currentState.IndexBuffer = index.Value;
+                        _currentState.IndexType = type.Convert();
+                        _currentState.IndexBufferOffset = (ulong)buffer.Offset;
+                    }
                 }
 
             }
@@ -684,15 +687,18 @@ namespace Ryujinx.Graphics.Metal
                 var index = assignment.Binding;
 
                 var mtlBuffer = buffer.Handle == BufferHandle.Null
-                    ? new MTLBuffer(IntPtr.Zero)
+                    ? null
                     : _renderer.BufferManager.GetBuffer(buffer.Handle, buffer.Write);
 
-                _currentState.UniformBuffers.Add(new BufferInfo
+                if (mtlBuffer.HasValue)
                 {
-                    Handle = mtlBuffer,
-                    Offset = buffer.Offset,
-                    Index = index
-                });
+                    _currentState.UniformBuffers.Add(new BufferInfo
+                    {
+                        Handle = mtlBuffer.Value,
+                        Offset = buffer.Offset,
+                        Index = index
+                    });
+                }
             }
 
             // Inline update
@@ -723,16 +729,19 @@ namespace Ryujinx.Graphics.Metal
                 var index = assignment.Binding;
 
                 var mtlBuffer = buffer.Handle == BufferHandle.Null
-                    ? new MTLBuffer(IntPtr.Zero)
+                    ? null
                     : _renderer.BufferManager.GetBuffer(buffer.Handle, buffer.Write);
 
-                // TODO: DONT offset the binding by 15
-                _currentState.StorageBuffers.Add(new BufferInfo
+                if (mtlBuffer.HasValue)
                 {
-                    Handle = mtlBuffer,
-                    Offset = buffer.Offset,
-                    Index = index + 15
-                });
+                    // TODO: DONT offset the binding by 15
+                    _currentState.StorageBuffers.Add(new BufferInfo
+                    {
+                        Handle = mtlBuffer.Value,
+                        Offset = buffer.Offset,
+                        Index = index + 15
+                    });
+                }
             }
 
             // Inline update
@@ -986,26 +995,26 @@ namespace Ryujinx.Graphics.Metal
         {
             var buffers = new List<BufferInfo>();
 
-            for (int i = 0; i < bufferDescriptors.Length; i++)
-            {
-                if (bufferDescriptors[i].Buffer.Handle.ToIntPtr() != IntPtr.Zero)
-                {
-                    buffers.Add(new BufferInfo
-                    {
-                        Handle = bufferDescriptors[i].Buffer.Handle.ToIntPtr(),
-                        Offset = bufferDescriptors[i].Buffer.Offset,
-                        Index = i
-                    });
-                }
-            }
-
-            // Zero buffer
-            buffers.Add(new BufferInfo
-            {
-                Handle = _zeroBuffer.NativePtr,
-                Offset = 0,
-                Index = bufferDescriptors.Length
-            });
+            // for (int i = 0; i < bufferDescriptors.Length; i++)
+            // {
+            //     if (bufferDescriptors[i].Buffer.Handle.ToIntPtr() != IntPtr.Zero)
+            //     {
+            //         buffers.Add(new BufferInfo
+            //         {
+            //             Handle = bufferDescriptors[i].Buffer.Handle.ToIntPtr(),
+            //             Offset = bufferDescriptors[i].Buffer.Offset,
+            //             Index = i
+            //         });
+            //     }
+            // }
+            //
+            // // Zero buffer
+            // buffers.Add(new BufferInfo
+            // {
+            //     Handle = _zeroBuffer.NativePtr,
+            //     Offset = 0,
+            //     Index = bufferDescriptors.Length
+            // });
 
             SetRenderBuffers(renderCommandEncoder, buffers);
         }

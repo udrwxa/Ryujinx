@@ -41,6 +41,7 @@ namespace Ryujinx.Graphics.Metal
 
         public Pipeline(MetalRenderer renderer, MTLDevice device, MTLCommandQueue commandQueue)
         {
+            _renderer = renderer;
             _device = device;
             _commandQueue = commandQueue;
 
@@ -192,7 +193,7 @@ namespace Ryujinx.Graphics.Metal
         {
             // TODO: Clean this up
             var textureInfo = new TextureCreateInfo((int)drawable.Texture.Width, (int)drawable.Texture.Height, (int)drawable.Texture.Depth, (int)drawable.Texture.MipmapLevelCount, (int)drawable.Texture.SampleCount, 0, 0, 0, Format.B8G8R8A8Unorm, 0, Target.Texture2D, SwizzleComponent.Red, SwizzleComponent.Green, SwizzleComponent.Blue, SwizzleComponent.Alpha);
-            var dst = new Texture(_device, this, textureInfo, drawable.Texture, 0, 0);
+            var dst = new Texture(_device, _renderer, this, textureInfo, drawable.Texture, 0, 0);
 
             _renderer.HelperShader.BlitColor(
                 _renderer,
@@ -261,16 +262,24 @@ namespace Ryujinx.Graphics.Metal
         {
             var blitCommandEncoder = GetOrCreateBlitEncoder();
 
-            // Might need a closer look, range's count, lower, and upper bound
-            // must be a multiple of 4
-            MTLBuffer mtlBuffer = new(Unsafe.As<BufferHandle, IntPtr>(ref destination));
-            blitCommandEncoder.FillBuffer(mtlBuffer,
-                new NSRange
-                {
-                    location = (ulong)offset,
-                    length = (ulong)size
-                },
-                (byte)value);
+            var dst = _renderer.BufferManager.GetBuffer(destination, offset, size, true);
+
+            if (dst.HasValue)
+            {
+                // Might need a closer look, range's count, lower, and upper bound
+                // must be a multiple of 4
+                blitCommandEncoder.FillBuffer(dst.Value,
+                    new NSRange
+                    {
+                        location = (ulong)offset,
+                        length = (ulong)size
+                    },
+                    (byte)value);
+            }
+            else
+            {
+                Logger.Error?.PrintMsg(LogClass.Gpu, "Tried to clear null buffer!");
+            }
         }
 
         public void ClearRenderTargetColor(int index, int layer, int layerCount, uint componentMask, ColorF color)
@@ -332,12 +341,17 @@ namespace Ryujinx.Graphics.Metal
 
         public void CopyBuffer(BufferHandle source, BufferHandle destination, int srcOffset, int dstOffset, int size)
         {
-            var blitCommandEncoder = GetOrCreateBlitEncoder();
-
             var src = _renderer.BufferManager.GetBuffer(source, srcOffset, size, false);
             var dst = _renderer.BufferManager.GetBuffer(destination, dstOffset, size, true);
 
-            BufferHolder.Copy(src, dst, srcOffset, dstOffset, size);
+            if (src.HasValue && dst.HasValue)
+            {
+                BufferHolder.Copy(this, src.Value, dst.Value, srcOffset, dstOffset, size);
+            }
+            else
+            {
+                Logger.Error?.PrintMsg(LogClass.Gpu, "Null buffers!");
+            }
         }
 
         public void DispatchCompute(int groupsX, int groupsY, int groupsZ, int groupSizeX, int groupSizeY, int groupSizeZ)

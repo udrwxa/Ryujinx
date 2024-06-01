@@ -1,3 +1,4 @@
+using Ryujinx.Common.Logging;
 using Ryujinx.Graphics.GAL;
 using SharpMetal.Metal;
 using System;
@@ -10,8 +11,6 @@ namespace Ryujinx.Graphics.Metal
     [SupportedOSPlatform("macos")]
     class BufferHolder : IDisposable
     {
-        private readonly MetalRenderer _renderer;
-        private readonly MTLDevice _device;
         private readonly MTLBuffer _mtlBuffer;
 
         private CacheByRange<BufferHolder> _cachedConvertedBuffers;
@@ -20,10 +19,8 @@ namespace Ryujinx.Graphics.Metal
 
         private readonly IntPtr _map;
 
-        public BufferHolder(MetalRenderer renderer, MTLDevice device, MTLBuffer buffer, int size, int offset = 0)
+        public BufferHolder(MTLBuffer buffer, int size, int offset = 0)
         {
-            _renderer = renderer;
-            _device = device;
             _mtlBuffer = buffer;
 
             Size = size;
@@ -162,30 +159,38 @@ namespace Ryujinx.Graphics.Metal
             throw new InvalidOperationException("Failed to read buffer data.");
         }
 
-        public static unsafe void Copy(
+        public static void Copy(
+            Pipeline pipeline,
             MTLBuffer src,
             MTLBuffer dst,
             int srcOffset,
             int dstOffset,
             int size)
         {
+            var blitEncoder = pipeline.GetOrCreateBlitEncoder();
 
+            blitEncoder.CopyFromBuffer(
+                src,
+                (ulong)srcOffset,
+                dst,
+                (ulong)dstOffset,
+                (ulong)size);
         }
 
-        public MTLBuffer GetBufferI8ToI16(int offset, int size)
+        public MTLBuffer? GetBufferI8ToI16(MetalRenderer renderer, int offset, int size)
         {
             if (!BoundToRange(offset, ref size))
             {
-                return new MTLBuffer(IntPtr.Zero);
+                return null;
             }
 
-            var key = new I8ToI16CacheKey(_renderer);
+            var key = new I8ToI16CacheKey(renderer);
 
             if (!_cachedConvertedBuffers.TryGetValue(offset, size, key, out var holder))
             {
-                holder = _renderer.BufferManager.Create((size * 2 + 3) & ~3);
+                holder = renderer.BufferManager.Create((size * 2 + 3) & ~3);
 
-                _renderer.HelperShader.ConvertI8ToI16(_renderer, this, holder, offset, size);
+                renderer.HelperShader.ConvertI8ToI16(renderer, this, holder, offset, size);
 
                 key.SetBuffer(holder.GetBuffer());
 
@@ -195,14 +200,14 @@ namespace Ryujinx.Graphics.Metal
             return holder.GetBuffer();
         }
 
-        public MTLBuffer GetAlignedVertexBuffer(int offset, int size, int stride, int alignment)
+        public MTLBuffer? GetAlignedVertexBuffer(MetalRenderer renderer, int offset, int size, int stride, int alignment)
         {
             if (!BoundToRange(offset, ref size))
             {
-                return new MTLBuffer(IntPtr.Zero);
+                return null;
             }
 
-            var key = new AlignedVertexBufferCacheKey(_renderer, stride, alignment);
+            var key = new AlignedVertexBufferCacheKey(renderer, stride, alignment);
 
             if (!_cachedConvertedBuffers.TryGetValue(offset, size, key, out var holder))
             {
@@ -222,14 +227,14 @@ namespace Ryujinx.Graphics.Metal
         }
 
         // TODO: Topology conversion patterns
-        public MTLBuffer GetBufferTopologyConversion(int offset, int size, /*IndexBufferPattern pattern, */int indexSize)
+        public MTLBuffer? GetBufferTopologyConversion(MetalRenderer renderer, int offset, int size, /*IndexBufferPattern pattern, */int indexSize)
         {
             if (!BoundToRange(offset, ref size))
             {
-                return new MTLBuffer(IntPtr.Zero);
+                return null;
             }
 
-            var key = new TopologyConversionCacheKey(_renderer, /*pattern, */indexSize);
+            var key = new TopologyConversionCacheKey(renderer, /*pattern, */indexSize);
 
             if (!_cachedConvertedBuffers.TryGetValue(offset, size, key, out var holder))
             {
@@ -277,8 +282,15 @@ namespace Ryujinx.Graphics.Metal
             // TODO: Force command flush
             // _renderer.PipelineInternal?.FlushCommandsIfWeightExceeding(_buffer, (ulong)Size);
 
-            _mtlBuffer.SetPurgeableState(MTLPurgeableState.Empty);
-            _mtlBuffer.Dispose();
+            if (_mtlBuffer != IntPtr.Zero)
+            {
+                _mtlBuffer.SetPurgeableState(MTLPurgeableState.Empty);
+                _mtlBuffer.Dispose();
+            }
+            else
+            {
+                Logger.Error?.PrintMsg(LogClass.Gpu, "Attempted to dispose null buffer reference!");
+            }
 
             _cachedConvertedBuffers.Dispose();
         }

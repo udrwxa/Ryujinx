@@ -66,7 +66,7 @@ namespace Ryujinx.Graphics.Metal
 
             if (buffer != IntPtr.Zero)
             {
-                var holder = new BufferHolder(_renderer, _device, buffer, size);
+                var holder = new BufferHolder(buffer, size);
 
                 return holder;
             }
@@ -80,7 +80,7 @@ namespace Ryujinx.Graphics.Metal
         {
             var buffer = _device.NewBuffer(pointer, (ulong)size, MTLResourceOptions.ResourceStorageModeShared);
 
-            var holder = new BufferHolder(_renderer, _device, buffer, size);
+            var holder = new BufferHolder(buffer, size);
 
             BufferCount++;
 
@@ -113,7 +113,8 @@ namespace Ryujinx.Graphics.Metal
         {
             StagingBufferReserved? result = StagingBuffer.TryReserveData(size);
 
-            if (result.HasValue)
+            // TODO: Get staging buffer working
+            if (false)
             {
                 return new ScopedTemporaryBuffer(this, result.Value.Buffer, StagingBuffer.Handle, result.Value.Offset, result.Value.Size, true);
             }
@@ -126,47 +127,47 @@ namespace Ryujinx.Graphics.Metal
             }
         }
 
-        public MTLBuffer GetBuffer(BufferHandle handle, bool isWrite)
+        public MTLBuffer? GetBuffer(BufferHandle handle, bool isWrite)
         {
             if (TryGetBuffer(handle, out var holder))
             {
                 return holder.GetBuffer(isWrite);
             }
 
-            return new MTLBuffer(IntPtr.Zero);
+            return null;
         }
 
-        public MTLBuffer GetBuffer(BufferHandle handle, int offset, int size, bool isWrite)
+        public MTLBuffer? GetBuffer(BufferHandle handle, int offset, int size, bool isWrite)
         {
             if (TryGetBuffer(handle, out var holder))
             {
                 return holder.GetBuffer(offset, size, isWrite);
             }
 
-            return new MTLBuffer(IntPtr.Zero);
+            return null;
         }
 
-        public MTLBuffer GetBufferI8ToI16(BufferHandle handle, int offset, int size)
+        public MTLBuffer? GetBufferI8ToI16(BufferHandle handle, int offset, int size)
         {
             if (TryGetBuffer(handle, out var holder))
             {
-                return holder.GetBufferI8ToI16(offset, size);
+                return holder.GetBufferI8ToI16(_renderer, offset, size);
             }
 
-            return new MTLBuffer(IntPtr.Zero);
+            return null;
         }
 
-        public MTLBuffer GetAlignedVertexBuffer(BufferHandle handle, int offset, int size, int stride, int alignment)
+        public MTLBuffer? GetAlignedVertexBuffer(BufferHandle handle, int offset, int size, int stride, int alignment)
         {
             if (TryGetBuffer(handle, out var holder))
             {
-                return holder.GetAlignedVertexBuffer(offset, size, stride, alignment);
+                return holder.GetAlignedVertexBuffer(_renderer, offset, size, stride, alignment);
             }
 
-            return new MTLBuffer(IntPtr.Zero);
+            return null;
         }
 
-        public MTLBuffer GetBuffer(BufferHandle handle, bool isWrite, out int size)
+        public MTLBuffer? GetBuffer(BufferHandle handle, bool isWrite, out int size)
         {
             if (TryGetBuffer(handle, out var holder))
             {
@@ -175,7 +176,7 @@ namespace Ryujinx.Graphics.Metal
             }
 
             size = 0;
-            return new MTLBuffer(IntPtr.Zero);
+            return null;
         }
 
         public PinnedSpan<byte> GetData(BufferHandle handle, int offset, int size)
@@ -205,7 +206,6 @@ namespace Ryujinx.Graphics.Metal
         {
             if (TryGetBuffer(handle, out var holder))
             {
-                holder.GetBuffer().SetPurgeableState(MTLPurgeableState.Empty);
                 holder.Dispose();
 
                 _buffers.Remove((int)Unsafe.As<BufferHandle, ulong>(ref handle));

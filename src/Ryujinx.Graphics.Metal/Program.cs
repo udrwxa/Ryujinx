@@ -22,6 +22,11 @@ namespace Ryujinx.Graphics.Metal
             {
                 ShaderSource shader = shaders[index];
 
+                if (shader.Code == null)
+                {
+                    return;
+                }
+
                 var libraryError = new NSError(IntPtr.Zero);
                 var shaderLibrary = device.NewLibrary(StringHelper.NSString(shader.Code), new MTLCompileOptions(IntPtr.Zero), ref libraryError);
                 if (libraryError != IntPtr.Zero)

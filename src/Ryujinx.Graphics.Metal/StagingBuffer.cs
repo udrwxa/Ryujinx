@@ -108,14 +108,14 @@ namespace Ryujinx.Graphics.Metal
                 _buffer.SetDataUnchecked(offset, data[..capacity]);
                 _buffer.SetDataUnchecked(0, data[capacity..]);
 
-                BufferHolder.Copy(srcBuffer, dstBuffer, offset, dstOffset, capacity);
-                BufferHolder.Copy(srcBuffer, dstBuffer, 0, dstOffset + capacity, data.Length - capacity);
+                // BufferHolder.Copy(srcBuffer, dstBuffer, offset, dstOffset, capacity);
+                // BufferHolder.Copy(srcBuffer, dstBuffer, 0, dstOffset + capacity, data.Length - capacity);
             }
             else
             {
                 _buffer.SetDataUnchecked(offset, data);
 
-                BufferHolder.Copy(srcBuffer, dstBuffer, offset, dstOffset, data.Length);
+                // BufferHolder.Copy(srcBuffer, dstBuffer, offset, dstOffset, data.Length);
             }
 
             _freeOffset = (offset + data.Length) & (BufferSize - 1);
