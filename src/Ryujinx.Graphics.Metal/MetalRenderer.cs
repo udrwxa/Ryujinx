@@ -20,6 +20,7 @@ namespace Ryujinx.Graphics.Metal
         private HelperShader _helperShader;
         private BufferManager _bufferManager;
         private Window _window;
+        private CommandBufferPool _commandBufferPool;
 
         public event EventHandler<ScreenCaptureImageInfo> ScreenCaptured;
         public bool PreferThreading => true;
@@ -27,6 +28,7 @@ namespace Ryujinx.Graphics.Metal
         public IWindow Window => _window;
         public HelperShader HelperShader => _helperShader;
         public BufferManager BufferManager => _bufferManager;
+        public CommandBufferPool CommandBufferPool => _commandBufferPool;
 
         public MetalRenderer(Func<CAMetalLayer> metalLayer)
         {
@@ -37,7 +39,7 @@ namespace Ryujinx.Graphics.Metal
                 throw new NotSupportedException("Metal backend requires Tier 2 Argument Buffer support.");
             }
 
-            _queue = _device.NewCommandQueue();
+            _queue = _device.NewCommandQueue(CommandBufferPool.MaxCommandBuffers);
             _getMetalLayer = metalLayer;
         }
 
@@ -47,6 +49,7 @@ namespace Ryujinx.Graphics.Metal
             layer.Device = _device;
             layer.FramebufferOnly = false;
 
+            _commandBufferPool = new CommandBufferPool(_device, _queue);
             _window = new Window(this, layer);
             _bufferManager = new BufferManager(_device);
             _pipeline = new Pipeline(_device, this, _queue);

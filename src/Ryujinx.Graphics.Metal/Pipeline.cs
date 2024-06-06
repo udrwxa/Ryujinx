@@ -5,7 +5,6 @@ using SharpMetal.Foundation;
 using SharpMetal.Metal;
 using SharpMetal.QuartzCore;
 using System;
-using System.Runtime.CompilerServices;
 using System.Runtime.Versioning;
 
 namespace Ryujinx.Graphics.Metal
@@ -25,8 +24,11 @@ namespace Ryujinx.Graphics.Metal
         private readonly MTLCommandQueue _commandQueue;
         private readonly MetalRenderer _renderer;
 
-        private MTLCommandBuffer _commandBuffer;
-        public MTLCommandBuffer CommandBuffer => _commandBuffer;
+        private CommandBufferScoped Cbs;
+        private CommandBufferScoped? PreloadCbs;
+        public MTLCommandBuffer CommandBuffer;
+
+        public CommandBufferScoped CurrentCommandBuffer => Cbs;
 
         private MTLCommandEncoder? _currentEncoder;
         public MTLCommandEncoder? CurrentEncoder => _currentEncoder;
@@ -42,7 +44,7 @@ namespace Ryujinx.Graphics.Metal
             _renderer = renderer;
             _commandQueue = commandQueue;
 
-            _commandBuffer = _commandQueue.CommandBuffer();
+            CommandBuffer = (Cbs = _renderer.CommandBufferPool.Rent()).CommandBuffer;
             _encoderStateManager = new EncoderStateManager(_device, _renderer, this);
         }
 
@@ -156,7 +158,7 @@ namespace Ryujinx.Graphics.Metal
             EndCurrentPass();
 
             var descriptor = new MTLBlitPassDescriptor();
-            var blitCommandEncoder = _commandBuffer.BlitCommandEncoder(descriptor);
+            var blitCommandEncoder = Cbs.CommandBuffer.BlitCommandEncoder(descriptor);
 
             _currentEncoder = blitCommandEncoder;
             _currentEncoderType = EncoderType.Blit;
@@ -184,10 +186,9 @@ namespace Ryujinx.Graphics.Metal
 
             EndCurrentPass();
 
-            _commandBuffer.PresentDrawable(drawable);
-            _commandBuffer.Commit();
+            Cbs.CommandBuffer.PresentDrawable(drawable);
 
-            _commandBuffer = _commandQueue.CommandBuffer();
+            CommandBuffer = (Cbs = _renderer.CommandBufferPool.ReturnAndRent(Cbs)).CommandBuffer;
 
             // Cleanup
             dst.Dispose();

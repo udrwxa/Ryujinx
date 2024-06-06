@@ -4,7 +4,6 @@ using Ryujinx.Graphics.Shader;
 using SharpMetal.Metal;
 using System;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using System.Runtime.Versioning;
 using BufferAssignment = Ryujinx.Graphics.GAL.BufferAssignment;
 
