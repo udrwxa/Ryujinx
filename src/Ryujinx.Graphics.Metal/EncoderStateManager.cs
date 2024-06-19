@@ -13,7 +13,7 @@ namespace Ryujinx.Graphics.Metal
     struct EncoderStateManager : IDisposable
     {
         private readonly Pipeline _pipeline;
-        private readonly MetalRenderer _renderer;
+        private readonly BufferManager _bufferManager;
 
         private readonly RenderPipelineCache _renderPipelineCache;
         private readonly ComputePipelineCache _computePipelineCache;
@@ -33,10 +33,10 @@ namespace Ryujinx.Graphics.Metal
         private const int ZeroBufferSize = 4 * 4;
         private readonly BufferHandle _zeroBuffer;
 
-        public unsafe EncoderStateManager(MTLDevice device, MetalRenderer renderer, Pipeline pipeline)
+        public unsafe EncoderStateManager(MTLDevice device, BufferManager bufferManager, Pipeline pipeline)
         {
             _pipeline = pipeline;
-            _renderer = renderer;
+            _bufferManager = bufferManager;
 
             _renderPipelineCache = new(device);
             _computePipelineCache = new(device);
@@ -46,7 +46,7 @@ namespace Ryujinx.Graphics.Metal
             byte[] zeros = new byte[ZeroBufferSize];
             fixed (byte* ptr = zeros)
             {
-                _zeroBuffer = renderer.BufferManager.Create((IntPtr)ptr, ZeroBufferSize);
+                _zeroBuffer = _bufferManager.Create((IntPtr)ptr, ZeroBufferSize);
             }
         }
 
@@ -958,7 +958,7 @@ namespace Ryujinx.Graphics.Metal
             foreach (var buffer in buffers)
             {
                 var range = buffer.Range;
-                var autoBuffer = _renderer.BufferManager.GetBuffer(range.Handle, range.Offset, range.Size, range.Write);
+                var autoBuffer = _bufferManager.GetBuffer(range.Handle, range.Offset, range.Size, range.Write);
 
                 if (autoBuffer != null)
                 {
@@ -979,7 +979,7 @@ namespace Ryujinx.Graphics.Metal
             foreach (var buffer in buffers)
             {
                 var range = buffer.Range;
-                var mtlBuffer = _renderer.BufferManager.GetBuffer(range.Handle, range.Offset, range.Size, range.Write).GetUnsafe().Value;
+                var mtlBuffer = _bufferManager.GetBuffer(range.Handle, range.Offset, range.Size, range.Write).GetUnsafe().Value;
 
                 computeCommandEncoder.SetBuffer(mtlBuffer, (ulong)range.Offset, (ulong)buffer.Binding);
 

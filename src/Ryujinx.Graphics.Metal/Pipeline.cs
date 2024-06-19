@@ -45,7 +45,11 @@ namespace Ryujinx.Graphics.Metal
             _commandQueue = commandQueue;
 
             CommandBuffer = (Cbs = _renderer.CommandBufferPool.Rent()).CommandBuffer;
-            _encoderStateManager = new EncoderStateManager(_device, _renderer, this);
+        }
+
+        public void InitEncoderStateManager(BufferManager bufferManager)
+        {
+            _encoderStateManager = new EncoderStateManager(_device, bufferManager, this);
         }
 
         public void SaveState()

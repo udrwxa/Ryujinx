@@ -15,13 +15,15 @@ namespace Ryujinx.Graphics.Metal
 
         private readonly MTLDevice _device;
         private readonly MetalRenderer _renderer;
+        private readonly Pipeline _pipeline;
 
         public int BufferCount { get; private set; }
 
-        public BufferManager(MTLDevice device, MetalRenderer renderer)
+        public BufferManager(MTLDevice device, MetalRenderer renderer, Pipeline pipeline)
         {
             _device = device;
             _renderer = renderer;
+            _pipeline = pipeline;
             _buffers = new IdList<BufferHolder>();
         }
 
@@ -36,7 +38,7 @@ namespace Ryujinx.Graphics.Metal
                 return BufferHandle.Null;
             }
 
-            var holder = new BufferHolder(_renderer, buffer, size);
+            var holder = new BufferHolder(_renderer, _pipeline, buffer, size);
 
             BufferCount++;
 
@@ -72,7 +74,7 @@ namespace Ryujinx.Graphics.Metal
 
             if (buffer != IntPtr.Zero)
             {
-                return new BufferHolder(_renderer, buffer, size);
+                return new BufferHolder(_renderer, _pipeline, buffer, size);
             }
 
             Logger.Error?.PrintMsg(LogClass.Gpu, $"Failed to create buffer with size 0x{size:X}.");
@@ -112,14 +114,14 @@ namespace Ryujinx.Graphics.Metal
 
         public void SetData<T>(BufferHandle handle, int offset, ReadOnlySpan<T> data) where T : unmanaged
         {
-            SetData(handle, offset, MemoryMarshal.Cast<T, byte>(data), null);
+            SetData(handle, offset, MemoryMarshal.Cast<T, byte>(data), null, null);
         }
 
-        public void SetData(BufferHandle handle, int offset, ReadOnlySpan<byte> data, Action endRenderPass)
+        public void SetData(BufferHandle handle, int offset, ReadOnlySpan<byte> data, CommandBufferScoped? cbs, Action endRenderPass)
         {
             if (TryGetBuffer(handle, out var holder))
             {
-                holder.SetData(offset, data, endRenderPass);
+                holder.SetData(offset, data, cbs, endRenderPass);
             }
         }
 

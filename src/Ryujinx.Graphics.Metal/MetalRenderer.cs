@@ -52,8 +52,11 @@ namespace Ryujinx.Graphics.Metal
 
             _commandBufferPool = new CommandBufferPool(_device, _queue);
             _window = new Window(this, layer);
-            _bufferManager = new BufferManager(_device, this);
             _pipeline = new Pipeline(_device, this, _queue);
+            _bufferManager = new BufferManager(_device, this, _pipeline);
+
+            _pipeline.InitEncoderStateManager(_bufferManager);
+
             _helperShader = new HelperShader(_device, _pipeline);
             _syncManager = new SyncManager(this);
         }
@@ -214,7 +217,7 @@ namespace Ryujinx.Graphics.Metal
 
         public void SetBufferData(BufferHandle buffer, int offset, ReadOnlySpan<byte> data)
         {
-            _bufferManager.SetData(buffer, offset, data);
+            _bufferManager.SetData(buffer, offset, data, _pipeline.CurrentCommandBuffer, null);
         }
 
         public void UpdateCounters()

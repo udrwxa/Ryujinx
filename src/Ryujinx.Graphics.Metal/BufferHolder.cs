@@ -14,6 +14,7 @@ namespace Ryujinx.Graphics.Metal
 
         private readonly IntPtr _map;
         private readonly MetalRenderer _renderer;
+        private readonly Pipeline _pipeline;
 
         private readonly MultiFenceHolder _waitable;
         private readonly Auto<DisposableBuffer> _buffer;
@@ -22,9 +23,10 @@ namespace Ryujinx.Graphics.Metal
         private FenceHolder _flushFence;
         private int _flushWaiting;
 
-        public BufferHolder(MetalRenderer renderer, MTLBuffer buffer, int size)
+        public BufferHolder(MetalRenderer renderer, Pipeline pipeline, MTLBuffer buffer, int size)
         {
             _renderer = renderer;
+            _pipeline = pipeline;
             _map = buffer.Contents;
             _waitable = new MultiFenceHolder(size);
             _buffer = new Auto<DisposableBuffer>(new(buffer), _waitable);
@@ -94,7 +96,7 @@ namespace Ryujinx.Graphics.Metal
             throw new InvalidOperationException("The buffer is not mapped.");
         }
 
-        public unsafe void SetData(int offset, ReadOnlySpan<byte> data, Action endRenderPass = null)
+        public unsafe void SetData(int offset, ReadOnlySpan<byte> data, CommandBufferScoped? cbs = null, Action endRenderPass = null, bool allowCbsWait = true)
         {
             int dataSize = Math.Min(data.Length, Size - offset);
             if (dataSize == 0)
@@ -121,6 +123,17 @@ namespace Ryujinx.Graphics.Metal
                     return;
                 }
             }
+
+            // Need to do a slow upload.
+            BufferHolder srcHolder = _renderer.BufferManager.Create(dataSize);
+            srcHolder.SetDataUnchecked(0, data);
+
+            var srcBuffer = srcHolder.GetBuffer();
+            var dstBuffer = this.GetBuffer(true);
+
+            Copy(_pipeline, cbs.Value, srcBuffer, dstBuffer, 0, offset, dataSize);
+
+            srcHolder.Dispose();
         }
 
         public unsafe void SetDataUnchecked(int offset, ReadOnlySpan<byte> data)
