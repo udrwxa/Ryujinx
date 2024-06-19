@@ -290,7 +290,7 @@ namespace Ryujinx.Graphics.Metal
         public void CopyBuffer(BufferHandle src, BufferHandle dst, int srcOffset, int dstOffset, int size)
         {
             var srcBuffer = _renderer.BufferManager.GetBuffer(src, srcOffset, size, false);
-            var dstBuffer = _renderer.BufferManager.GetBuffer(src, dstOffset, size, true);
+            var dstBuffer = _renderer.BufferManager.GetBuffer(dst, dstOffset, size, true);
 
             BufferHolder.Copy(this, Cbs, srcBuffer, dstBuffer, srcOffset, dstOffset, size);
         }
