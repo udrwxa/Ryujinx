@@ -3,7 +3,6 @@ using SharpMetal.Foundation;
 using SharpMetal.Metal;
 using System;
 using System.Buffers;
-using System.Runtime.CompilerServices;
 using System.Runtime.Versioning;
 
 namespace Ryujinx.Graphics.Metal

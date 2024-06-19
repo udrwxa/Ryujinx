@@ -61,6 +61,70 @@ namespace Ryujinx.Graphics.Metal
             return _buffer;
         }
 
+        public void SignalWrite(int offset, int size)
+        {
+            if (offset == 0 && size == Size)
+            {
+                // TODO: Cache converted buffers
+            }
+            else
+            {
+                // TODO: Cache converted buffers
+            }
+        }
+
+        private void ClearFlushFence()
+        {
+            // Assumes _flushLock is held as writer.
+
+            if (_flushFence != null)
+            {
+                if (_flushWaiting == 0)
+                {
+                    _flushFence.Put();
+                }
+
+                _flushFence = null;
+            }
+        }
+
+        private void WaitForFlushFence()
+        {
+            if (_flushFence == null)
+            {
+                return;
+            }
+
+            // If storage has changed, make sure the fence has been reached so that the data is in place.
+            _flushLock.ExitReadLock();
+            _flushLock.EnterWriteLock();
+
+            if (_flushFence != null)
+            {
+                var fence = _flushFence;
+                Interlocked.Increment(ref _flushWaiting);
+
+                // Don't wait in the lock.
+
+                _flushLock.ExitWriteLock();
+
+                fence.Wait();
+
+                _flushLock.EnterWriteLock();
+
+                if (Interlocked.Decrement(ref _flushWaiting) == 0)
+                {
+                    fence.Put();
+                }
+
+                _flushFence = null;
+            }
+
+            // Assumes the _flushLock is held as reader, returns in same state.
+            _flushLock.ExitWriteLock();
+            _flushLock.EnterReadLock();
+        }
+
         public PinnedSpan<byte> GetData(int offset, int size)
         {
             _flushLock.EnterReadLock();
@@ -176,18 +240,6 @@ namespace Ryujinx.Graphics.Metal
                 (ulong)size);
         }
 
-        public void SignalWrite(int offset, int size)
-        {
-            if (offset == 0 && size == Size)
-            {
-                // TODO: Cache converted buffers
-            }
-            else
-            {
-                // TODO: Cache converted buffers
-            }
-        }
-
         public void WaitForFences()
         {
             _waitable.WaitForFences();
@@ -196,58 +248,6 @@ namespace Ryujinx.Graphics.Metal
         public void WaitForFences(int offset, int size)
         {
             _waitable.WaitForFences(offset, size);
-        }
-
-        private void ClearFlushFence()
-        {
-            // Assumes _flushLock is held as writer.
-
-            if (_flushFence != null)
-            {
-                if (_flushWaiting == 0)
-                {
-                    _flushFence.Put();
-                }
-
-                _flushFence = null;
-            }
-        }
-
-        private void WaitForFlushFence()
-        {
-            if (_flushFence == null)
-            {
-                return;
-            }
-
-            // If storage has changed, make sure the fence has been reached so that the data is in place.
-            _flushLock.ExitReadLock();
-            _flushLock.EnterWriteLock();
-
-            if (_flushFence != null)
-            {
-                var fence = _flushFence;
-                Interlocked.Increment(ref _flushWaiting);
-
-                // Don't wait in the lock.
-
-                _flushLock.ExitWriteLock();
-
-                fence.Wait();
-
-                _flushLock.EnterWriteLock();
-
-                if (Interlocked.Decrement(ref _flushWaiting) == 0)
-                {
-                    fence.Put();
-                }
-
-                _flushFence = null;
-            }
-
-            // Assumes the _flushLock is held as reader, returns in same state.
-            _flushLock.ExitWriteLock();
-            _flushLock.EnterReadLock();
         }
 
         public void Dispose()

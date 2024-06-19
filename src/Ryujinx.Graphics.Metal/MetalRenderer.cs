@@ -100,7 +100,7 @@ namespace Ryujinx.Graphics.Metal
         {
             if (info.Target == Target.TextureBuffer)
             {
-                return new TextureBuffer(_device, this, _pipeline, info);
+                return new TextureBuffer(this, info);
             }
 
             return new Texture(_device, this, _pipeline, info);
