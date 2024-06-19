@@ -322,7 +322,7 @@ namespace Ryujinx.Graphics.Metal
             // TODO: Support topology re-indexing to provide support for TriangleFans
             var primitiveType = _encoderStateManager.Topology.Convert();
 
-            var indexBuffer = _renderer.BufferManager.GetBuffer(_encoderStateManager.IndexBuffer.Handle, false, out _);
+            var indexBuffer = _renderer.BufferManager.GetBuffer(_encoderStateManager.IndexBuffer.Handle, false);
 
             renderCommandEncoder.DrawIndexedPrimitives(
                 primitiveType,

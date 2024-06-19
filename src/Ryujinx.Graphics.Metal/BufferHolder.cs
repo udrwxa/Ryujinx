@@ -27,7 +27,7 @@ namespace Ryujinx.Graphics.Metal
             _renderer = renderer;
             _map = buffer.Contents;
             _waitable = new MultiFenceHolder(size);
-            _buffer = new Auto<DisposableBuffer>(new(buffer), _waitable, []);
+            _buffer = new Auto<DisposableBuffer>(new(buffer), _waitable);
 
             _flushLock = new ReaderWriterLockSlim();
 

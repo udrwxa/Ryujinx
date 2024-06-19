@@ -154,5 +154,4 @@ namespace Ryujinx.Graphics.Metal
             }
         }
     }
-
 }

@@ -1,5 +1,8 @@
+using System.Runtime.Versioning;
+
 namespace Ryujinx.Graphics.Metal
 {
+    [SupportedOSPlatform("macos")]
     internal class BufferUsageBitmap
     {
         private readonly BitMap _bitmap;

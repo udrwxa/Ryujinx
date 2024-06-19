@@ -27,7 +27,6 @@ namespace Ryujinx.Graphics.Metal
 
         private readonly BitMap _cbOwnership;
         private readonly MultiFenceHolder _waitable;
-        private readonly IAutoPrivate[] _referencedObjs;
 
         private bool _disposed;
         private bool _destroyed;
@@ -39,15 +38,9 @@ namespace Ryujinx.Graphics.Metal
             _cbOwnership = new BitMap(CommandBufferPool.MaxCommandBuffers);
         }
 
-        public Auto(T value, MultiFenceHolder waitable, params IAutoPrivate[] referencedObjs) : this(value)
+        public Auto(T value, MultiFenceHolder waitable) : this(value)
         {
             _waitable = waitable;
-            _referencedObjs = referencedObjs;
-
-            for (int i = 0; i < referencedObjs.Length; i++)
-            {
-                referencedObjs[i].IncrementReferenceCount();
-            }
         }
 
         public T Get(CommandBufferScoped cbs, int offset, int size, bool write = false)
@@ -94,16 +87,6 @@ namespace Ryujinx.Graphics.Metal
                 }
 
                 cbs.AddDependant(this);
-
-                // We need to add a dependency on the command buffer to all objects this object
-                // references aswell.
-                if (_referencedObjs != null)
-                {
-                    for (int i = 0; i < _referencedObjs.Length; i++)
-                    {
-                        _referencedObjs[i].AddCommandBufferDependencies(cbs);
-                    }
-                }
             }
         }
 
@@ -146,16 +129,6 @@ namespace Ryujinx.Graphics.Metal
                 _value.Dispose();
                 _value = default;
                 _destroyed = true;
-
-                // Value is no longer in use by the GPU, dispose all other
-                // resources that it references.
-                if (_referencedObjs != null)
-                {
-                    for (int i = 0; i < _referencedObjs.Length; i++)
-                    {
-                        _referencedObjs[i].DecrementReferenceCount();
-                    }
-                }
             }
 
             Debug.Assert(_referenceCount >= 0);

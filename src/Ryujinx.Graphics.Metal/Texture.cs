@@ -168,6 +168,9 @@ namespace Ryujinx.Graphics.Metal
         public void CopyTo(BufferRange range, int layer, int level, int stride)
         {
             var blitCommandEncoder = _pipeline.GetOrCreateBlitEncoder();
+            var cbs = _pipeline.CurrentCommandBuffer;
+
+            int outSize = Info.GetMipSize(level);
 
             ulong bytesPerRow = (ulong)Info.GetMipStride(level);
             ulong bytesPerImage = 0;
@@ -176,8 +179,8 @@ namespace Ryujinx.Graphics.Metal
                 bytesPerImage = bytesPerRow * (ulong)Info.Height;
             }
 
-            var handle = range.Handle;
-            MTLBuffer mtlBuffer = new(Unsafe.As<BufferHandle, IntPtr>(ref handle));
+            var autoBuffer = _renderer.BufferManager.GetBuffer(range.Handle, true);
+            var mtlBuffer = autoBuffer.Get(cbs, range.Offset, outSize).Value;
 
             blitCommandEncoder.CopyFromTexture(
                 _mtlTexture,

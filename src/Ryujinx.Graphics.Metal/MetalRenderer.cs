@@ -63,6 +63,11 @@ namespace Ryujinx.Graphics.Metal
             Logger.Warning?.Print(LogClass.Gpu, "Not Implemented!");
         }
 
+        public BufferHandle CreateBuffer(int size, BufferAccess access)
+        {
+            return _bufferManager.CreateWithHandle(size);
+        }
+
         public BufferHandle CreateBuffer(IntPtr pointer, int size)
         {
             return _bufferManager.Create(pointer, size);
@@ -76,11 +81,6 @@ namespace Ryujinx.Graphics.Metal
         public IImageArray CreateImageArray(int size, bool isBuffer)
         {
             throw new NotImplementedException();
-        }
-
-        public BufferHandle CreateBuffer(int size, BufferAccess access)
-        {
-            return _bufferManager.CreateWithHandle(size);
         }
 
         public IProgram CreateProgram(ShaderSource[] shaders, ShaderInfo info)
