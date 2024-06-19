@@ -26,12 +26,14 @@ namespace Ryujinx.Graphics.Metal
             public MTLCommandBuffer CommandBuffer;
             public FenceHolder Fence;
 
+            public List<IAuto> Dependants;
             public List<MultiFenceHolder> Waitables;
 
             public void Initialize(MTLCommandQueue queue)
             {
                 CommandBuffer = queue.CommandBuffer();
 
+                Dependants = new List<IAuto>();
                 Waitables = new List<MultiFenceHolder>();
             }
         }
@@ -64,6 +66,12 @@ namespace Ryujinx.Graphics.Metal
             }
         }
 
+        public void AddDependant(int cbIndex, IAuto dependant)
+        {
+            dependant.IncrementReferenceCount();
+            _commandBuffers[cbIndex].Dependants.Add(dependant);
+        }
+
         public void AddWaitable(MultiFenceHolder waitable)
         {
             lock (_commandBuffers)
@@ -94,6 +102,14 @@ namespace Ryujinx.Graphics.Metal
                     }
                 }
             }
+        }
+
+        public void AddDependency(int cbIndex, CommandBufferScoped dependencyCbs)
+        {
+            Debug.Assert(_commandBuffers[cbIndex].InUse);
+            // var semaphoreHolder = _commandBuffers[dependencyCbs.CommandBufferIndex].Semaphore;
+            // semaphoreHolder.Get();
+            // _commandBuffers[cbIndex].Dependencies.Add(semaphoreHolder);
         }
 
         public void AddWaitable(int cbIndex, MultiFenceHolder waitable)
@@ -232,10 +248,10 @@ namespace Ryujinx.Graphics.Metal
             }
 
 
-            // foreach (var dependant in entry.Dependants)
-            // {
-            //     dependant.DecrementReferenceCount(cbIndex);
-            // }
+            foreach (var dependant in entry.Dependants)
+            {
+                dependant.DecrementReferenceCount(cbIndex);
+            }
 
             foreach (var waitable in entry.Waitables)
             {
@@ -248,6 +264,7 @@ namespace Ryujinx.Graphics.Metal
             //     dependency.Put();
             // }
 
+            entry.Dependants.Clear();
             entry.Waitables.Clear();
             entry.Fence?.Dispose();
 

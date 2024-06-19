@@ -236,11 +236,11 @@ namespace Ryujinx.Graphics.Metal
         {
             var blitCommandEncoder = GetOrCreateBlitEncoder();
 
-            var mtlBuffer = _renderer.BufferManager.GetBuffer(destination, offset, size, true);
+            var mtlBuffer = _renderer.BufferManager.GetBuffer(destination, offset, size, true).Get(Cbs, offset, size, true).Value;
 
             // Might need a closer look, range's count, lower, and upper bound
             // must be a multiple of 4
-            blitCommandEncoder.FillBuffer(mtlBuffer.Value,
+            blitCommandEncoder.FillBuffer(mtlBuffer,
                 new NSRange
                 {
                     location = (ulong)offset,
@@ -288,7 +288,7 @@ namespace Ryujinx.Graphics.Metal
             var srcBuffer = _renderer.BufferManager.GetBuffer(src, srcOffset, size, false);
             var dstBuffer = _renderer.BufferManager.GetBuffer(src, dstOffset, size, true);
 
-            BufferHolder.Copy(this, srcBuffer.Value, dstBuffer.Value, srcOffset, dstOffset, size);
+            BufferHolder.Copy(this, Cbs, srcBuffer, dstBuffer, srcOffset, dstOffset, size);
         }
 
         public void DispatchCompute(int groupsX, int groupsY, int groupsZ, int groupSizeX, int groupSizeY, int groupSizeZ)
@@ -328,7 +328,7 @@ namespace Ryujinx.Graphics.Metal
                 primitiveType,
                 (ulong)indexCount,
                 _encoderStateManager.IndexType,
-                indexBuffer.Value,
+                indexBuffer.Get(Cbs, 0, indexCount * sizeof(int)).Value,
                 _encoderStateManager.IndexBufferOffset,
                 (ulong)instanceCount,
                 firstVertex,

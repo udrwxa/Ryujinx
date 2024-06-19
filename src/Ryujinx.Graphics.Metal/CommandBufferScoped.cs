@@ -18,14 +18,19 @@ namespace Ryujinx.Graphics.Metal
             CommandBufferIndex = commandBufferIndex;
         }
 
-        public void AddDependant()
+        public void AddDependant(IAuto dependant)
         {
-            // _pool.AddDependant(CommandBufferIndex, );
+            _pool.AddDependant(CommandBufferIndex, dependant);
         }
 
         public void AddWaitable(MultiFenceHolder waitable)
         {
             _pool.AddWaitable(CommandBufferIndex, waitable);
+        }
+
+        public void AddDependency(CommandBufferScoped dependencyCbs)
+        {
+            _pool.AddDependency(CommandBufferIndex, dependencyCbs);
         }
 
         public FenceHolder GetFence()

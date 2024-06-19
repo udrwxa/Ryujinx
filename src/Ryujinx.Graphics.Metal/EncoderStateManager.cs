@@ -958,15 +958,17 @@ namespace Ryujinx.Graphics.Metal
             foreach (var buffer in buffers)
             {
                 var range = buffer.Range;
-                var mtlBuffer = _renderer.BufferManager.GetBuffer(range.Handle, range.Offset, range.Size, range.Write);
+                var autoBuffer = _renderer.BufferManager.GetBuffer(range.Handle, range.Offset, range.Size, range.Write);
 
-                if (mtlBuffer.HasValue)
+                if (autoBuffer != null)
                 {
-                    renderCommandEncoder.SetVertexBuffer(mtlBuffer.Value, (ulong)range.Offset, (ulong)buffer.Binding);
+                    var mtlBuffer = autoBuffer.GetUnsafe().Value;
+
+                    renderCommandEncoder.SetVertexBuffer(mtlBuffer, (ulong)range.Offset, (ulong)buffer.Binding);
 
                     if (fragment)
                     {
-                        renderCommandEncoder.SetFragmentBuffer(mtlBuffer.Value, (ulong)range.Offset, (ulong)buffer.Binding);
+                        renderCommandEncoder.SetFragmentBuffer(mtlBuffer, (ulong)range.Offset, (ulong)buffer.Binding);
                     }
                 }
             }
@@ -977,12 +979,10 @@ namespace Ryujinx.Graphics.Metal
             foreach (var buffer in buffers)
             {
                 var range = buffer.Range;
-                var mtlBuffer = _renderer.BufferManager.GetBuffer(range.Handle, range.Offset, range.Size, range.Write);
+                var mtlBuffer = _renderer.BufferManager.GetBuffer(range.Handle, range.Offset, range.Size, range.Write).GetUnsafe().Value;
 
-                if (mtlBuffer.HasValue)
-                {
-                    computeCommandEncoder.SetBuffer(mtlBuffer.Value, (ulong)range.Offset, (ulong)buffer.Binding);
-                }
+                computeCommandEncoder.SetBuffer(mtlBuffer, (ulong)range.Offset, (ulong)buffer.Binding);
+
             }
         }
 

@@ -14,12 +14,14 @@ namespace Ryujinx.Graphics.Metal
         private readonly IdList<BufferHolder> _buffers;
 
         private readonly MTLDevice _device;
+        private readonly MetalRenderer _renderer;
 
         public int BufferCount { get; private set; }
 
-        public BufferManager(MTLDevice device)
+        public BufferManager(MTLDevice device, MetalRenderer renderer)
         {
             _device = device;
+            _renderer = renderer;
             _buffers = new IdList<BufferHolder>();
         }
 
@@ -34,7 +36,7 @@ namespace Ryujinx.Graphics.Metal
                 return BufferHandle.Null;
             }
 
-            var holder = new BufferHolder(buffer, size);
+            var holder = new BufferHolder(_renderer, buffer, size);
 
             BufferCount++;
 
@@ -70,7 +72,7 @@ namespace Ryujinx.Graphics.Metal
 
             if (buffer != IntPtr.Zero)
             {
-                return new BufferHolder(buffer, size);
+                return new BufferHolder(_renderer, buffer, size);
             }
 
             Logger.Error?.PrintMsg(LogClass.Gpu, $"Failed to create buffer with size 0x{size:X}.");
@@ -78,7 +80,7 @@ namespace Ryujinx.Graphics.Metal
             return null;
         }
 
-        public MTLBuffer? GetBuffer(BufferHandle handle, int offset, int size, bool isWrite)
+        public Auto<DisposableBuffer> GetBuffer(BufferHandle handle, int offset, int size, bool isWrite)
         {
             if (TryGetBuffer(handle, out var holder))
             {
@@ -88,7 +90,7 @@ namespace Ryujinx.Graphics.Metal
             return null;
         }
 
-        public MTLBuffer? GetBuffer(BufferHandle handle, bool isWrite, out int size)
+        public Auto<DisposableBuffer> GetBuffer(BufferHandle handle, bool isWrite, out int size)
         {
             if (TryGetBuffer(handle, out var holder))
             {

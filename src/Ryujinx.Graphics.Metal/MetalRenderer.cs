@@ -52,7 +52,7 @@ namespace Ryujinx.Graphics.Metal
 
             _commandBufferPool = new CommandBufferPool(_device, _queue);
             _window = new Window(this, layer);
-            _bufferManager = new BufferManager(_device);
+            _bufferManager = new BufferManager(_device, this);
             _pipeline = new Pipeline(_device, this, _queue);
             _helperShader = new HelperShader(_device, _pipeline);
             _syncManager = new SyncManager(this);

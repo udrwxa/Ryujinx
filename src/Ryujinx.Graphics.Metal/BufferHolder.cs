@@ -13,46 +13,50 @@ namespace Ryujinx.Graphics.Metal
         public int Size { get; }
 
         private readonly IntPtr _map;
-        private readonly MTLBuffer _mtlBuffer;
+        private readonly MetalRenderer _renderer;
 
-        public readonly MultiFenceHolder _waitable;
+        private readonly MultiFenceHolder _waitable;
+        private readonly Auto<DisposableBuffer> _buffer;
 
         private readonly ReaderWriterLockSlim _flushLock;
         private FenceHolder _flushFence;
         private int _flushWaiting;
 
-        public BufferHolder(MTLBuffer buffer, int size)
+        public BufferHolder(MetalRenderer renderer, MTLBuffer buffer, int size)
         {
-            _mtlBuffer = buffer;
+            _renderer = renderer;
             _map = buffer.Contents;
             _waitable = new MultiFenceHolder(size);
+            _buffer = new Auto<DisposableBuffer>(new(buffer), _waitable, []);
+
+            _flushLock = new ReaderWriterLockSlim();
 
             Size = size;
         }
 
-        public MTLBuffer GetBuffer()
+        public Auto<DisposableBuffer> GetBuffer()
         {
-            return _mtlBuffer;
+            return _buffer;
         }
 
-        public MTLBuffer GetBuffer(bool isWrite)
+        public Auto<DisposableBuffer> GetBuffer(bool isWrite)
         {
             if (isWrite)
             {
                 SignalWrite(0, Size);
             }
 
-            return _mtlBuffer;
+            return _buffer;
         }
 
-        public MTLBuffer GetBuffer(int offset, int size, bool isWrite)
+        public Auto<DisposableBuffer> GetBuffer(int offset, int size, bool isWrite)
         {
             if (isWrite)
             {
                 SignalWrite(offset, size);
             }
 
-            return _mtlBuffer;
+            return _buffer;
         }
 
         public PinnedSpan<byte> GetData(int offset, int size)
@@ -68,11 +72,11 @@ namespace Ryujinx.Graphics.Metal
                 result = GetDataStorage(offset, size);
 
                 // Need to be careful here, the buffer can't be unmapped while the data is being used.
-                // _buffer.IncrementReferenceCount();
+                _buffer.IncrementReferenceCount();
 
                 _flushLock.ExitReadLock();
 
-                return PinnedSpan<byte>.UnsafeFromSpan(result);
+                return PinnedSpan<byte>.UnsafeFromSpan(result, _buffer.DecrementReferenceCount);
             }
 
             throw new InvalidOperationException("The buffer is not mapped");
@@ -101,7 +105,7 @@ namespace Ryujinx.Graphics.Metal
             if (_map != IntPtr.Zero)
             {
                 // If persistently mapped, set the data directly if the buffer is not currently in use.
-                bool isRented = true; // _buffer.HasRentedCommandBufferDependency(_gd.CommandBufferPool);
+                bool isRented = _buffer.HasRentedCommandBufferDependency(_renderer.CommandBufferPool);
 
                 // If the buffer is rented, take a little more time and check if the use overlaps this handle.
                 bool needsFlush = isRented && _waitable.IsBufferRangeInUse(offset, dataSize, false);
@@ -140,16 +144,21 @@ namespace Ryujinx.Graphics.Metal
 
         public static void Copy(
             Pipeline pipeline,
-            MTLBuffer src,
-            MTLBuffer dst,
+            CommandBufferScoped cbs,
+            Auto<DisposableBuffer> src,
+            Auto<DisposableBuffer> dst,
             int srcOffset,
             int dstOffset,
-            int size)
+            int size,
+            bool registerSrcUsage = true)
         {
+            var srcBuffer = registerSrcUsage ? src.Get(cbs, srcOffset, size).Value : src.GetUnsafe().Value;
+            var dstbuffer = dst.Get(cbs, dstOffset, size, true).Value;
+
             pipeline.GetOrCreateBlitEncoder().CopyFromBuffer(
-                src,
+                srcBuffer,
                 (ulong)srcOffset,
-                dst,
+                dstbuffer,
                 (ulong)dstOffset,
                 (ulong)size);
         }
@@ -230,11 +239,13 @@ namespace Ryujinx.Graphics.Metal
 
         public void Dispose()
         {
-            if (_mtlBuffer != IntPtr.Zero)
-            {
-                _mtlBuffer.SetPurgeableState(MTLPurgeableState.Empty);
-                _mtlBuffer.Dispose();
-            }
+            _buffer.Dispose();
+
+            _flushLock.EnterWriteLock();
+
+            ClearFlushFence();
+
+            _flushLock.ExitWriteLock();
         }
     }
 }
