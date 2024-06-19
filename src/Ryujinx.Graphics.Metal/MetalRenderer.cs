@@ -224,7 +224,7 @@ namespace Ryujinx.Graphics.Metal
 
         public void PreFrame()
         {
-
+            _syncManager.Cleanup();
         }
 
         public ICounterEvent ReportCounter(CounterType type, EventHandler<ulong> resultHandler, float divisor, bool hostReserved)
