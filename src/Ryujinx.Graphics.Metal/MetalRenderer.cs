@@ -21,7 +21,6 @@ namespace Ryujinx.Graphics.Metal
         private BufferManager _bufferManager;
         private Window _window;
         private CommandBufferPool _commandBufferPool;
-        private SyncManager _syncManager;
 
         public event EventHandler<ScreenCaptureImageInfo> ScreenCaptured;
         public bool PreferThreading => true;
@@ -30,6 +29,8 @@ namespace Ryujinx.Graphics.Metal
         public HelperShader HelperShader => _helperShader;
         public BufferManager BufferManager => _bufferManager;
         public CommandBufferPool CommandBufferPool => _commandBufferPool;
+        public Action<Action> InterruptAction { get; private set; }
+        public SyncManager SyncManager { get; private set; }
 
         public MetalRenderer(Func<CAMetalLayer> metalLayer)
         {
@@ -58,7 +59,7 @@ namespace Ryujinx.Graphics.Metal
             _pipeline.InitEncoderStateManager(_bufferManager);
 
             _helperShader = new HelperShader(_device, _pipeline);
-            _syncManager = new SyncManager(this);
+            SyncManager = new SyncManager(this);
         }
 
         public void BackgroundContextAction(Action action, bool alwaysBackground = false)
@@ -119,7 +120,7 @@ namespace Ryujinx.Graphics.Metal
 
         public void CreateSync(ulong id, bool strict)
         {
-            _syncManager.Create(id, strict);
+            SyncManager.Create(id, strict);
         }
 
         public void DeleteBuffer(BufferHandle buffer)
@@ -202,7 +203,7 @@ namespace Ryujinx.Graphics.Metal
 
         public ulong GetCurrentSync()
         {
-            return _syncManager.GetCurrent();
+            return SyncManager.GetCurrent();
         }
 
         public HardwareInfo GetHardwareInfo()
@@ -217,7 +218,7 @@ namespace Ryujinx.Graphics.Metal
 
         public void SetBufferData(BufferHandle buffer, int offset, ReadOnlySpan<byte> data)
         {
-            _bufferManager.SetData(buffer, offset, data, _pipeline.CurrentCommandBuffer, null);
+            _bufferManager.SetData(buffer, offset, data, _pipeline.CurrentCommandBuffer, _pipeline.EndRenderPassDelegate);
         }
 
         public void UpdateCounters()
@@ -227,7 +228,7 @@ namespace Ryujinx.Graphics.Metal
 
         public void PreFrame()
         {
-            _syncManager.Cleanup();
+            SyncManager.Cleanup();
         }
 
         public ICounterEvent ReportCounter(CounterType type, EventHandler<ulong> resultHandler, float divisor, bool hostReserved)
@@ -245,12 +246,25 @@ namespace Ryujinx.Graphics.Metal
 
         public void WaitSync(ulong id)
         {
-            _syncManager.Wait(id);
+            SyncManager.Wait(id);
+        }
+
+        public void FlushAllCommands()
+        {
+            _pipeline.FlushCommandsImpl();
+        }
+
+        public void RegisterFlush()
+        {
+            SyncManager.RegisterFlush();
+
+            // Periodically free unused regions of the staging buffer to avoid doing it all at once.
+            _bufferManager.StagingBuffer.FreeCompleted();
         }
 
         public void SetInterruptAction(Action<Action> interruptAction)
         {
-            // Not needed for now
+            InterruptAction = interruptAction;
         }
 
         public void Screenshot()

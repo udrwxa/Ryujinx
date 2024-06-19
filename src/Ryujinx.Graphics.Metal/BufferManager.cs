@@ -8,6 +8,36 @@ using System.Runtime.Versioning;
 
 namespace Ryujinx.Graphics.Metal
 {
+    public readonly struct ScopedTemporaryBuffer : IDisposable
+    {
+        private readonly BufferManager _bufferManager;
+        private readonly bool _isReserved;
+
+        public readonly BufferRange Range;
+        public readonly BufferHolder Holder;
+
+        public BufferHandle Handle => Range.Handle;
+        public int Offset => Range.Offset;
+
+        public ScopedTemporaryBuffer(BufferManager bufferManager, BufferHolder holder, BufferHandle handle, int offset, int size, bool isReserved)
+        {
+            _bufferManager = bufferManager;
+
+            Range = new BufferRange(handle, offset, size);
+            Holder = holder;
+
+            _isReserved = isReserved;
+        }
+
+        public void Dispose()
+        {
+            if (!_isReserved)
+            {
+                _bufferManager.Delete(Range.Handle);
+            }
+        }
+    }
+
     [SupportedOSPlatform("macos")]
     public class BufferManager : IDisposable
     {
@@ -19,12 +49,16 @@ namespace Ryujinx.Graphics.Metal
 
         public int BufferCount { get; private set; }
 
+        public StagingBuffer StagingBuffer { get; }
+
         public BufferManager(MTLDevice device, MetalRenderer renderer, Pipeline pipeline)
         {
             _device = device;
             _renderer = renderer;
             _pipeline = pipeline;
             _buffers = new IdList<BufferHolder>();
+
+            StagingBuffer = new StagingBuffer(_renderer, _pipeline, this);
         }
 
         public BufferHandle Create(nint pointer, int size)
@@ -66,6 +100,23 @@ namespace Ryujinx.Graphics.Metal
             ulong handle64 = (uint)_buffers.Add(holder);
 
             return Unsafe.As<ulong, BufferHandle>(ref handle64);
+        }
+
+        public ScopedTemporaryBuffer ReserveOrCreate(CommandBufferScoped cbs, int size)
+        {
+            StagingBufferReserved? result = StagingBuffer.TryReserveData(cbs, size);
+
+            if (result.HasValue)
+            {
+                return new ScopedTemporaryBuffer(this, result.Value.Buffer, StagingBuffer.Handle, result.Value.Offset, result.Value.Size, true);
+            }
+            else
+            {
+                // Create a temporary buffer.
+                BufferHandle handle = CreateWithHandle(size, out BufferHolder holder);
+
+                return new ScopedTemporaryBuffer(this, holder, handle, 0, size, false);
+            }
         }
 
         public BufferHolder Create(int size)
@@ -141,6 +192,8 @@ namespace Ryujinx.Graphics.Metal
 
         public void Dispose()
         {
+            StagingBuffer.Dispose();
+
             foreach (var buffer in _buffers)
             {
                 buffer.Dispose();

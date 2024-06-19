@@ -7,7 +7,7 @@ using System.Runtime.Versioning;
 namespace Ryujinx.Graphics.Metal
 {
     [SupportedOSPlatform("macos")]
-    class SyncManager
+    public class SyncManager
     {
         private class SyncHandle
         {
@@ -44,9 +44,9 @@ namespace Ryujinx.Graphics.Metal
         {
             ulong flushId = _flushId;
             MultiFenceHolder waitable = new();
-            if (strict/* || _renderer.InterruptAction == null*/)
+            if (strict || _renderer.InterruptAction == null)
             {
-                // _renderer.FlushAllCommands();
+                _renderer.FlushAllCommands();
                 _renderer.CommandBufferPool.AddWaitable(waitable);
             }
             else
@@ -133,13 +133,13 @@ namespace Ryujinx.Graphics.Metal
 
                 if (result.NeedsFlush(_flushId))
                 {
-                    // _renderer.InterruptAction(() =>
-                    // {
-                    //     if (result.NeedsFlush(_flushId))
-                    //     {
-                    //         _renderer.FlushAllCommands();
-                    //     }
-                    // });
+                    _renderer.InterruptAction(() =>
+                    {
+                        if (result.NeedsFlush(_flushId))
+                        {
+                            _renderer.FlushAllCommands();
+                        }
+                    });
                 }
 
                 lock (result)

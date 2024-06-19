@@ -188,16 +188,37 @@ namespace Ryujinx.Graphics.Metal
                 }
             }
 
-            // Need to do a slow upload.
-            BufferHolder srcHolder = _renderer.BufferManager.Create(dataSize);
-            srcHolder.SetDataUnchecked(0, data);
+            if (allowCbsWait)
+            {
+                _renderer.BufferManager.StagingBuffer.PushData(_renderer.CommandBufferPool, cbs, endRenderPass, this, offset, data);
+            }
+            else
+            {
+                bool rentCbs = cbs == null;
+                if (rentCbs)
+                {
+                    cbs = _renderer.CommandBufferPool.Rent();
+                }
 
-            var srcBuffer = srcHolder.GetBuffer();
-            var dstBuffer = this.GetBuffer(true);
+                if (!_renderer.BufferManager.StagingBuffer.TryPushData(cbs.Value, endRenderPass, this, offset, data))
+                {
+                    // Need to do a slow upload.
+                    BufferHolder srcHolder = _renderer.BufferManager.Create(dataSize);
+                    srcHolder.SetDataUnchecked(0, data);
 
-            Copy(_pipeline, cbs.Value, srcBuffer, dstBuffer, 0, offset, dataSize);
+                    var srcBuffer = srcHolder.GetBuffer();
+                    var dstBuffer = this.GetBuffer(true);
 
-            srcHolder.Dispose();
+                    Copy(_pipeline, cbs.Value, srcBuffer, dstBuffer, 0, offset, dataSize);
+
+                    srcHolder.Dispose();
+                }
+
+                if (rentCbs)
+                {
+                    cbs.Value.Dispose();
+                }
+            }
         }
 
         public unsafe void SetDataUnchecked(int offset, ReadOnlySpan<byte> data)

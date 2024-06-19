@@ -28,6 +28,8 @@ namespace Ryujinx.Graphics.Metal
         private CommandBufferScoped? PreloadCbs;
         public MTLCommandBuffer CommandBuffer;
 
+        public readonly Action EndRenderPassDelegate;
+
         public CommandBufferScoped CurrentCommandBuffer => Cbs;
 
         private MTLCommandEncoder? _currentEncoder;
@@ -43,6 +45,8 @@ namespace Ryujinx.Graphics.Metal
             _device = device;
             _renderer = renderer;
             _commandQueue = commandQueue;
+
+            EndRenderPassDelegate = EndCurrentPass;
 
             CommandBuffer = (Cbs = _renderer.CommandBufferPool.Rent()).CommandBuffer;
         }
@@ -194,8 +198,23 @@ namespace Ryujinx.Graphics.Metal
 
             CommandBuffer = (Cbs = _renderer.CommandBufferPool.ReturnAndRent(Cbs)).CommandBuffer;
 
+            // TODO: Auto flush counting
+            _renderer.SyncManager.GetAndResetWaitTicks();
+
             // Cleanup
             dst.Dispose();
+        }
+
+        public void FlushCommandsImpl()
+        {
+            SaveState();
+
+            EndCurrentPass();
+
+            CommandBuffer = (Cbs = _renderer.CommandBufferPool.ReturnAndRent(Cbs)).CommandBuffer;
+            _renderer.RegisterFlush();
+
+            RestoreState();
         }
 
         public void BlitColor(
