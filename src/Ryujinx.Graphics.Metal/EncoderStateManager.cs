@@ -962,7 +962,7 @@ namespace Ryujinx.Graphics.Metal
 
                 if (autoBuffer != null)
                 {
-                    var mtlBuffer = autoBuffer.GetUnsafe().Value;
+                    var mtlBuffer = autoBuffer.Get(_pipeline.CurrentCommandBuffer).Value;
 
                     renderCommandEncoder.SetVertexBuffer(mtlBuffer, (ulong)range.Offset, (ulong)buffer.Binding);
 
@@ -979,7 +979,7 @@ namespace Ryujinx.Graphics.Metal
             foreach (var buffer in buffers)
             {
                 var range = buffer.Range;
-                var mtlBuffer = _bufferManager.GetBuffer(range.Handle, range.Offset, range.Size, range.Write).GetUnsafe().Value;
+                var mtlBuffer = _bufferManager.GetBuffer(range.Handle, range.Offset, range.Size, range.Write).Get(_pipeline.CurrentCommandBuffer).Value;
 
                 computeCommandEncoder.SetBuffer(mtlBuffer, (ulong)range.Offset, (ulong)buffer.Binding);
 
