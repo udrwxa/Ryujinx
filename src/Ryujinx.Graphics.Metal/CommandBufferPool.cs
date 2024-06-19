@@ -104,14 +104,6 @@ namespace Ryujinx.Graphics.Metal
             }
         }
 
-        public void AddDependency(int cbIndex, CommandBufferScoped dependencyCbs)
-        {
-            Debug.Assert(_commandBuffers[cbIndex].InUse);
-            // var semaphoreHolder = _commandBuffers[dependencyCbs.CommandBufferIndex].Semaphore;
-            // semaphoreHolder.Get();
-            // _commandBuffers[cbIndex].Dependencies.Add(semaphoreHolder);
-        }
-
         public void AddWaitable(int cbIndex, MultiFenceHolder waitable)
         {
             ref var entry = ref _commandBuffers[cbIndex];
@@ -247,7 +239,6 @@ namespace Ryujinx.Graphics.Metal
                 entry.InConsumption = false;
             }
 
-
             foreach (var dependant in entry.Dependants)
             {
                 dependant.DecrementReferenceCount(cbIndex);
@@ -258,11 +249,6 @@ namespace Ryujinx.Graphics.Metal
                 waitable.RemoveFence(cbIndex);
                 waitable.RemoveBufferUses(cbIndex);
             }
-
-            // foreach (var dependency in entry.Dependencies)
-            // {
-            //     dependency.Put();
-            // }
 
             entry.Dependants.Clear();
             entry.Waitables.Clear();
