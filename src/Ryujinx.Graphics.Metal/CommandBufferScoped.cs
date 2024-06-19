@@ -1,8 +1,10 @@
 using SharpMetal.Metal;
 using System;
+using System.Runtime.Versioning;
 
 namespace Ryujinx.Graphics.Metal
 {
+    [SupportedOSPlatform("macos")]
     public readonly struct CommandBufferScoped : IDisposable
     {
         private readonly CommandBufferPool _pool;
@@ -21,19 +23,19 @@ namespace Ryujinx.Graphics.Metal
             // _pool.AddDependant(CommandBufferIndex, );
         }
 
-        public void AddWaitable()
+        public void AddWaitable(MultiFenceHolder waitable)
         {
-            // _pool.AddWaitable(CommandBufferIndex, );
+            _pool.AddWaitable(CommandBufferIndex, waitable);
         }
 
-        public void GetFence()
+        public FenceHolder GetFence()
         {
-            // return _pool.GetFence(CommandBufferIndex);
+            return _pool.GetFence(CommandBufferIndex);
         }
 
         public void Dispose()
         {
-            // _pool?.Return(this);
+            _pool?.Return(this);
         }
     }
 }

@@ -1,5 +1,6 @@
 using SharpMetal.Metal;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.Versioning;
 
@@ -23,10 +24,15 @@ namespace Ryujinx.Graphics.Metal
             public bool InConsumption;
             public int SubmissionCount;
             public MTLCommandBuffer CommandBuffer;
+            public FenceHolder Fence;
+
+            public List<MultiFenceHolder> Waitables;
 
             public void Initialize(MTLCommandQueue queue)
             {
                 CommandBuffer = queue.CommandBuffer();
+
+                Waitables = new List<MultiFenceHolder>();
             }
         }
 
@@ -54,7 +60,72 @@ namespace Ryujinx.Graphics.Metal
             for (int i = 0; i < _totalCommandBuffers; i++)
             {
                 _commandBuffers[i].Initialize(_queue);
+                WaitAndDecrementRef(i);
             }
+        }
+
+        public void AddWaitable(MultiFenceHolder waitable)
+        {
+            lock (_commandBuffers)
+            {
+                for (int i = 0; i < _totalCommandBuffers; i++)
+                {
+                    ref var entry = ref _commandBuffers[i];
+
+                    if (entry.InConsumption)
+                    {
+                        AddWaitable(i, waitable);
+                    }
+                }
+            }
+        }
+
+        public void AddInUseWaitable(MultiFenceHolder waitable)
+        {
+            lock (_commandBuffers)
+            {
+                for (int i = 0; i < _totalCommandBuffers; i++)
+                {
+                    ref var entry = ref _commandBuffers[i];
+
+                    if (entry.InUse)
+                    {
+                        AddWaitable(i, waitable);
+                    }
+                }
+            }
+        }
+
+        public void AddWaitable(int cbIndex, MultiFenceHolder waitable)
+        {
+            ref var entry = ref _commandBuffers[cbIndex];
+            if (waitable.AddFence(cbIndex, entry.Fence))
+            {
+                entry.Waitables.Add(waitable);
+            }
+        }
+
+        public bool IsFenceOnRentedCommandBuffer(FenceHolder fence)
+        {
+            lock (_commandBuffers)
+            {
+                for (int i = 0; i < _totalCommandBuffers; i++)
+                {
+                    ref var entry = ref _commandBuffers[i];
+
+                    if (entry.InUse && entry.Fence == fence)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        public FenceHolder GetFence(int cbIndex)
+        {
+            return _commandBuffers[cbIndex].Fence;
         }
 
         public int GetSubmissionCount(int cbIndex)
@@ -72,8 +143,10 @@ namespace Ryujinx.Graphics.Metal
 
                 ref var entry = ref _commandBuffers[index];
 
-                if (wait || !entry.InConsumption || true /*TODO: Fence*/)
+                if (wait || !entry.InConsumption || entry.Fence.IsSignaled())
                 {
+                    WaitAndDecrementRef(index);
+
                     wait = false;
                     freeEntry = index;
 
@@ -105,7 +178,7 @@ namespace Ryujinx.Graphics.Metal
                 {
                     ref var entry = ref _commandBuffers[cursor];
 
-                    if (/*!entry.InUse && !entry.InConsumption*/ true)
+                    if (!entry.InUse && !entry.InConsumption)
                     {
                         entry.InUse = true;
 
@@ -148,9 +221,52 @@ namespace Ryujinx.Graphics.Metal
             }
         }
 
+        private void WaitAndDecrementRef(int cbIndex, bool refreshFence = true)
+        {
+            ref var entry = ref _commandBuffers[cbIndex];
+
+            if (entry.InConsumption)
+            {
+                entry.Fence.Wait();
+                entry.InConsumption = false;
+            }
+
+
+            // foreach (var dependant in entry.Dependants)
+            // {
+            //     dependant.DecrementReferenceCount(cbIndex);
+            // }
+
+            foreach (var waitable in entry.Waitables)
+            {
+                waitable.RemoveFence(cbIndex);
+                waitable.RemoveBufferUses(cbIndex);
+            }
+
+            // foreach (var dependency in entry.Dependencies)
+            // {
+            //     dependency.Put();
+            // }
+
+            entry.Waitables.Clear();
+            entry.Fence?.Dispose();
+
+            if (refreshFence)
+            {
+                entry.Fence = new FenceHolder(entry.CommandBuffer);
+            }
+            else
+            {
+                entry.Fence = null;
+            }
+        }
+
         public void Dispose()
         {
-
+            for (int i = 0; i < _totalCommandBuffers; i++)
+            {
+                WaitAndDecrementRef(i, refreshFence: false);
+            }
         }
     }
 }

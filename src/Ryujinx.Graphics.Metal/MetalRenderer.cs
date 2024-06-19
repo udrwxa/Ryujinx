@@ -21,6 +21,7 @@ namespace Ryujinx.Graphics.Metal
         private BufferManager _bufferManager;
         private Window _window;
         private CommandBufferPool _commandBufferPool;
+        private SyncManager _syncManager;
 
         public event EventHandler<ScreenCaptureImageInfo> ScreenCaptured;
         public bool PreferThreading => true;
@@ -54,6 +55,7 @@ namespace Ryujinx.Graphics.Metal
             _bufferManager = new BufferManager(_device);
             _pipeline = new Pipeline(_device, this, _queue);
             _helperShader = new HelperShader(_device, _pipeline);
+            _syncManager = new SyncManager(this);
         }
 
         public void BackgroundContextAction(Action action, bool alwaysBackground = false)
@@ -114,7 +116,7 @@ namespace Ryujinx.Graphics.Metal
 
         public void CreateSync(ulong id, bool strict)
         {
-            Logger.Warning?.Print(LogClass.Gpu, "Not Implemented!");
+            _syncManager.Create(id, strict);
         }
 
         public void DeleteBuffer(BufferHandle buffer)
@@ -197,8 +199,7 @@ namespace Ryujinx.Graphics.Metal
 
         public ulong GetCurrentSync()
         {
-            Logger.Warning?.Print(LogClass.Gpu, "Not Implemented!");
-            return 0;
+            return _syncManager.GetCurrent();
         }
 
         public HardwareInfo GetHardwareInfo()
@@ -241,7 +242,7 @@ namespace Ryujinx.Graphics.Metal
 
         public void WaitSync(ulong id)
         {
-            throw new NotImplementedException();
+            _syncManager.Wait(id);
         }
 
         public void SetInterruptAction(Action<Action> interruptAction)
