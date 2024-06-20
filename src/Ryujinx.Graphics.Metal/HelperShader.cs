@@ -92,9 +92,9 @@ namespace Ryujinx.Graphics.Metal
                 (region[2], region[3]) = (region[3], region[2]);
             }
 
-            using var buffer = _renderer.BufferManager.ReserveOrCreate(cbs, RegionBufferSize);
-            buffer.Holder.SetDataUnchecked<float>(buffer.Offset, region);
-            _pipeline.SetUniformBuffers([new BufferAssignment(0, buffer.Range)]);
+            // using var buffer = _renderer.BufferManager.ReserveOrCreate(cbs, RegionBufferSize);
+            // buffer.Holder.SetDataUnchecked<float>(buffer.Offset, region);
+            // _pipeline.SetUniformBuffers([new BufferAssignment(0, buffer.Range)]);
 
             var rect = new Rectangle<float>(
                 MathF.Min(dstRegion.X1, dstRegion.X2),
@@ -126,6 +126,12 @@ namespace Ryujinx.Graphics.Metal
             _pipeline.SetClearLoadAction(true);
             _pipeline.SetTextureAndSampler(ShaderStage.Fragment, 0, src, sampler);
             _pipeline.SetPrimitiveTopology(PrimitiveTopology.TriangleStrip);
+
+            fixed (float* ptr = region)
+            {
+                _pipeline.GetOrCreateRenderEncoder(true).SetVertexBytes((IntPtr)ptr, RegionBufferSize, 0);
+            }
+
             _pipeline.Draw(4, 1, 0, 0);
 
             // Restore previous state
@@ -157,9 +163,9 @@ namespace Ryujinx.Graphics.Metal
                 (region[2], region[3]) = (region[3], region[2]);
             }
 
-            var bufferHandle = _renderer.BufferManager.CreateWithHandle(RegionBufferSize);
-            _renderer.BufferManager.SetData<float>(bufferHandle, 0, region);
-            _pipeline.SetUniformBuffers([new BufferAssignment(0, new BufferRange(bufferHandle, 0, RegionBufferSize))]);
+            // var bufferHandle = _renderer.BufferManager.CreateWithHandle(RegionBufferSize);
+            // _renderer.BufferManager.SetData<float>(bufferHandle, 0, region);
+            // _pipeline.SetUniformBuffers([new BufferAssignment(0, new BufferRange(bufferHandle, 0, RegionBufferSize))]);
 
             Span<Viewport> viewports = stackalloc Viewport[1];
             Span<Rectangle<int>> scissors = stackalloc Rectangle<int>[1];
@@ -193,6 +199,11 @@ namespace Ryujinx.Graphics.Metal
             // For some reason this results in a SIGSEGV
             // _pipeline.SetStencilTest(CreateStencilTestDescriptor(false));
             _pipeline.SetDepthTest(new DepthTestDescriptor(false, false, CompareOp.Always));
+
+            fixed (float* ptr = region)
+            {
+                _pipeline.GetOrCreateRenderEncoder(true).SetVertexBytes((IntPtr)ptr, RegionBufferSize, 0);
+            }
 
             _pipeline.Draw(4, 1, 0, 0);
 
