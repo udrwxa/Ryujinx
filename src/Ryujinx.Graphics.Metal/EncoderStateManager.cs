@@ -356,9 +356,18 @@ namespace Ryujinx.Graphics.Metal
         {
             if (buffer.Handle != BufferHandle.Null)
             {
-                _currentState.IndexType = type.Convert();
-                _currentState.IndexBufferOffset = (ulong)buffer.Offset;
-                _currentState.IndexBuffer = _bufferManager.GetBuffer(buffer.Handle, false);
+                if (type == GAL.IndexType.UByte)
+                {
+                    _currentState.IndexType = MTLIndexType.UInt16;
+                    _currentState.IndexBufferOffset = (ulong)buffer.Offset;
+                    _currentState.IndexBuffer = _bufferManager.GetBufferI8ToI16(_pipeline.CurrentCommandBuffer, buffer.Handle, buffer.Offset, buffer.Size);
+                }
+                else
+                {
+                    _currentState.IndexType = type.Convert();
+                    _currentState.IndexBufferOffset = (ulong)buffer.Offset;
+                    _currentState.IndexBuffer = _bufferManager.GetBuffer(buffer.Handle, false);
+                }
             }
         }
 
@@ -735,7 +744,7 @@ namespace Ryujinx.Graphics.Metal
                 var mtlBuffer = buffers[i];
                 int index = first + i;
 
-                _currentState.StorageBuffers[index] = new BufferRef(mtlBuffer, i);
+                _currentState.StorageBuffers[i] = new BufferRef(mtlBuffer, index);
             }
 
             // Inline update

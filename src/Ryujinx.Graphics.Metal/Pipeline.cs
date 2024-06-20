@@ -546,6 +546,11 @@ namespace Ryujinx.Graphics.Metal
             _encoderStateManager.UpdateStorageBuffers(buffers);
         }
 
+        public void SetStorageBuffers(int first, ReadOnlySpan<Auto<DisposableBuffer>> buffers)
+        {
+            _encoderStateManager.UpdateStorageBuffers(first, buffers);
+        }
+
         public void SetTextureAndSampler(ShaderStage stage, int binding, ITexture texture, ISampler sampler)
         {
             if (texture is TextureBase tex)
