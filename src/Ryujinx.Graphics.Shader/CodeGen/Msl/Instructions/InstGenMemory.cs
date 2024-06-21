@@ -46,8 +46,11 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl.Instructions
                     }
 
                     StructureField field = buffer.Type.Fields[fieldIndex.Value];
-                    varName = buffer.Name;
-                    varName += "->" + field.Name;
+                    varName = storageKind == StorageKind.ConstantBuffer
+                        ? "constant_buffers"
+                        : "storage_buffers";
+                    varName += "." + buffer.Name;
+                    varName += "." + field.Name;
                     varType = field.Type;
                     break;
 

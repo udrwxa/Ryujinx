@@ -148,16 +148,8 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
                     args = args.Append("uint thread_index_in_simdgroup [[thread_index_in_simdgroup]]").ToArray();
                 }
 
-                foreach (var constantBuffer in context.Properties.ConstantBuffers.Values)
-                {
-                    args = args.Append($"constant {DefaultNames.StructPrefix}_{constantBuffer.Name}* {constantBuffer.Name} [[buffer({constantBuffer.Binding})]]").ToArray();
-                }
-
-                foreach (var storageBuffers in context.Properties.StorageBuffers.Values)
-                {
-                    // Offset the binding by 15 to avoid clashing with the constant buffers
-                    args = args.Append($"device {DefaultNames.StructPrefix}_{storageBuffers.Name}* {storageBuffers.Name} [[buffer({storageBuffers.Binding + 15})]]").ToArray();
-                }
+                args = args.Append("constant ConstantBuffers &constant_buffers [[buffer(0)]]").ToArray();
+                args = args.Append("constant StorageBuffers &storage_buffers [[buffer(1)]]").ToArray();
 
                 foreach (var texture in context.Properties.Textures.Values)
                 {

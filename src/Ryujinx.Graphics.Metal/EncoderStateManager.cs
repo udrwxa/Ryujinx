@@ -704,8 +704,7 @@ namespace Ryujinx.Graphics.Metal
             {
                 var assignment = buffers[i];
                 var buffer = assignment.Range;
-                // TODO: Dont do this
-                int index = assignment.Binding + 15;
+                int index = assignment.Binding;
 
                 Auto<DisposableBuffer> mtlBuffer = buffer.Handle == BufferHandle.Null
                     ? null
@@ -1019,12 +1018,13 @@ namespace Ryujinx.Graphics.Metal
 
         private readonly void SetRenderBuffers(MTLRenderCommandEncoder renderCommandEncoder, BufferRef[] buffers, bool fragment = false)
         {
+            ulong[] resourceIds = new ulong[buffers.Length];
+
             for (int i = 0; i < buffers.Length; i++)
             {
                 var range = buffers[i].Range;
                 var autoBuffer = buffers[i].Buffer;
                 var offset = 0;
-                var index = buffers[i].Index;
 
                 if (autoBuffer == null)
                 {
@@ -1044,11 +1044,23 @@ namespace Ryujinx.Graphics.Metal
                     mtlBuffer = autoBuffer.Get(_pipeline.Cbs).Value;
                 }
 
-                renderCommandEncoder.SetVertexBuffer(mtlBuffer, (ulong)offset, (ulong)index);
+                resourceIds[i] = mtlBuffer.GpuAddress + (ulong)offset;
+            }
+
+            var sizeOfArgumentBuffer = sizeof(ulong) * buffers.Length;
+
+            if (sizeOfArgumentBuffer > 0)
+            {
+                var argBuffer = _bufferManager.Create(sizeOfArgumentBuffer);
+                argBuffer.SetDataUnchecked(0, new ReadOnlySpan<ulong>(resourceIds));
+
+                var argMtlBuffer = argBuffer.GetBuffer().Get(_pipeline.Cbs).Value;
+
+                renderCommandEncoder.SetVertexBuffer(argMtlBuffer, 0, 0);
 
                 if (fragment)
                 {
-                    renderCommandEncoder.SetFragmentBuffer(mtlBuffer, (ulong)offset, (ulong)index);
+                    renderCommandEncoder.SetFragmentBuffer(argMtlBuffer, 0, 0);
                 }
             }
         }
