@@ -73,18 +73,18 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
                 if (stage != ShaderStage.Compute)
                 {
                     args[0] = stage == ShaderStage.Vertex ? "VertexIn in" : "FragmentIn in";
-                    args[1] = $"constant {DefaultNames.StructPrefix}_support_buffer* support_buffer";
+                    args[1] = $"constant {Defaults.StructPrefix}_support_buffer* support_buffer";
                 }
                 else
                 {
-                    args[0] = $"constant {DefaultNames.StructPrefix}_support_buffer* support_buffer";
+                    args[0] = $"constant {Defaults.StructPrefix}_support_buffer* support_buffer";
                 }
             }
 
             int argIndex = additionalArgCount;
             for (int i = 0; i < function.InArguments.Length; i++)
             {
-                args[argIndex++] = $"{Declarations.GetVarTypeName(context, function.InArguments[i])} {OperandManager.GetArgumentName(i)}";
+                args[argIndex++] = $"{Declarations.GetVarTypeName(function.InArguments[i])} {OperandManager.GetArgumentName(i)}";
             }
 
             for (int i = 0; i < function.OutArguments.Length; i++)
@@ -92,12 +92,12 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
                 int j = i + function.InArguments.Length;
 
                 // Likely need to be made into pointers
-                args[argIndex++] = $"out {Declarations.GetVarTypeName(context, function.OutArguments[i])} {OperandManager.GetArgumentName(j)}";
+                args[argIndex++] = $"out {Declarations.GetVarTypeName(function.OutArguments[i])} {OperandManager.GetArgumentName(j)}";
             }
 
             string funcKeyword = "inline";
             string funcName = null;
-            string returnType = Declarations.GetVarTypeName(context, function.ReturnType);
+            string returnType = Declarations.GetVarTypeName(function.ReturnType);
 
             if (isMainFunc)
             {
@@ -148,8 +148,6 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
                     args = args.Append("uint thread_index_in_simdgroup [[thread_index_in_simdgroup]]").ToArray();
                 }
 
-                args = args.Append("constant ConstantBuffers &constant_buffers [[buffer(0)]]").ToArray();
-                args = args.Append("constant StorageBuffers &storage_buffers [[buffer(1)]]").ToArray();
 
                 foreach (var texture in context.Properties.Textures.Values)
                 {
@@ -161,6 +159,8 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
                         args = args.Append($"sampler samp_{texture.Name} [[sampler({texture.Binding})]]").ToArray();
                     }
                 }
+                args = args.Append($"constant ConstantBuffers &constant_buffers [[buffer({Defaults.ConstantBuffersIndex})]]").ToArray();
+                args = args.Append($"constant StorageBuffers &storage_buffers [[buffer({Defaults.StorageBuffersIndex})]]").ToArray();
             }
 
             var funcPrefix = $"{funcKeyword} {returnType} {funcName ?? function.Name}(";

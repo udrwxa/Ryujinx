@@ -86,8 +86,8 @@ namespace Ryujinx.Graphics.Metal
                 SetScissors(renderCommandEncoder);
                 SetViewports(renderCommandEncoder);
                 SetVertexBuffers(renderCommandEncoder, _currentState.VertexBuffers);
-                SetRenderBuffers(renderCommandEncoder, _currentState.UniformBuffers, true);
-                SetRenderBuffers(renderCommandEncoder, _currentState.StorageBuffers, true);
+                InlineBufferUpdate(true);
+                InlineBufferUpdate(false);
                 SetCullMode(renderCommandEncoder);
                 SetFrontFace(renderCommandEncoder);
                 SetStencilRefValue(renderCommandEncoder);
@@ -176,14 +176,14 @@ namespace Ryujinx.Graphics.Metal
             SetViewports(renderCommandEncoder);
             SetScissors(renderCommandEncoder);
             SetVertexBuffers(renderCommandEncoder, _currentState.VertexBuffers);
-            SetRenderBuffers(renderCommandEncoder, _currentState.UniformBuffers, true);
-            SetRenderBuffers(renderCommandEncoder, _currentState.StorageBuffers, true);
-            for (ulong i = 0; i < Constants.MaxTextures; i++)
+            InlineBufferUpdate(true);
+            InlineBufferUpdate(false);
+            for (ulong i = 0; i < Constants.MaxTexturesPerStage; i++)
             {
                 SetRenderTexture(renderCommandEncoder, ShaderStage.Vertex, i, _currentState.VertexTextures[i]);
                 SetRenderTexture(renderCommandEncoder, ShaderStage.Fragment, i, _currentState.FragmentTextures[i]);
             }
-            for (ulong i = 0; i < Constants.MaxSamplers; i++)
+            for (ulong i = 0; i < Constants.MaxTexturesPerStage; i++)
             {
                 SetRenderSampler(renderCommandEncoder, ShaderStage.Vertex, i, _currentState.VertexSamplers[i]);
                 SetRenderSampler(renderCommandEncoder, ShaderStage.Fragment, i, _currentState.FragmentSamplers[i]);
@@ -201,13 +201,14 @@ namespace Ryujinx.Graphics.Metal
             var computeCommandEncoder = _pipeline.CommandBuffer.ComputeCommandEncoder(descriptor);
 
             // Rebind all the state
-            SetComputeBuffers(computeCommandEncoder, _currentState.UniformBuffers);
-            SetComputeBuffers(computeCommandEncoder, _currentState.StorageBuffers);
-            for (ulong i = 0; i < Constants.MaxTextures; i++)
+            InlineBufferUpdate(true);
+            InlineBufferUpdate(false);
+
+            for (ulong i = 0; i < Constants.MaxTexturesPerStage; i++)
             {
                 SetComputeTexture(computeCommandEncoder, i, _currentState.ComputeTextures[i]);
             }
-            for (ulong i = 0; i < Constants.MaxSamplers; i++)
+            for (ulong i = 0; i < Constants.MaxTexturesPerStage; i++)
             {
                 SetComputeSampler(computeCommandEncoder, i, _currentState.ComputeSamplers[i]);
             }
@@ -680,19 +681,7 @@ namespace Ryujinx.Graphics.Metal
             }
 
             // Inline update
-            if (_pipeline.CurrentEncoder != null)
-            {
-                if (_pipeline.CurrentEncoderType == EncoderType.Render)
-                {
-                    var renderCommandEncoder = new MTLRenderCommandEncoder(_pipeline.CurrentEncoder.Value);
-                    SetRenderBuffers(renderCommandEncoder, _currentState.UniformBuffers, true);
-                }
-                else if (_pipeline.CurrentEncoderType == EncoderType.Compute)
-                {
-                    var computeCommandEncoder = new MTLComputeCommandEncoder(_pipeline.CurrentEncoder.Value);
-                    SetComputeBuffers(computeCommandEncoder, _currentState.UniformBuffers);
-                }
-            }
+            InlineBufferUpdate(true);
         }
 
         // Inlineable
@@ -714,19 +703,7 @@ namespace Ryujinx.Graphics.Metal
             }
 
             // Inline update
-            if (_pipeline.CurrentEncoder != null)
-            {
-                if (_pipeline.CurrentEncoderType == EncoderType.Render)
-                {
-                    var renderCommandEncoder = new MTLRenderCommandEncoder(_pipeline.CurrentEncoder.Value);
-                    SetRenderBuffers(renderCommandEncoder, _currentState.StorageBuffers, true);
-                }
-                else if (_pipeline.CurrentEncoderType == EncoderType.Compute)
-                {
-                    var computeCommandEncoder = new MTLComputeCommandEncoder(_pipeline.CurrentEncoder.Value);
-                    SetComputeBuffers(computeCommandEncoder, _currentState.StorageBuffers);
-                }
-            }
+            InlineBufferUpdate(false);
         }
 
         // Inlineable
@@ -743,17 +720,36 @@ namespace Ryujinx.Graphics.Metal
             }
 
             // Inline update
+            InlineBufferUpdate(false);
+        }
+
+        private readonly void InlineBufferUpdate(bool constant)
+        {
             if (_pipeline.CurrentEncoder != null)
             {
-                if (_pipeline.CurrentEncoderType == EncoderType.Render)
+                var index = constant ? Constants.ConstantBuffersIndex : Constants.StorageBuffersIndex;
+                var bufferRefs = constant ? _currentState.UniformBuffers : _currentState.StorageBuffers;
+
+                MTLBuffer? argBuffer = CreateArgumentBuffer(bufferRefs);
+
+                if (argBuffer.HasValue)
                 {
-                    var renderCommandEncoder = new MTLRenderCommandEncoder(_pipeline.CurrentEncoder.Value);
-                    SetRenderBuffers(renderCommandEncoder, _currentState.StorageBuffers, true);
-                }
-                else if (_pipeline.CurrentEncoderType == EncoderType.Compute)
-                {
-                    var computeCommandEncoder = new MTLComputeCommandEncoder(_pipeline.CurrentEncoder.Value);
-                    SetComputeBuffers(computeCommandEncoder, _currentState.StorageBuffers);
+                    switch (_pipeline.CurrentEncoderType)
+                    {
+                        case EncoderType.Render:
+                            {
+                                var renderCommandEncoder = new MTLRenderCommandEncoder(_pipeline.CurrentEncoder.Value);
+                                renderCommandEncoder.SetVertexBuffer(argBuffer.Value, 0, index);
+                                renderCommandEncoder.SetFragmentBuffer(argBuffer.Value, 0, index);
+                                break;
+                            }
+                        case EncoderType.Compute:
+                            {
+                                var computeCommandEncoder = new MTLComputeCommandEncoder(_pipeline.CurrentEncoder.Value);
+                                computeCommandEncoder.SetBuffer(argBuffer.Value, 0, index);
+                                break;
+                            }
+                    }
                 }
             }
         }
@@ -800,9 +796,9 @@ namespace Ryujinx.Graphics.Metal
         // Inlineable
         public readonly void UpdateTexture(ShaderStage stage, ulong binding, TextureBase texture)
         {
-            if (binding > 30)
+            if (binding > Constants.MaxTexturesPerStage)
             {
-                Logger.Warning?.Print(LogClass.Gpu, $"Texture binding ({binding}) must be <= 30");
+                Logger.Warning?.Print(LogClass.Gpu, $"Texture binding ({binding}) must be <= {Constants.MaxTexturesPerStage}");
                 return;
             }
             switch (stage)
@@ -837,9 +833,9 @@ namespace Ryujinx.Graphics.Metal
         // Inlineable
         public readonly void UpdateSampler(ShaderStage stage, ulong binding, MTLSamplerState sampler)
         {
-            if (binding > 15)
+            if (binding > Constants.MaxTexturesPerStage)
             {
-                Logger.Warning?.Print(LogClass.Gpu, $"Sampler binding ({binding}) must be <= 15");
+                Logger.Warning?.Print(LogClass.Gpu, $"Sampler binding ({binding}) must be <= {Constants.MaxTexturesPerStage}");
                 return;
             }
             switch (stage)
@@ -1013,10 +1009,38 @@ namespace Ryujinx.Graphics.Metal
             // Zero buffer
             buffers.Add(new BufferRef(zeroBuffer, bufferDescriptors.Length, ref zeroBufferRange));
 
-            SetRenderBuffers(renderCommandEncoder, buffers.ToArray());
+            ulong[] resourceIds = new ulong[buffers.Count];
+
+            for (int i = 0; i < buffers.Count; i++)
+            {
+                var range = buffers[i].Range;
+                var autoBuffer = buffers[i].Buffer;
+                var offset = 0;
+                var index = buffers[i].Index;
+
+                if (autoBuffer == null)
+                {
+                    continue;
+                }
+
+                MTLBuffer mtlBuffer;
+
+                if (range.HasValue)
+                {
+                    offset = range.Value.Offset;
+                    mtlBuffer = autoBuffer.Get(_pipeline.Cbs, offset, range.Value.Size, range.Value.Write).Value;
+
+                }
+                else
+                {
+                    mtlBuffer = autoBuffer.Get(_pipeline.Cbs).Value;
+                }
+
+                renderCommandEncoder.SetVertexBuffer(mtlBuffer, (ulong)offset, (ulong)index);
+            }
         }
 
-        private readonly void SetRenderBuffers(MTLRenderCommandEncoder renderCommandEncoder, BufferRef[] buffers, bool fragment = false)
+        private readonly MTLBuffer? CreateArgumentBuffer(BufferRef[] buffers)
         {
             ulong[] resourceIds = new ulong[buffers.Length];
 
@@ -1056,44 +1080,10 @@ namespace Ryujinx.Graphics.Metal
 
                 var argMtlBuffer = argBuffer.GetBuffer().Get(_pipeline.Cbs).Value;
 
-                renderCommandEncoder.SetVertexBuffer(argMtlBuffer, 0, 0);
-
-                if (fragment)
-                {
-                    renderCommandEncoder.SetFragmentBuffer(argMtlBuffer, 0, 0);
-                }
+                return argMtlBuffer;
             }
-        }
 
-        private readonly void SetComputeBuffers(MTLComputeCommandEncoder computeCommandEncoder, BufferRef[] buffers)
-        {
-            for (int i = 0; i < buffers.Length; i++)
-            {
-                var range = buffers[i].Range;
-                var autoBuffer = buffers[i].Buffer;
-                var offset = 0;
-                var index = buffers[i].Index;
-
-                if (autoBuffer == null)
-                {
-                    continue;
-                }
-
-                MTLBuffer mtlBuffer;
-
-                if (range.HasValue)
-                {
-                    offset = range.Value.Offset;
-                    mtlBuffer = autoBuffer.Get(_pipeline.Cbs, offset, range.Value.Size, range.Value.Write).Value;
-
-                }
-                else
-                {
-                    mtlBuffer = autoBuffer.Get(_pipeline.Cbs).Value;
-                }
-
-                computeCommandEncoder.SetBuffer(mtlBuffer, (ulong)offset, (ulong)index);
-            }
+            return null;
         }
 
         private readonly void SetCullMode(MTLRenderCommandEncoder renderCommandEncoder)

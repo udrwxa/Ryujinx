@@ -48,14 +48,14 @@ namespace Ryujinx.Graphics.Metal
         public MTLFunction? FragmentFunction = null;
         public MTLFunction? ComputeFunction = null;
 
-        public TextureBase[] FragmentTextures = new TextureBase[Constants.MaxTextures];
-        public MTLSamplerState[] FragmentSamplers = new MTLSamplerState[Constants.MaxSamplers];
+        public TextureBase[] FragmentTextures = new TextureBase[Constants.MaxTexturesPerStage];
+        public MTLSamplerState[] FragmentSamplers = new MTLSamplerState[Constants.MaxTexturesPerStage];
 
-        public TextureBase[] VertexTextures = new TextureBase[Constants.MaxTextures];
-        public MTLSamplerState[] VertexSamplers = new MTLSamplerState[Constants.MaxSamplers];
+        public TextureBase[] VertexTextures = new TextureBase[Constants.MaxTexturesPerStage];
+        public MTLSamplerState[] VertexSamplers = new MTLSamplerState[Constants.MaxTexturesPerStage];
 
-        public TextureBase[] ComputeTextures = new TextureBase[Constants.MaxTextures];
-        public MTLSamplerState[] ComputeSamplers = new MTLSamplerState[Constants.MaxSamplers];
+        public TextureBase[] ComputeTextures = new TextureBase[Constants.MaxTexturesPerStage];
+        public MTLSamplerState[] ComputeSamplers = new MTLSamplerState[Constants.MaxTexturesPerStage];
 
         public BufferRef[] UniformBuffers = [];
         public BufferRef[] StorageBuffers = [];

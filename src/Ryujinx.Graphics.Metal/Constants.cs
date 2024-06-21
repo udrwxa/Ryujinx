@@ -7,16 +7,18 @@ namespace Ryujinx.Graphics.Metal
         public const int MaxUniformBuffersPerStage = 18;
         public const int MaxStorageBuffersPerStage = 16;
         public const int MaxTexturesPerStage = 64;
-        public const int MaxCommandBuffersPerQueue = 16;
         public const int MaxTextureBindings = MaxTexturesPerStage * MaxShaderStages;
         public const int MaxColorAttachments = 8;
         // TODO: Check this value
         public const int MaxVertexAttributes = 31;
         // TODO: Check this value
         public const int MaxVertexLayouts = 31;
-        public const int MaxTextures = 31;
-        public const int MaxSamplers = 16;
 
         public const int MinResourceAlignment = 16;
+
+        // Must match constants set in shader generation
+        public const uint ConstantBuffersIndex = 20;
+        public const uint StorageBuffersIndex = 21;
+        public const uint TexturesIndex = 22;
     }
 }
