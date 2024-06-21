@@ -73,11 +73,11 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
                 if (stage != ShaderStage.Compute)
                 {
                     args[0] = stage == ShaderStage.Vertex ? "VertexIn in" : "FragmentIn in";
-                    args[1] = $"constant {Defaults.StructPrefix}_support_buffer* support_buffer";
+                    args[1] = "constant ConstantBuffers &constant_buffers";
                 }
                 else
                 {
-                    args[0] = $"constant {Defaults.StructPrefix}_support_buffer* support_buffer";
+                    args[0] = "constant ConstantBuffers &constant_buffers";
                 }
             }
 
@@ -160,7 +160,7 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
                     }
                 }
                 args = args.Append($"constant ConstantBuffers &constant_buffers [[buffer({Defaults.ConstantBuffersIndex})]]").ToArray();
-                args = args.Append($"constant StorageBuffers &storage_buffers [[buffer({Defaults.StorageBuffersIndex})]]").ToArray();
+                args = args.Append($"device StorageBuffers &storage_buffers [[buffer({Defaults.StorageBuffersIndex})]]").ToArray();
             }
 
             var funcPrefix = $"{funcKeyword} {returnType} {funcName ?? function.Name}(";

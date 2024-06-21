@@ -1009,8 +1009,6 @@ namespace Ryujinx.Graphics.Metal
             // Zero buffer
             buffers.Add(new BufferRef(zeroBuffer, bufferDescriptors.Length, ref zeroBufferRange));
 
-            ulong[] resourceIds = new ulong[buffers.Count];
-
             for (int i = 0; i < buffers.Count; i++)
             {
                 var range = buffers[i].Range;
