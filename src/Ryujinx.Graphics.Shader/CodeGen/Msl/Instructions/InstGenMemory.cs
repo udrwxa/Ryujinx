@@ -50,7 +50,7 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl.Instructions
                         ? "constant_buffers"
                         : "storage_buffers";
                     varName += "." + buffer.Name;
-                    varName += "." + field.Name;
+                    varName += "->" + field.Name;
                     varType = field.Type;
                     break;
 

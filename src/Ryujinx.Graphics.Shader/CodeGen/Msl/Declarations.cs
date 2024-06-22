@@ -200,7 +200,7 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
 
             foreach (BufferDefinition buffer in buffers)
             {
-                context.AppendLine($"{Defaults.StructPrefix}_{buffer.Name} {buffer.Name};");
+                context.AppendLine($"constant {Defaults.StructPrefix}_{buffer.Name}* {buffer.Name};");
             }
 
             context.LeaveScope(";");
