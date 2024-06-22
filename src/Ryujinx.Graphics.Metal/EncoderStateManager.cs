@@ -1117,6 +1117,7 @@ namespace Ryujinx.Graphics.Metal
                 argBuffer.SetDataUnchecked(0, new ReadOnlySpan<ulong>(resourceIds));
 
                 var argMtlBuffer = argBuffer.GetBuffer().Get(_pipeline.Cbs).Value;
+                argBuffer.Dispose();
 
                 return argMtlBuffer;
             }
