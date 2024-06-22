@@ -74,10 +74,12 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
                 {
                     args[0] = stage == ShaderStage.Vertex ? "VertexIn in" : "FragmentIn in";
                     args[1] = "constant ConstantBuffers &constant_buffers";
+                    args[2] = "device StorageBuffers &storage_buffers";
                 }
                 else
                 {
                     args[0] = "constant ConstantBuffers &constant_buffers";
+                    args[1] = "device StorageBuffers &storage_buffers";
                 }
             }
 

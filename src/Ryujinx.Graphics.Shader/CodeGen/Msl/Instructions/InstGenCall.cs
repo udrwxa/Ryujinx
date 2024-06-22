@@ -22,10 +22,12 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl.Instructions
             {
                 args[0] = "in";
                 args[1] = "constant_buffers";
+                args[2] = "storage_buffers";
             }
             else
             {
                 args[0] = "constant_buffers";
+                args[1] = "storage_buffers";
             }
 
             int argIndex = additionalArgCount;

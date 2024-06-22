@@ -51,7 +51,6 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl.Instructions
 
                     builder.Append($"(device {Declarations.GetVarTypeName(dstType, true)}*)&{GenerateLoadOrStore(context, operation, isStore: false)}");
 
-
                     for (int argIndex = operation.SourcesCount - arity + 2; argIndex < operation.SourcesCount; argIndex++)
                     {
                         builder.Append($", {GetSourceExpr(context, operation.GetSource(argIndex), dstType)}, memory_order_relaxed");
