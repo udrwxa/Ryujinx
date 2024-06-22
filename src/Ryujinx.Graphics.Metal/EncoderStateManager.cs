@@ -1043,42 +1043,34 @@ namespace Ryujinx.Graphics.Metal
 
         private readonly void SetRenderBuffers(MTLRenderCommandEncoder renderCommandEncoder, BufferRef[] uniformBuffers, BufferRef[] storageBuffers)
         {
-            MTLBuffer? uniformArgBuffer = CreateArgumentBuffer(uniformBuffers, Constants.MaxUniformBuffersPerStage);
+            MTLBuffer uniformArgBuffer = CreateArgumentBufferForRenderEncoder(renderCommandEncoder, uniformBuffers, true);
 
-            if (uniformArgBuffer.HasValue)
-            {
-                renderCommandEncoder.SetVertexBuffer(uniformArgBuffer.Value, 0, Constants.ConstantBuffersIndex);
-                renderCommandEncoder.SetFragmentBuffer(uniformArgBuffer.Value, 0, Constants.ConstantBuffersIndex);
-            }
+            renderCommandEncoder.SetVertexBuffer(uniformArgBuffer, 0, Constants.ConstantBuffersIndex);
+            renderCommandEncoder.SetFragmentBuffer(uniformArgBuffer, 0, Constants.ConstantBuffersIndex);
 
-            MTLBuffer? storageArgBuffer = CreateArgumentBuffer(storageBuffers, Constants.MaxStorageBuffersPerStage);
+            MTLBuffer storageArgBuffer = CreateArgumentBufferForRenderEncoder(renderCommandEncoder, storageBuffers, false);
 
-            if (storageArgBuffer.HasValue)
-            {
-                renderCommandEncoder.SetVertexBuffer(storageArgBuffer.Value, 0, Constants.StorageBuffersIndex);
-                renderCommandEncoder.SetFragmentBuffer(storageArgBuffer.Value, 0, Constants.StorageBuffersIndex);
-            }
+            renderCommandEncoder.SetVertexBuffer(storageArgBuffer, 0, Constants.StorageBuffersIndex);
+            renderCommandEncoder.SetFragmentBuffer(storageArgBuffer, 0, Constants.StorageBuffersIndex);
         }
 
         private readonly void SetComputeBuffers(MTLComputeCommandEncoder computeCommandEncoder, BufferRef[] uniformBuffers, BufferRef[] storageBuffers)
         {
-            MTLBuffer? uniformArgBuffer = CreateArgumentBuffer(uniformBuffers, Constants.MaxUniformBuffersPerStage);
+            MTLBuffer uniformArgBuffer = CreateArgumentBufferForComputeEncoder(computeCommandEncoder, uniformBuffers, true);
 
-            if (uniformArgBuffer.HasValue)
-            {
-                computeCommandEncoder.SetBuffer(uniformArgBuffer.Value, 0, Constants.ConstantBuffersIndex);
-            }
+            computeCommandEncoder.SetBuffer(uniformArgBuffer, 0, Constants.ConstantBuffersIndex);
 
-            MTLBuffer? storageArgBuffer = CreateArgumentBuffer(storageBuffers, Constants.MaxStorageBuffersPerStage);
 
-            if (storageArgBuffer.HasValue)
-            {
-                computeCommandEncoder.SetBuffer(storageArgBuffer.Value, 0, Constants.StorageBuffersIndex);
-            }
+            MTLBuffer storageArgBuffer = CreateArgumentBufferForComputeEncoder(computeCommandEncoder, storageBuffers, false);
+
+            computeCommandEncoder.SetBuffer(storageArgBuffer, 0, Constants.StorageBuffersIndex);
         }
 
-        private readonly MTLBuffer? CreateArgumentBuffer(BufferRef[] buffers, int maxBuffers)
+        private readonly MTLBuffer CreateArgumentBufferForRenderEncoder(MTLRenderCommandEncoder renderCommandEncoder, BufferRef[] buffers, bool constant)
         {
+            var maxBuffers = constant ? Constants.MaxUniformBuffersPerStage : Constants.MaxStorageBuffersPerStage;
+            var usage = constant ? MTLResourceUsage.Read : MTLResourceUsage.Write;
+
             ulong[] resourceIds = new ulong[maxBuffers];
 
             for (int i = 0; i < buffers.Length; i++)
@@ -1106,23 +1098,66 @@ namespace Ryujinx.Graphics.Metal
                     mtlBuffer = autoBuffer.Get(_pipeline.Cbs).Value;
                 }
 
+                renderCommandEncoder.UseResource(new MTLResource(mtlBuffer.NativePtr), usage, MTLRenderStages.RenderStageFragment | MTLRenderStages.RenderStageVertex);
                 resourceIds[index] = mtlBuffer.GpuAddress + (ulong)offset;
             }
 
             var sizeOfArgumentBuffer = sizeof(ulong) * maxBuffers;
 
-            if (sizeOfArgumentBuffer > 0)
+            var argBuffer = _bufferManager.Create(sizeOfArgumentBuffer);
+            argBuffer.SetDataUnchecked(0, new ReadOnlySpan<ulong>(resourceIds));
+
+            var argMtlBuffer = argBuffer.GetBuffer().Get(_pipeline.Cbs).Value;
+            argBuffer.Dispose();
+
+            return argMtlBuffer;
+        }
+
+        private readonly MTLBuffer CreateArgumentBufferForComputeEncoder(MTLComputeCommandEncoder computeCommandEncoder, BufferRef[] buffers, bool constant)
+        {
+            var maxBuffers = constant ? Constants.MaxUniformBuffersPerStage : Constants.MaxStorageBuffersPerStage;
+            var usage = constant ? MTLResourceUsage.Read : MTLResourceUsage.Write;
+
+            ulong[] resourceIds = new ulong[maxBuffers];
+
+            for (int i = 0; i < buffers.Length; i++)
             {
-                var argBuffer = _bufferManager.Create(sizeOfArgumentBuffer);
-                argBuffer.SetDataUnchecked(0, new ReadOnlySpan<ulong>(resourceIds));
+                var range = buffers[i].Range;
+                var autoBuffer = buffers[i].Buffer;
+                var offset = 0;
+                var index = buffers[i].Index;
 
-                var argMtlBuffer = argBuffer.GetBuffer().Get(_pipeline.Cbs).Value;
-                argBuffer.Dispose();
+                if (autoBuffer == null)
+                {
+                    continue;
+                }
 
-                return argMtlBuffer;
+                MTLBuffer mtlBuffer;
+
+                if (range.HasValue)
+                {
+                    offset = range.Value.Offset;
+                    mtlBuffer = autoBuffer.Get(_pipeline.Cbs, offset, range.Value.Size, range.Value.Write).Value;
+
+                }
+                else
+                {
+                    mtlBuffer = autoBuffer.Get(_pipeline.Cbs).Value;
+                }
+
+                computeCommandEncoder.UseResource(new MTLResource(mtlBuffer.NativePtr), usage);
+                resourceIds[index] = mtlBuffer.GpuAddress + (ulong)offset;
             }
 
-            return null;
+            var sizeOfArgumentBuffer = sizeof(ulong) * maxBuffers;
+
+            var argBuffer = _bufferManager.Create(sizeOfArgumentBuffer);
+            argBuffer.SetDataUnchecked(0, new ReadOnlySpan<ulong>(resourceIds));
+
+            var argMtlBuffer = argBuffer.GetBuffer().Get(_pipeline.Cbs).Value;
+            argBuffer.Dispose();
+
+            return argMtlBuffer;
         }
 
         private readonly void SetCullMode(MTLRenderCommandEncoder renderCommandEncoder)
