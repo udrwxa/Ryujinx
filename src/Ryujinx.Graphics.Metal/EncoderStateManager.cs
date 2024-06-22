@@ -1043,7 +1043,7 @@ namespace Ryujinx.Graphics.Metal
 
         private readonly void SetRenderBuffers(MTLRenderCommandEncoder renderCommandEncoder, BufferRef[] uniformBuffers, BufferRef[] storageBuffers)
         {
-            MTLBuffer? uniformArgBuffer = CreateArgumentBuffer(uniformBuffers);
+            MTLBuffer? uniformArgBuffer = CreateArgumentBuffer(uniformBuffers, Constants.MaxUniformBuffersPerStage);
 
             if (uniformArgBuffer.HasValue)
             {
@@ -1051,7 +1051,7 @@ namespace Ryujinx.Graphics.Metal
                 renderCommandEncoder.SetFragmentBuffer(uniformArgBuffer.Value, 0, Constants.ConstantBuffersIndex);
             }
 
-            MTLBuffer? storageArgBuffer = CreateArgumentBuffer(storageBuffers);
+            MTLBuffer? storageArgBuffer = CreateArgumentBuffer(storageBuffers, Constants.MaxStorageBuffersPerStage);
 
             if (storageArgBuffer.HasValue)
             {
@@ -1062,14 +1062,14 @@ namespace Ryujinx.Graphics.Metal
 
         private readonly void SetComputeBuffers(MTLComputeCommandEncoder computeCommandEncoder, BufferRef[] uniformBuffers, BufferRef[] storageBuffers)
         {
-            MTLBuffer? uniformArgBuffer = CreateArgumentBuffer(uniformBuffers);
+            MTLBuffer? uniformArgBuffer = CreateArgumentBuffer(uniformBuffers, Constants.MaxUniformBuffersPerStage);
 
             if (uniformArgBuffer.HasValue)
             {
                 computeCommandEncoder.SetBuffer(uniformArgBuffer.Value, 0, Constants.ConstantBuffersIndex);
             }
 
-            MTLBuffer? storageArgBuffer = CreateArgumentBuffer(storageBuffers);
+            MTLBuffer? storageArgBuffer = CreateArgumentBuffer(storageBuffers, Constants.MaxStorageBuffersPerStage);
 
             if (storageArgBuffer.HasValue)
             {
@@ -1077,16 +1077,16 @@ namespace Ryujinx.Graphics.Metal
             }
         }
 
-
-        private readonly MTLBuffer? CreateArgumentBuffer(BufferRef[] buffers)
+        private readonly MTLBuffer? CreateArgumentBuffer(BufferRef[] buffers, int maxBuffers)
         {
-            ulong[] resourceIds = new ulong[buffers.Length];
+            ulong[] resourceIds = new ulong[maxBuffers];
 
             for (int i = 0; i < buffers.Length; i++)
             {
                 var range = buffers[i].Range;
                 var autoBuffer = buffers[i].Buffer;
                 var offset = 0;
+                var index = buffers[i].Index;
 
                 if (autoBuffer == null)
                 {
@@ -1106,10 +1106,10 @@ namespace Ryujinx.Graphics.Metal
                     mtlBuffer = autoBuffer.Get(_pipeline.Cbs).Value;
                 }
 
-                resourceIds[i] = mtlBuffer.GpuAddress + (ulong)offset;
+                resourceIds[index] = mtlBuffer.GpuAddress + (ulong)offset;
             }
 
-            var sizeOfArgumentBuffer = sizeof(ulong) * buffers.Length;
+            var sizeOfArgumentBuffer = sizeof(ulong) * maxBuffers;
 
             if (sizeOfArgumentBuffer > 0)
             {
