@@ -171,6 +171,8 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
 
             foreach (BufferDefinition buffer in buffers)
             {
+                var needsPadding = buffer.Layout == BufferLayout.Std140;
+
                 argBufferPointers[buffer.Binding] = $"{addressSpace} {Defaults.StructPrefix}_{buffer.Name}* {buffer.Name};";
 
                 context.AppendLine($"struct {Defaults.StructPrefix}_{buffer.Name}");
@@ -178,7 +180,12 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
 
                 foreach (StructureField field in buffer.Type.Fields)
                 {
-                    string typeName = GetVarTypeName(field.Type & ~AggregateType.Array);
+                    var type = field.Type;
+                    type |= (needsPadding && (field.Type & AggregateType.Array) != 0) ? AggregateType.Vector4 : AggregateType.Invalid;
+
+                    type &= ~AggregateType.Array;
+
+                    string typeName = GetVarTypeName(type);
                     string arraySuffix = "";
 
                     if (field.Type.HasFlag(AggregateType.Array))

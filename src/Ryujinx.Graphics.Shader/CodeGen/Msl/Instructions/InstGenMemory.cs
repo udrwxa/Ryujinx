@@ -19,6 +19,7 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl.Instructions
             int srcIndex = 0;
             bool isStoreOrAtomic = operation.Inst == Instruction.Store || operation.Inst.IsAtomic();
             int inputsCount = isStoreOrAtomic ? operation.SourcesCount - 1 : operation.SourcesCount;
+            bool fieldHasPadding = false;
 
             if (operation.Inst == Instruction.AtomicCompareAndSwap)
             {
@@ -46,6 +47,11 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl.Instructions
                     }
 
                     StructureField field = buffer.Type.Fields[fieldIndex.Value];
+
+                    fieldHasPadding = buffer.Layout == BufferLayout.Std140
+                                      && ((field.Type & AggregateType.Vector4) == 0)
+                                      && ((field.Type & AggregateType.Array) != 0);
+
                     varName = storageKind == StorageKind.ConstantBuffer
                         ? "constant_buffers"
                         : "storage_buffers";
@@ -133,6 +139,7 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl.Instructions
                 }
             }
             varName += fieldName;
+            varName += fieldHasPadding ? ".x" : "";
 
             if (isStore)
             {
