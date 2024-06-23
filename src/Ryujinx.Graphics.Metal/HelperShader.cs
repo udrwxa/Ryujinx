@@ -77,7 +77,8 @@ namespace Ryujinx.Graphics.Metal
             ITexture dst,
             Extents2D srcRegion,
             Extents2D dstRegion,
-            bool linearFilter)
+            bool linearFilter,
+            bool clear = false)
         {
             // Save current state
             _pipeline.SaveAndResetState();
@@ -134,7 +135,7 @@ namespace Ryujinx.Graphics.Metal
             _pipeline.SetRenderTargets([dst], null);
             _pipeline.SetScissors(stackalloc Rectangle<int>[] { new Rectangle<int>(0, 0, dstWidth, dstHeight) });
 
-            _pipeline.SetClearLoadAction(true);
+            _pipeline.SetClearLoadAction(clear);
 
             _pipeline.SetViewports(viewports);
             _pipeline.SetPrimitiveTopology(PrimitiveTopology.TriangleStrip);

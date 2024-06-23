@@ -190,7 +190,7 @@ namespace Ryujinx.Graphics.Metal
             var textureInfo = new TextureCreateInfo((int)drawable.Texture.Width, (int)drawable.Texture.Height, (int)drawable.Texture.Depth, (int)drawable.Texture.MipmapLevelCount, (int)drawable.Texture.SampleCount, 0, 0, 0, Format.B8G8R8A8Unorm, 0, Target.Texture2D, SwizzleComponent.Red, SwizzleComponent.Green, SwizzleComponent.Blue, SwizzleComponent.Alpha);
             var dst = new Texture(_device, _renderer, this, textureInfo, drawable.Texture, 0, 0);
 
-            _renderer.HelperShader.BlitColor(Cbs, src, dst, srcRegion, dstRegion, isLinear);
+            _renderer.HelperShader.BlitColor(Cbs, src, dst, srcRegion, dstRegion, isLinear, true);
 
             EndCurrentPass();
 
