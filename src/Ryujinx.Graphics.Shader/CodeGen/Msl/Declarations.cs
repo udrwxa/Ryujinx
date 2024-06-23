@@ -163,8 +163,15 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
 
         private static void DeclareBufferStructures(CodeGenContext context, IEnumerable<BufferDefinition> buffers, bool constant)
         {
+            var name = constant ? "ConstantBuffers" : "StorageBuffers";
+            var count = constant ? Defaults.MaxUniformBuffersPerStage : Defaults.MaxStorageBuffersPerStage;
+
+            var argBufferPointers = new string[count];
+
             foreach (BufferDefinition buffer in buffers)
             {
+                argBufferPointers[buffer.Binding] = $"constant {Defaults.StructPrefix}_{buffer.Name}* {buffer.Name};";
+
                 context.AppendLine($"struct {Defaults.StructPrefix}_{buffer.Name}");
                 context.EnterScope();
 
@@ -193,14 +200,21 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
                 context.AppendLine();
             }
 
-            var name = constant ? "ConstantBuffers" : "StorageBuffers";
-
             context.AppendLine($"struct {name}");
             context.EnterScope();
 
-            foreach (BufferDefinition buffer in buffers)
+            for (int i = 0; i < argBufferPointers.Length; i++)
             {
-                context.AppendLine($"constant {Defaults.StructPrefix}_{buffer.Name}* {buffer.Name} [[id({buffer.Binding})]];");
+                if (argBufferPointers[i] == null)
+                {
+                    // We need to pad the struct definition in order to read
+                    // non-contiguous resources correctly.
+                    context.AppendLine($"ulong padding_{i};");
+                }
+                else
+                {
+                    context.AppendLine(argBufferPointers[i]);
+                }
             }
 
             context.LeaveScope(";");

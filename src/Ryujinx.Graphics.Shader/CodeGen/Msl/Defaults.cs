@@ -14,6 +14,9 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
 
         public const string UndefinedName = "0";
 
+        public const int MaxUniformBuffersPerStage = 18;
+        public const int MaxStorageBuffersPerStage = 16;
+
         public const uint ConstantBuffersIndex = 20;
         public const uint StorageBuffersIndex = 21;
         public const uint TexturesIndex = 22;
