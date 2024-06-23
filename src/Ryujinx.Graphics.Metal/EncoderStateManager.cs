@@ -662,11 +662,8 @@ namespace Ryujinx.Graphics.Metal
         // Inlineable
         public void UpdateUniformBuffers(ReadOnlySpan<BufferAssignment> buffers)
         {
-            _currentState.UniformBuffers = new BufferRef[buffers.Length];
-
-            for (int i = 0; i < buffers.Length; i++)
+            foreach (BufferAssignment assignment in buffers)
             {
-                var assignment = buffers[i];
                 var buffer = assignment.Range;
                 int index = assignment.Binding;
 
@@ -674,7 +671,7 @@ namespace Ryujinx.Graphics.Metal
                     ? null
                     : _bufferManager.GetBuffer(buffer.Handle, buffer.Write);
 
-                _currentState.UniformBuffers[i] = new BufferRef(mtlBuffer, index, ref buffer);
+                _currentState.UniformBuffers[index] = new BufferRef(mtlBuffer, ref buffer);
             }
 
             // Inline update
@@ -696,11 +693,8 @@ namespace Ryujinx.Graphics.Metal
         // Inlineable
         public void UpdateStorageBuffers(ReadOnlySpan<BufferAssignment> buffers)
         {
-            _currentState.StorageBuffers = new BufferRef[buffers.Length];
-
-            for (int i = 0; i < buffers.Length; i++)
+            foreach (BufferAssignment assignment in buffers)
             {
-                var assignment = buffers[i];
                 var buffer = assignment.Range;
                 int index = assignment.Binding;
 
@@ -708,7 +702,7 @@ namespace Ryujinx.Graphics.Metal
                     ? null
                     : _bufferManager.GetBuffer(buffer.Handle, buffer.Write);
 
-                _currentState.StorageBuffers[i] = new BufferRef(mtlBuffer, index, ref buffer);
+                _currentState.StorageBuffers[index] = new BufferRef(mtlBuffer, ref buffer);
             }
 
             // Inline update
@@ -730,14 +724,12 @@ namespace Ryujinx.Graphics.Metal
         // Inlineable
         public void UpdateStorageBuffers(int first, ReadOnlySpan<Auto<DisposableBuffer>> buffers)
         {
-            _currentState.StorageBuffers = new BufferRef[buffers.Length];
-
             for (int i = 0; i < buffers.Length; i++)
             {
                 var mtlBuffer = buffers[i];
                 int index = first + i;
 
-                _currentState.StorageBuffers[i] = new BufferRef(mtlBuffer, index);
+                _currentState.StorageBuffers[index] = new BufferRef(mtlBuffer);
             }
 
             // Inline update
@@ -928,8 +920,8 @@ namespace Ryujinx.Graphics.Metal
                 {
                     var attrib = vertexDescriptor.Attributes.Object((ulong)i);
                     attrib.Format = attribDescriptors[i].Format.Convert();
-                    indexMask |= 1u << bufferDescriptors.Length;
-                    attrib.BufferIndex = (ulong)bufferDescriptors.Length;
+                    indexMask |= 1u << (int)Constants.ZeroBufferIndex;
+                    attrib.BufferIndex = Constants.ZeroBufferIndex;
                     attrib.Offset = 0;
                 }
                 else
@@ -977,9 +969,9 @@ namespace Ryujinx.Graphics.Metal
             }
 
             // Zero buffer
-            if ((indexMask & (1u << bufferDescriptors.Length)) != 0)
+            if ((indexMask & (1u << (int)Constants.ZeroBufferIndex)) != 0)
             {
-                var layout = vertexDescriptor.Layouts.Object((ulong)bufferDescriptors.Length);
+                var layout = vertexDescriptor.Layouts.Object(Constants.ZeroBufferIndex);
                 layout.Stride = 1;
                 layout.StepFunction = MTLVertexStepFunction.Constant;
                 layout.StepRate = 0;
@@ -990,55 +982,35 @@ namespace Ryujinx.Graphics.Metal
 
         private void SetVertexBuffers(MTLRenderCommandEncoder renderCommandEncoder, VertexBufferDescriptor[] bufferDescriptors)
         {
-            var buffers = new List<BufferRef>();
-
             for (int i = 0; i < bufferDescriptors.Length; i++)
             {
-                Auto<DisposableBuffer> mtlBuffer = bufferDescriptors[i].Buffer.Handle == BufferHandle.Null
+                Auto<DisposableBuffer> autoBuffer = bufferDescriptors[i].Buffer.Handle == BufferHandle.Null
                     ? null
                     : _bufferManager.GetBuffer(bufferDescriptors[i].Buffer.Handle, bufferDescriptors[i].Buffer.Write);
 
                 var range = bufferDescriptors[i].Buffer;
-
-                buffers.Add(new BufferRef(mtlBuffer, i, ref range));
-            }
-
-            var zeroBufferRange = new BufferRange(_zeroBuffer, 0, ZeroBufferSize);
-
-            Auto<DisposableBuffer> zeroBuffer = _zeroBuffer == BufferHandle.Null
-                ? null
-                : _bufferManager.GetBuffer(_zeroBuffer, false);
-
-            // Zero buffer
-            buffers.Add(new BufferRef(zeroBuffer, bufferDescriptors.Length, ref zeroBufferRange));
-
-            for (int i = 0; i < buffers.Count; i++)
-            {
-                var range = buffers[i].Range;
-                var autoBuffer = buffers[i].Buffer;
-                var offset = 0;
-                var index = buffers[i].Index;
+                var offset = range.Offset;
 
                 if (autoBuffer == null)
                 {
                     continue;
                 }
 
-                MTLBuffer mtlBuffer;
-
-                if (range.HasValue)
-                {
-                    offset = range.Value.Offset;
-                    mtlBuffer = autoBuffer.Get(_pipeline.Cbs, offset, range.Value.Size, range.Value.Write).Value;
-
-                }
-                else
-                {
-                    mtlBuffer = autoBuffer.Get(_pipeline.Cbs).Value;
-                }
-
-                renderCommandEncoder.SetVertexBuffer(mtlBuffer, (ulong)offset, (ulong)index);
+                var mtlBuffer = autoBuffer.Get(_pipeline.Cbs, offset, range.Size, range.Write).Value;
+                renderCommandEncoder.SetVertexBuffer(mtlBuffer, (ulong)offset, (ulong)i);
             }
+
+            Auto<DisposableBuffer> autoZeroBuffer = _zeroBuffer == BufferHandle.Null
+                ? null
+                : _bufferManager.GetBuffer(_zeroBuffer, false);
+
+            if (autoZeroBuffer == null)
+            {
+                return;
+            }
+
+            var zeroMtlBuffer = autoZeroBuffer.Get(_pipeline.Cbs).Value;
+            renderCommandEncoder.SetVertexBuffer(zeroMtlBuffer, 0, Constants.ZeroBufferIndex);
         }
 
         private readonly void SetRenderBuffers(MTLRenderCommandEncoder renderCommandEncoder, BufferRef[] uniformBuffers, BufferRef[] storageBuffers)
@@ -1068,17 +1040,15 @@ namespace Ryujinx.Graphics.Metal
 
         private readonly MTLBuffer CreateArgumentBufferForRenderEncoder(MTLRenderCommandEncoder renderCommandEncoder, BufferRef[] buffers, bool constant)
         {
-            var maxBuffers = constant ? Constants.MaxUniformBuffersPerStage : Constants.MaxStorageBuffersPerStage;
             var usage = constant ? MTLResourceUsage.Read : MTLResourceUsage.Write;
 
-            ulong[] resourceIds = new ulong[maxBuffers];
+            ulong[] resourceIds = new ulong[buffers.Length];
 
             for (int i = 0; i < buffers.Length; i++)
             {
                 var range = buffers[i].Range;
                 var autoBuffer = buffers[i].Buffer;
                 var offset = 0;
-                var index = buffers[i].Index;
 
                 if (autoBuffer == null)
                 {
@@ -1099,10 +1069,10 @@ namespace Ryujinx.Graphics.Metal
                 }
 
                 renderCommandEncoder.UseResource(new MTLResource(mtlBuffer.NativePtr), usage, MTLRenderStages.RenderStageFragment | MTLRenderStages.RenderStageVertex);
-                resourceIds[index] = mtlBuffer.GpuAddress + (ulong)offset;
+                resourceIds[i] = mtlBuffer.GpuAddress + (ulong)offset;
             }
 
-            var sizeOfArgumentBuffer = sizeof(ulong) * maxBuffers;
+            var sizeOfArgumentBuffer = sizeof(ulong) * buffers.Length;
 
             var argBuffer = _bufferManager.Create(sizeOfArgumentBuffer);
             argBuffer.SetDataUnchecked(0, new ReadOnlySpan<ulong>(resourceIds));
@@ -1115,17 +1085,15 @@ namespace Ryujinx.Graphics.Metal
 
         private readonly MTLBuffer CreateArgumentBufferForComputeEncoder(MTLComputeCommandEncoder computeCommandEncoder, BufferRef[] buffers, bool constant)
         {
-            var maxBuffers = constant ? Constants.MaxUniformBuffersPerStage : Constants.MaxStorageBuffersPerStage;
             var usage = constant ? MTLResourceUsage.Read : MTLResourceUsage.Write;
 
-            ulong[] resourceIds = new ulong[maxBuffers];
+            ulong[] resourceIds = new ulong[buffers.Length];
 
             for (int i = 0; i < buffers.Length; i++)
             {
                 var range = buffers[i].Range;
                 var autoBuffer = buffers[i].Buffer;
                 var offset = 0;
-                var index = buffers[i].Index;
 
                 if (autoBuffer == null)
                 {
@@ -1146,10 +1114,10 @@ namespace Ryujinx.Graphics.Metal
                 }
 
                 computeCommandEncoder.UseResource(new MTLResource(mtlBuffer.NativePtr), usage);
-                resourceIds[index] = mtlBuffer.GpuAddress + (ulong)offset;
+                resourceIds[i] = mtlBuffer.GpuAddress + (ulong)offset;
             }
 
-            var sizeOfArgumentBuffer = sizeof(ulong) * maxBuffers;
+            var sizeOfArgumentBuffer = sizeof(ulong) * buffers.Length;
 
             var argBuffer = _bufferManager.Create(sizeOfArgumentBuffer);
             argBuffer.SetDataUnchecked(0, new ReadOnlySpan<ulong>(resourceIds));

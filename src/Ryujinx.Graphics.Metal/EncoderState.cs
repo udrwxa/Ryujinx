@@ -24,19 +24,16 @@ namespace Ryujinx.Graphics.Metal
     record struct BufferRef
     {
         public Auto<DisposableBuffer> Buffer;
-        public int Index;
         public BufferRange? Range;
 
-        public BufferRef(Auto<DisposableBuffer> buffer, int index)
+        public BufferRef(Auto<DisposableBuffer> buffer)
         {
             Buffer = buffer;
-            Index = index;
         }
 
-        public BufferRef(Auto<DisposableBuffer> buffer, int index, ref BufferRange range)
+        public BufferRef(Auto<DisposableBuffer> buffer, ref BufferRange range)
         {
             Buffer = buffer;
-            Index = index;
             Range = range;
         }
     }
@@ -57,8 +54,8 @@ namespace Ryujinx.Graphics.Metal
         public TextureBase[] ComputeTextures = new TextureBase[Constants.MaxTexturesPerStage];
         public MTLSamplerState[] ComputeSamplers = new MTLSamplerState[Constants.MaxTexturesPerStage];
 
-        public BufferRef[] UniformBuffers = [];
-        public BufferRef[] StorageBuffers = [];
+        public BufferRef[] UniformBuffers = new BufferRef[Constants.MaxUniformBuffersPerStage];
+        public BufferRef[] StorageBuffers = new BufferRef[Constants.MaxStorageBuffersPerStage];
 
         public Auto<DisposableBuffer> IndexBuffer = default;
         public MTLIndexType IndexType = MTLIndexType.UInt16;
