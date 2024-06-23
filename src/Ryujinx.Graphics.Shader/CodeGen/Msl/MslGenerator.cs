@@ -124,10 +124,7 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
 
                 if (stage == ShaderStage.Vertex)
                 {
-                    if (context.AttributeUsage.UsedInputAttributes != 0)
-                    {
-                        args = args.Prepend("VertexIn in [[stage_in]]").ToArray();
-                    }
+                    args = args.Prepend("VertexIn in [[stage_in]]").ToArray();
                 }
                 else if (stage == ShaderStage.Fragment)
                 {

@@ -257,7 +257,7 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
             }
             else
             {
-                if (inputs.Any() || context.Definitions.Stage == ShaderStage.Fragment)
+                if (inputs.Any() || context.Definitions.Stage != ShaderStage.Compute)
                 {
                     string prefix = "";
 
