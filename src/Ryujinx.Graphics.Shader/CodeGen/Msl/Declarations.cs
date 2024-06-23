@@ -165,12 +165,13 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
         {
             var name = constant ? "ConstantBuffers" : "StorageBuffers";
             var count = constant ? Defaults.MaxUniformBuffersPerStage : Defaults.MaxStorageBuffersPerStage;
+            var addressSpace = constant ? "constant" : "device";
 
             var argBufferPointers = new string[count];
 
             foreach (BufferDefinition buffer in buffers)
             {
-                argBufferPointers[buffer.Binding] = $"constant {Defaults.StructPrefix}_{buffer.Name}* {buffer.Name};";
+                argBufferPointers[buffer.Binding] = $"{addressSpace} {Defaults.StructPrefix}_{buffer.Name}* {buffer.Name};";
 
                 context.AppendLine($"struct {Defaults.StructPrefix}_{buffer.Name}");
                 context.EnterScope();
