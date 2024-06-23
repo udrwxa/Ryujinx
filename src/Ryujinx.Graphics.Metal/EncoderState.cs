@@ -116,6 +116,8 @@ namespace Ryujinx.Graphics.Metal
             clone.BlendDescriptors = (BlendDescriptor?[])BlendDescriptors.Clone();
             clone.VertexBuffers = (VertexBufferDescriptor[])VertexBuffers.Clone();
             clone.VertexAttribs = (VertexAttribDescriptor[])VertexAttribs.Clone();
+            clone.UniformBuffers = (BufferRef[])UniformBuffers.Clone();
+            clone.StorageBuffers = (BufferRef[])StorageBuffers.Clone();
 
             return clone;
         }
