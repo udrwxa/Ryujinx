@@ -231,17 +231,33 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
 
         private static void DeclareTextures(CodeGenContext context, IEnumerable<TextureDefinition> textures)
         {
-            context.AppendLine($"struct Textures");
+            context.AppendLine("struct Textures");
             context.EnterScope();
+
+            var argBufferPointers = new string[Defaults.MaxTexturesPerStage * 2];
 
             foreach (TextureDefinition texture in textures)
             {
                 var textureTypeName = texture.Type.ToMslTextureType();
-                context.AppendLine($"{textureTypeName} tex_{texture.Name};");
+                argBufferPointers[texture.Binding] = $"{textureTypeName} tex_{texture.Name};";
 
                 if (!texture.Separate)
                 {
-                    context.AppendLine($"sampler samp_{texture.Name};");
+                    argBufferPointers[Defaults.MaxTexturesPerStage + texture.Binding] = $"sampler samp_{texture.Name};";
+                }
+            }
+
+            for (int i = 0; i < argBufferPointers.Length; i++)
+            {
+                if (argBufferPointers[i] == null)
+                {
+                    // We need to pad the struct definition in order to read
+                    // non-contiguous resources correctly.
+                    context.AppendLine($"ulong padding_{i};");
+                }
+                else
+                {
+                    context.AppendLine(argBufferPointers[i]);
                 }
             }
 

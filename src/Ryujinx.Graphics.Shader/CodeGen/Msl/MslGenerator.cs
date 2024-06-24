@@ -147,19 +147,9 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
                     args = args.Append("uint thread_index_in_simdgroup [[thread_index_in_simdgroup]]").ToArray();
                 }
 
-
-                foreach (var texture in context.Properties.Textures.Values)
-                {
-                    var textureTypeName = texture.Type.ToMslTextureType();
-                    args = args.Append($"{textureTypeName} tex_{texture.Name} [[texture({texture.Binding})]]").ToArray();
-                    // If the texture is not separate, we need to declare a sampler
-                    if (!texture.Separate)
-                    {
-                        args = args.Append($"sampler samp_{texture.Name} [[sampler({texture.Binding})]]").ToArray();
-                    }
-                }
                 args = args.Append($"constant ConstantBuffers &constant_buffers [[buffer({Defaults.ConstantBuffersIndex})]]").ToArray();
                 args = args.Append($"device StorageBuffers &storage_buffers [[buffer({Defaults.StorageBuffersIndex})]]").ToArray();
+                args = args.Append($"constant Textures &textures [[buffer({Defaults.TexturesIndex})]]").ToArray();
             }
 
             var funcPrefix = $"{funcKeyword} {returnType} {funcName ?? function.Name}(";

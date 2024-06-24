@@ -183,7 +183,7 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl.Instructions
                 coordsExpr = GetSourceExpr(context, texOp.GetSource(coordsIndex), AggregateType.FP32);
             }
 
-            return $"tex_{samplerName}.calculate_unclamped_lod(samp_{samplerName}, {coordsExpr}){GetMaskMultiDest(texOp.Index)}";
+            return $"textures.tex_{samplerName}.calculate_unclamped_lod(samp_{samplerName}, {coordsExpr}){GetMaskMultiDest(texOp.Index)}";
         }
 
         public static string Store(CodeGenContext context, AstOperation operation)
@@ -209,7 +209,7 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl.Instructions
             bool colorIsVector = isGather || !isShadow;
 
             string samplerName = GetSamplerName(context.Properties, texOp);
-            string texCall = $"tex_{samplerName}";
+            string texCall = $"textures.tex_{samplerName}";
             texCall += ".";
 
             int srcIndex = 0;
@@ -239,7 +239,7 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl.Instructions
                     texCall += "_compare";
                 }
 
-                texCall += $"(samp_{samplerName}, ";
+                texCall += $"(textures.samp_{samplerName}, ";
             }
 
             int coordsCount = texOp.Type.GetDimensions();
@@ -395,7 +395,7 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl.Instructions
             }
 
             string samplerName = GetSamplerName(context.Properties, texOp);
-            string textureName = $"tex_{samplerName}";
+            string textureName = $"textures.tex_{samplerName}";
             string texCall = textureName + ".";
             texCall += "get_num_samples()";
 
@@ -407,7 +407,7 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl.Instructions
             AstTextureOperation texOp = (AstTextureOperation)operation;
 
             string samplerName = GetSamplerName(context.Properties, texOp);
-            string textureName = $"tex_{samplerName}";
+            string textureName = $"textures.tex_{samplerName}";
             string texCall = textureName + ".";
 
             if (texOp.Index == 3)

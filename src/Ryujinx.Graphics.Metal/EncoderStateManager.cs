@@ -176,16 +176,8 @@ namespace Ryujinx.Graphics.Metal
             SetScissors(renderCommandEncoder);
             SetVertexBuffers(renderCommandEncoder, _currentState.VertexBuffers);
             SetRenderBuffers(renderCommandEncoder, _currentState.UniformBuffers, _currentState.StorageBuffers);
-            for (ulong i = 0; i < Constants.MaxTexturesPerStage; i++)
-            {
-                SetRenderTexture(renderCommandEncoder, ShaderStage.Vertex, i, _currentState.VertexTextures[i]);
-                SetRenderTexture(renderCommandEncoder, ShaderStage.Fragment, i, _currentState.FragmentTextures[i]);
-            }
-            for (ulong i = 0; i < Constants.MaxTexturesPerStage; i++)
-            {
-                SetRenderSampler(renderCommandEncoder, ShaderStage.Vertex, i, _currentState.VertexSamplers[i]);
-                SetRenderSampler(renderCommandEncoder, ShaderStage.Fragment, i, _currentState.FragmentSamplers[i]);
-            }
+            SetRenderTextures(renderCommandEncoder, ShaderStage.Vertex, _currentState.VertexTextures, _currentState.VertexSamplers);
+            SetRenderTextures(renderCommandEncoder, ShaderStage.Fragment, _currentState.FragmentTextures, _currentState.FragmentSamplers);
 
             // Cleanup
             renderPassDescriptor.Dispose();
@@ -200,15 +192,7 @@ namespace Ryujinx.Graphics.Metal
 
             // Rebind all the state
             SetComputeBuffers(computeCommandEncoder, _currentState.UniformBuffers, _currentState.StorageBuffers);
-
-            for (ulong i = 0; i < Constants.MaxTexturesPerStage; i++)
-            {
-                SetComputeTexture(computeCommandEncoder, i, _currentState.ComputeTextures[i]);
-            }
-            for (ulong i = 0; i < Constants.MaxTexturesPerStage; i++)
-            {
-                SetComputeSampler(computeCommandEncoder, i, _currentState.ComputeSamplers[i]);
-            }
+            SetComputeTextures(computeCommandEncoder, _currentState.ComputeTextures, _currentState.ComputeSamplers);
 
             // Cleanup
             descriptor.Dispose();
@@ -814,13 +798,21 @@ namespace Ryujinx.Graphics.Metal
                 if (_pipeline.CurrentEncoderType == EncoderType.Render)
                 {
                     var renderCommandEncoder = new MTLRenderCommandEncoder(_pipeline.CurrentEncoder.Value);
-                    SetRenderTexture(renderCommandEncoder, ShaderStage.Vertex, binding, texture);
-                    SetRenderTexture(renderCommandEncoder, ShaderStage.Fragment, binding, texture);
+
+                    switch (stage)
+                    {
+                        case ShaderStage.Fragment:
+                            SetRenderTextures(renderCommandEncoder, stage, _currentState.FragmentTextures, _currentState.FragmentSamplers);
+                            break;
+                        case ShaderStage.Vertex:
+                            SetRenderTextures(renderCommandEncoder, stage, _currentState.VertexTextures, _currentState.VertexSamplers);
+                            break;
+                    }
                 }
                 else if (_pipeline.CurrentEncoderType == EncoderType.Compute)
                 {
                     var computeCommandEncoder = new MTLComputeCommandEncoder(_pipeline.CurrentEncoder.Value);
-                    SetComputeTexture(computeCommandEncoder, binding, texture);
+                    SetComputeTextures(computeCommandEncoder, _currentState.ComputeTextures, _currentState.ComputeSamplers);
                 }
             }
         }
@@ -851,13 +843,21 @@ namespace Ryujinx.Graphics.Metal
                 if (_pipeline.CurrentEncoderType == EncoderType.Render)
                 {
                     var renderCommandEncoder = new MTLRenderCommandEncoder(_pipeline.CurrentEncoder.Value);
-                    SetRenderSampler(renderCommandEncoder, ShaderStage.Vertex, binding, sampler);
-                    SetRenderSampler(renderCommandEncoder, ShaderStage.Fragment, binding, sampler);
+
+                    switch (stage)
+                    {
+                        case ShaderStage.Fragment:
+                            SetRenderTextures(renderCommandEncoder, stage, _currentState.FragmentTextures, _currentState.FragmentSamplers);
+                            break;
+                        case ShaderStage.Vertex:
+                            SetRenderTextures(renderCommandEncoder, stage, _currentState.VertexTextures, _currentState.VertexSamplers);
+                            break;
+                    }
                 }
                 else if (_pipeline.CurrentEncoderType == EncoderType.Compute)
                 {
                     var computeCommandEncoder = new MTLComputeCommandEncoder(_pipeline.CurrentEncoder.Value);
-                    SetComputeSampler(computeCommandEncoder, binding, sampler);
+                    SetComputeTextures(computeCommandEncoder, _currentState.ComputeTextures, _currentState.ComputeSamplers);
                 }
             }
         }
@@ -1143,64 +1143,108 @@ namespace Ryujinx.Graphics.Metal
             renderCommandEncoder.SetStencilReferenceValues((uint)_currentState.FrontRefValue, (uint)_currentState.BackRefValue);
         }
 
-        private static void SetRenderTexture(MTLRenderCommandEncoder renderCommandEncoder, ShaderStage stage, ulong binding, TextureBase texture)
+        private readonly void SetRenderTextures(MTLRenderCommandEncoder renderCommandEncoder, ShaderStage stage, TextureBase[] textures, MTLSamplerState[] samplers)
         {
-            if (texture == null)
-            {
-                return;
-            }
+            var argBuffer = CreateArgumentBufferForRenderEncoder(renderCommandEncoder, stage, textures, samplers);
 
-            var textureHandle = texture.GetHandle();
-            if (textureHandle != IntPtr.Zero)
+            switch (stage)
             {
-                switch (stage)
+                case ShaderStage.Vertex:
+                    renderCommandEncoder.SetVertexBuffer(argBuffer, 0, Constants.TexturesIndex);
+                    break;
+                case ShaderStage.Fragment:
+                    renderCommandEncoder.SetFragmentBuffer(argBuffer, 0, Constants.TexturesIndex);
+                    break;
+            }
+        }
+
+        private readonly void SetComputeTextures(MTLComputeCommandEncoder computeCommandEncoder, TextureBase[] textures, MTLSamplerState[] samplers)
+        {
+            var argBuffer = CreateArgumentBufferForComputeEncoder(computeCommandEncoder, textures, samplers);
+
+            computeCommandEncoder.SetBuffer(argBuffer, 0, Constants.TexturesIndex);
+        }
+
+        private readonly MTLBuffer CreateArgumentBufferForRenderEncoder(MTLRenderCommandEncoder renderCommandEncoder, ShaderStage stage, TextureBase[] textures, MTLSamplerState[] samplers)
+        {
+            var renderStage = stage == ShaderStage.Vertex ? MTLRenderStages.RenderStageVertex : MTLRenderStages.RenderStageFragment;
+
+            ulong[] resourceIds = new ulong[textures.Length + samplers.Length];
+
+            for (int i = 0; i < textures.Length; i++)
+            {
+                if (textures[i] == null)
                 {
-                    case ShaderStage.Vertex:
-                        renderCommandEncoder.SetVertexTexture(textureHandle, binding);
-                        break;
-                    case ShaderStage.Fragment:
-                        renderCommandEncoder.SetFragmentTexture(textureHandle, binding);
-                        break;
+                    continue;
                 }
-            }
-        }
 
-        private static void SetRenderSampler(MTLRenderCommandEncoder renderCommandEncoder, ShaderStage stage, ulong binding, MTLSamplerState sampler)
-        {
-            if (sampler != IntPtr.Zero)
+                var mtlTexture = textures[i].GetHandle();
+
+                renderCommandEncoder.UseResource(new MTLResource(mtlTexture.NativePtr), MTLResourceUsage.Read, renderStage);
+                resourceIds[i] = mtlTexture.GpuResourceID._impl;
+            }
+
+            for (int i = 0; i < samplers.Length; i++)
             {
-                switch (stage)
+                if (samplers[i].NativePtr == IntPtr.Zero)
                 {
-                    case ShaderStage.Vertex:
-                        renderCommandEncoder.SetVertexSamplerState(sampler, binding);
-                        break;
-                    case ShaderStage.Fragment:
-                        renderCommandEncoder.SetFragmentSamplerState(sampler, binding);
-                        break;
+                    continue;
                 }
+
+                var sampler = samplers[i];
+
+                resourceIds[i + textures.Length] = sampler.GpuResourceID._impl;
             }
+
+            var sizeOfArgumentBuffer = sizeof(ulong) * (textures.Length + samplers.Length);
+
+            var argBuffer = _bufferManager.Create(sizeOfArgumentBuffer);
+            argBuffer.SetDataUnchecked(0, new ReadOnlySpan<ulong>(resourceIds));
+
+            var argMtlBuffer = argBuffer.GetBuffer().Get(_pipeline.Cbs).Value;
+            argBuffer.Dispose();
+
+            return argMtlBuffer;
         }
 
-        private static void SetComputeTexture(MTLComputeCommandEncoder computeCommandEncoder, ulong binding, TextureBase texture)
+        private readonly MTLBuffer CreateArgumentBufferForComputeEncoder(MTLComputeCommandEncoder computeCommandEncoder, TextureBase[] textures, MTLSamplerState[] samplers)
         {
-            if (texture == null)
+            ulong[] resourceIds = new ulong[textures.Length + samplers.Length];
+
+            for (int i = 0; i < textures.Length; i++)
             {
-                return;
+                if (textures[i] == null)
+                {
+                    continue;
+                }
+
+                var mtlTexture = textures[i].GetHandle();
+
+                computeCommandEncoder.UseResource(new MTLResource(mtlTexture.NativePtr), MTLResourceUsage.Read);
+                resourceIds[i] = mtlTexture.GpuResourceID._impl;
             }
 
-            var textureHandle = texture.GetHandle();
-            if (textureHandle != IntPtr.Zero)
+            for (int i = 0; i < samplers.Length; i++)
             {
-                computeCommandEncoder.SetTexture(textureHandle, binding);
-            }
-        }
+                if (samplers[i].NativePtr == IntPtr.Zero)
+                {
+                    continue;
+                }
 
-        private static void SetComputeSampler(MTLComputeCommandEncoder computeCommandEncoder, ulong binding, MTLSamplerState sampler)
-        {
-            if (sampler != IntPtr.Zero)
-            {
-                computeCommandEncoder.SetSamplerState(sampler, binding);
+                var sampler = samplers[i];
+
+                resourceIds[i + textures.Length] = sampler.GpuResourceID._impl;
             }
+
+            var sizeOfArgumentBuffer = sizeof(ulong) * (textures.Length + samplers.Length);
+
+            var argBuffer = _bufferManager.Create(sizeOfArgumentBuffer);
+            argBuffer.SetDataUnchecked(0, new ReadOnlySpan<ulong>(resourceIds));
+
+            var argMtlBuffer = argBuffer.GetBuffer().Get(_pipeline.Cbs).Value;
+            argBuffer.Dispose();
+
+            return argMtlBuffer;
         }
     }
 }
