@@ -276,7 +276,7 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
                     if (context.Definitions.Stage == ShaderStage.Fragment)
                     {
                         // TODO: check if it's needed
-                        context.AppendLine("float4 position [[position]];");
+                        context.AppendLine("float4 position [[position, invariant]];");
                         context.AppendLine("bool front_facing [[front_facing]];");
                     }
 
@@ -302,7 +302,7 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
                         };
                         string suffix = ioDefinition.IoVariable switch
                         {
-                            // IoVariable.Position => "[[position]]",
+                            // IoVariable.Position => "[[position, invariant]]",
                             IoVariable.GlobalId => "[[thread_position_in_grid]]",
                             IoVariable.VertexId => "[[vertex_id]]",
                             // TODO: Avoid potential redeclaration
@@ -367,7 +367,7 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
                         };
                         string suffix = ioDefinition.IoVariable switch
                         {
-                            IoVariable.Position => "[[position]]",
+                            IoVariable.Position => "[[position, invariant]]",
                             IoVariable.PointSize => "[[point_size]]",
                             IoVariable.UserDefined => $"[[user(loc{ioDefinition.Location})]]",
                             IoVariable.FragmentOutputColor => $"[[color({ioDefinition.Location})]]",
