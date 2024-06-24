@@ -183,7 +183,7 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl.Instructions
                 coordsExpr = GetSourceExpr(context, texOp.GetSource(coordsIndex), AggregateType.FP32);
             }
 
-            return $"textures.tex_{samplerName}.calculate_unclamped_lod(samp_{samplerName}, {coordsExpr}){GetMaskMultiDest(texOp.Index)}";
+            return $"textures.tex_{samplerName}.calculate_unclamped_lod(textures.samp_{samplerName}, {coordsExpr}){GetMaskMultiDest(texOp.Index)}";
         }
 
         public static string Store(CodeGenContext context, AstOperation operation)
