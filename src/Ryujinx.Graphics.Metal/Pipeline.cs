@@ -104,7 +104,7 @@ namespace Ryujinx.Graphics.Metal
             return BeginBlitPass();
         }
 
-        public MTLComputeCommandEncoder GetOrCreateComputeEncoder()
+        public MTLComputeCommandEncoder GetOrCreateComputeEncoder(bool forDispatch = false)
         {
             MTLComputeCommandEncoder computeCommandEncoder;
             if (CurrentEncoder == null || CurrentEncoderType != EncoderType.Compute)
@@ -116,7 +116,10 @@ namespace Ryujinx.Graphics.Metal
                 computeCommandEncoder = new MTLComputeCommandEncoder(CurrentEncoder.Value);
             }
 
-            _encoderStateManager.RebindComputeState(computeCommandEncoder);
+            if (forDispatch)
+            {
+                _encoderStateManager.RebindComputeState(computeCommandEncoder);
+            }
 
             return computeCommandEncoder;
         }
@@ -348,7 +351,7 @@ namespace Ryujinx.Graphics.Metal
 
         public void DispatchCompute(int groupsX, int groupsY, int groupsZ, int groupSizeX, int groupSizeY, int groupSizeZ)
         {
-            var computeCommandEncoder = GetOrCreateComputeEncoder();
+            var computeCommandEncoder = GetOrCreateComputeEncoder(true);
 
             computeCommandEncoder.DispatchThreadgroups(
                 new MTLSize { width = (ulong)groupsX, height = (ulong)groupsY, depth = (ulong)groupsZ },

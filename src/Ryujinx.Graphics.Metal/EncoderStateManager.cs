@@ -79,20 +79,8 @@ namespace Ryujinx.Graphics.Metal
             {
                 _currentState = _backStates.Pop();
 
-                // Set all the inline state, since it might have changed
-                var renderCommandEncoder = _pipeline.GetOrCreateRenderEncoder();
-                SetDepthClamp(renderCommandEncoder);
-                SetDepthBias(renderCommandEncoder);
-                SetScissors(renderCommandEncoder);
-                SetViewports(renderCommandEncoder);
-                SetVertexBuffers(renderCommandEncoder, _currentState.VertexBuffers);
-                SetRenderBuffers(renderCommandEncoder, _currentState.UniformBuffers, _currentState.StorageBuffers);
-                SetCullMode(renderCommandEncoder);
-                SetFrontFace(renderCommandEncoder);
-                SetStencilRefValue(renderCommandEncoder);
-
                 // Mark the other state as dirty
-                _currentState.Dirty.MarkAll();
+                _currentState.Dirty |= DirtyFlags.All;
             }
             else
             {
@@ -164,20 +152,7 @@ namespace Ryujinx.Graphics.Metal
             var renderCommandEncoder = _pipeline.CommandBuffer.RenderCommandEncoder(renderPassDescriptor);
 
             // Mark all state as dirty to ensure it is set on the encoder
-            _currentState.Dirty.MarkAll();
-
-            // Rebind all the state
-            SetDepthClamp(renderCommandEncoder);
-            SetDepthBias(renderCommandEncoder);
-            SetCullMode(renderCommandEncoder);
-            SetFrontFace(renderCommandEncoder);
-            SetStencilRefValue(renderCommandEncoder);
-            SetViewports(renderCommandEncoder);
-            SetScissors(renderCommandEncoder);
-            SetVertexBuffers(renderCommandEncoder, _currentState.VertexBuffers);
-            SetRenderBuffers(renderCommandEncoder, _currentState.UniformBuffers, _currentState.StorageBuffers);
-            SetRenderTextures(renderCommandEncoder, ShaderStage.Vertex, _currentState.VertexTextures, _currentState.VertexSamplers);
-            SetRenderTextures(renderCommandEncoder, ShaderStage.Fragment, _currentState.FragmentTextures, _currentState.FragmentSamplers);
+            _currentState.Dirty |= DirtyFlags.RenderAll;
 
             // Cleanup
             renderPassDescriptor.Dispose();
@@ -185,14 +160,13 @@ namespace Ryujinx.Graphics.Metal
             return renderCommandEncoder;
         }
 
-        public readonly MTLComputeCommandEncoder CreateComputeCommandEncoder()
+        public MTLComputeCommandEncoder CreateComputeCommandEncoder()
         {
             var descriptor = new MTLComputePassDescriptor();
             var computeCommandEncoder = _pipeline.CommandBuffer.ComputeCommandEncoder(descriptor);
 
-            // Rebind all the state
-            SetComputeBuffers(computeCommandEncoder, _currentState.UniformBuffers, _currentState.StorageBuffers);
-            SetComputeTextures(computeCommandEncoder, _currentState.ComputeTextures, _currentState.ComputeSamplers);
+            // Mark all state as dirty to ensure it is set on the encoder
+            _currentState.Dirty |= DirtyFlags.ComputeAll;
 
             // Cleanup
             descriptor.Dispose();
@@ -202,33 +176,93 @@ namespace Ryujinx.Graphics.Metal
 
         public void RebindRenderState(MTLRenderCommandEncoder renderCommandEncoder)
         {
-            if (_currentState.Dirty.RenderPipeline)
+            if (_currentState.Dirty.HasFlag(DirtyFlags.RenderPipeline))
             {
                 SetRenderPipelineState(renderCommandEncoder);
             }
 
-            if (_currentState.Dirty.DepthStencil)
+            if (_currentState.Dirty.HasFlag(DirtyFlags.DepthStencil))
             {
                 SetDepthStencilState(renderCommandEncoder);
             }
 
-            // Clear the dirty flags
-            _currentState.Dirty.RenderPipeline = false;
-            _currentState.Dirty.DepthStencil = false;
+            if (_currentState.Dirty.HasFlag(DirtyFlags.DepthClamp))
+            {
+                SetDepthClamp(renderCommandEncoder);
+            }
+
+            if (_currentState.Dirty.HasFlag(DirtyFlags.DepthBias))
+            {
+                SetDepthBias(renderCommandEncoder);
+            }
+
+            if (_currentState.Dirty.HasFlag(DirtyFlags.CullMode))
+            {
+                SetCullMode(renderCommandEncoder);
+            }
+
+            if (_currentState.Dirty.HasFlag(DirtyFlags.FrontFace))
+            {
+                SetFrontFace(renderCommandEncoder);
+            }
+
+            if (_currentState.Dirty.HasFlag(DirtyFlags.StencilRef))
+            {
+                SetStencilRefValue(renderCommandEncoder);
+            }
+
+            if (_currentState.Dirty.HasFlag(DirtyFlags.Viewports))
+            {
+                SetViewports(renderCommandEncoder);
+            }
+
+            if (_currentState.Dirty.HasFlag(DirtyFlags.Scissors))
+            {
+                SetScissors(renderCommandEncoder);
+            }
+
+            if (_currentState.Dirty.HasFlag(DirtyFlags.VertexBuffers))
+            {
+                SetVertexBuffers(renderCommandEncoder, _currentState.VertexBuffers);
+            }
+
+            if (_currentState.Dirty.HasFlag(DirtyFlags.Buffers))
+            {
+                SetRenderBuffers(renderCommandEncoder, _currentState.UniformBuffers, _currentState.StorageBuffers);
+            }
+
+            if (_currentState.Dirty.HasFlag(DirtyFlags.VertexTextures))
+            {
+                SetRenderTextures(renderCommandEncoder, ShaderStage.Vertex, _currentState.VertexTextures, _currentState.VertexSamplers);
+            }
+
+            if (_currentState.Dirty.HasFlag(DirtyFlags.FragmentTextures))
+            {
+                SetRenderTextures(renderCommandEncoder, ShaderStage.Fragment, _currentState.FragmentTextures, _currentState.FragmentSamplers);
+            }
+
+            _currentState.Dirty &= ~DirtyFlags.RenderAll;
         }
 
         public void RebindComputeState(MTLComputeCommandEncoder computeCommandEncoder)
         {
-            if (_currentState.Dirty.ComputePipeline)
+            if (_currentState.Dirty.HasFlag(DirtyFlags.ComputePipeline))
             {
                 SetComputePipelineState(computeCommandEncoder);
             }
 
-            // Clear the dirty flags
-            _currentState.Dirty.ComputePipeline = false;
+            if (_currentState.Dirty.HasFlag(DirtyFlags.Buffers))
+            {
+                SetComputeBuffers(computeCommandEncoder, _currentState.UniformBuffers, _currentState.StorageBuffers);
+            }
+
+            if (_currentState.Dirty.HasFlag(DirtyFlags.ComputeTextures))
+            {
+                SetComputeTextures(computeCommandEncoder, _currentState.ComputeTextures, _currentState.ComputeSamplers);
+            }
         }
 
-        private readonly void SetRenderPipelineState(MTLRenderCommandEncoder renderCommandEncoder)
+        private void SetRenderPipelineState(MTLRenderCommandEncoder renderCommandEncoder)
         {
             var renderPipelineDescriptor = new MTLRenderPipelineDescriptor();
 
@@ -322,7 +356,7 @@ namespace Ryujinx.Graphics.Metal
             }
         }
 
-        private readonly void SetComputePipelineState(MTLComputeCommandEncoder computeCommandEncoder)
+        private void SetComputePipelineState(MTLComputeCommandEncoder computeCommandEncoder)
         {
             if (_currentState.ComputeFunction == null)
             {
@@ -380,15 +414,13 @@ namespace Ryujinx.Graphics.Metal
                 _currentState.VertexFunction = prg.VertexFunction;
                 _currentState.FragmentFunction = prg.FragmentFunction;
 
-                // Mark dirty
-                _currentState.Dirty.RenderPipeline = true;
+                _currentState.Dirty |= DirtyFlags.RenderPipeline;
             }
             if (prg.ComputeFunction != IntPtr.Zero)
             {
                 _currentState.ComputeFunction = prg.ComputeFunction;
 
-                // Mark dirty
-                _currentState.Dirty.ComputePipeline = true;
+                _currentState.Dirty |= DirtyFlags.ComputePipeline;
             }
         }
 
@@ -455,7 +487,7 @@ namespace Ryujinx.Graphics.Metal
             _currentState.VertexAttribs = vertexAttribs.ToArray();
 
             // Mark dirty
-            _currentState.Dirty.RenderPipeline = true;
+            _currentState.Dirty |= DirtyFlags.RenderPipeline;
         }
 
         public void UpdateBlendDescriptors(int index, BlendDescriptor blend)
@@ -506,13 +538,12 @@ namespace Ryujinx.Graphics.Metal
             UpdateStencilRefValue(stencilTest.FrontFuncRef, stencilTest.BackFuncRef);
 
             // Mark dirty
-            _currentState.Dirty.DepthStencil = true;
+            _currentState.Dirty |= DirtyFlags.DepthStencil;
 
             // Cleanup
             descriptor.Dispose();
         }
 
-        // Inlineable
         public void UpdateDepthState(DepthTestDescriptor depthTest)
         {
             _currentState.DepthCompareFunction = depthTest.TestEnable ? depthTest.Func.Convert() : MTLCompareFunction.Always;
@@ -533,7 +564,7 @@ namespace Ryujinx.Graphics.Metal
             _currentState.DepthStencilState = _depthStencilCache.GetOrCreate(descriptor);
 
             // Mark dirty
-            _currentState.Dirty.DepthStencil = true;
+            _currentState.Dirty |= DirtyFlags.DepthStencil;
 
             // Cleanup
             descriptor.Dispose();
@@ -549,7 +580,11 @@ namespace Ryujinx.Graphics.Metal
             {
                 var renderCommandEncoder = new MTLRenderCommandEncoder(_pipeline.CurrentEncoder.Value);
                 SetDepthClamp(renderCommandEncoder);
+                return;
             }
+
+            // Mark dirty
+            _currentState.Dirty |= DirtyFlags.DepthClamp;
         }
 
         // Inlineable
@@ -564,7 +599,11 @@ namespace Ryujinx.Graphics.Metal
             {
                 var renderCommandEncoder = new MTLRenderCommandEncoder(_pipeline.CurrentEncoder.Value);
                 SetDepthBias(renderCommandEncoder);
+                return;
             }
+
+            // Mark dirty
+            _currentState.Dirty |= DirtyFlags.DepthBias;
         }
 
         // Inlineable
@@ -592,7 +631,11 @@ namespace Ryujinx.Graphics.Metal
             {
                 var renderCommandEncoder = new MTLRenderCommandEncoder(_pipeline.CurrentEncoder.Value);
                 SetScissors(renderCommandEncoder);
+                return;
             }
+
+            // Mark dirty
+            _currentState.Dirty |= DirtyFlags.Scissors;
         }
 
         // Inlineable
@@ -625,7 +668,11 @@ namespace Ryujinx.Graphics.Metal
             {
                 var renderCommandEncoder = new MTLRenderCommandEncoder(_pipeline.CurrentEncoder.Value);
                 SetViewports(renderCommandEncoder);
+                return;
             }
+
+            // Mark dirty
+            _currentState.Dirty |= DirtyFlags.Viewports;
         }
 
         public void UpdateVertexBuffers(ReadOnlySpan<VertexBufferDescriptor> vertexBuffers)
@@ -637,13 +684,13 @@ namespace Ryujinx.Graphics.Metal
             {
                 var renderCommandEncoder = new MTLRenderCommandEncoder(_pipeline.CurrentEncoder.Value);
                 SetVertexBuffers(renderCommandEncoder, _currentState.VertexBuffers);
+                return;
             }
 
             // Mark dirty
-            _currentState.Dirty.RenderPipeline = true;
+            _currentState.Dirty |= DirtyFlags.RenderPipeline | DirtyFlags.VertexBuffers;
         }
 
-        // Inlineable
         public void UpdateUniformBuffers(ReadOnlySpan<BufferAssignment> buffers)
         {
             foreach (BufferAssignment assignment in buffers)
@@ -658,23 +705,9 @@ namespace Ryujinx.Graphics.Metal
                 _currentState.UniformBuffers[index] = new BufferRef(mtlBuffer, ref buffer);
             }
 
-            // Inline update
-            if (_pipeline.CurrentEncoder != null)
-            {
-                if (_pipeline.CurrentEncoderType == EncoderType.Render)
-                {
-                    var renderCommandEncoder = new MTLRenderCommandEncoder(_pipeline.CurrentEncoder.Value);
-                    SetRenderBuffers(renderCommandEncoder, _currentState.UniformBuffers, _currentState.StorageBuffers);
-                }
-                else if (_pipeline.CurrentEncoderType == EncoderType.Compute)
-                {
-                    var computeCommandEncoder = new MTLComputeCommandEncoder(_pipeline.CurrentEncoder.Value);
-                    SetComputeBuffers(computeCommandEncoder, _currentState.UniformBuffers, _currentState.StorageBuffers);
-                }
-            }
+            _currentState.Dirty |= DirtyFlags.Buffers;
         }
 
-        // Inlineable
         public void UpdateStorageBuffers(ReadOnlySpan<BufferAssignment> buffers)
         {
             foreach (BufferAssignment assignment in buffers)
@@ -689,23 +722,9 @@ namespace Ryujinx.Graphics.Metal
                 _currentState.StorageBuffers[index] = new BufferRef(mtlBuffer, ref buffer);
             }
 
-            // Inline update
-            if (_pipeline.CurrentEncoder != null)
-            {
-                if (_pipeline.CurrentEncoderType == EncoderType.Render)
-                {
-                    var renderCommandEncoder = new MTLRenderCommandEncoder(_pipeline.CurrentEncoder.Value);
-                    SetRenderBuffers(renderCommandEncoder, _currentState.UniformBuffers, _currentState.StorageBuffers);
-                }
-                else if (_pipeline.CurrentEncoderType == EncoderType.Compute)
-                {
-                    var computeCommandEncoder = new MTLComputeCommandEncoder(_pipeline.CurrentEncoder.Value);
-                    SetComputeBuffers(computeCommandEncoder, _currentState.UniformBuffers, _currentState.StorageBuffers);
-                }
-            }
+            _currentState.Dirty |= DirtyFlags.Buffers;
         }
 
-        // Inlineable
         public void UpdateStorageBuffers(int first, ReadOnlySpan<Auto<DisposableBuffer>> buffers)
         {
             for (int i = 0; i < buffers.Length; i++)
@@ -716,21 +735,7 @@ namespace Ryujinx.Graphics.Metal
                 _currentState.StorageBuffers[index] = new BufferRef(mtlBuffer);
             }
 
-            // Inline update
-            // Inline update
-            if (_pipeline.CurrentEncoder != null)
-            {
-                if (_pipeline.CurrentEncoderType == EncoderType.Render)
-                {
-                    var renderCommandEncoder = new MTLRenderCommandEncoder(_pipeline.CurrentEncoder.Value);
-                    SetRenderBuffers(renderCommandEncoder, _currentState.UniformBuffers, _currentState.StorageBuffers);
-                }
-                else if (_pipeline.CurrentEncoderType == EncoderType.Compute)
-                {
-                    var computeCommandEncoder = new MTLComputeCommandEncoder(_pipeline.CurrentEncoder.Value);
-                    SetComputeBuffers(computeCommandEncoder, _currentState.UniformBuffers, _currentState.StorageBuffers);
-                }
-            }
+            _currentState.Dirty |= DirtyFlags.Buffers;
         }
 
         // Inlineable
@@ -743,7 +748,11 @@ namespace Ryujinx.Graphics.Metal
             {
                 var renderCommandEncoder = new MTLRenderCommandEncoder(_pipeline.CurrentEncoder.Value);
                 SetCullMode(renderCommandEncoder);
+                return;
             }
+
+            // Mark dirty
+            _currentState.Dirty |= DirtyFlags.CullMode;
         }
 
         // Inlineable
@@ -756,7 +765,11 @@ namespace Ryujinx.Graphics.Metal
             {
                 var renderCommandEncoder = new MTLRenderCommandEncoder(_pipeline.CurrentEncoder.Value);
                 SetFrontFace(renderCommandEncoder);
+                return;
             }
+
+            // Mark dirty
+            _currentState.Dirty |= DirtyFlags.FrontFace;
         }
 
         private void UpdateStencilRefValue(int frontRef, int backRef)
@@ -770,10 +783,12 @@ namespace Ryujinx.Graphics.Metal
                 var renderCommandEncoder = new MTLRenderCommandEncoder(_pipeline.CurrentEncoder.Value);
                 SetStencilRefValue(renderCommandEncoder);
             }
+
+            // Mark dirty
+            _currentState.Dirty |= DirtyFlags.StencilRef;
         }
 
-        // Inlineable
-        public readonly void UpdateTexture(ShaderStage stage, ulong binding, TextureBase texture)
+        public void UpdateTexture(ShaderStage stage, ulong binding, TextureBase texture)
         {
             if (binding > Constants.MaxTexturesPerStage)
             {
@@ -784,41 +799,20 @@ namespace Ryujinx.Graphics.Metal
             {
                 case ShaderStage.Fragment:
                     _currentState.FragmentTextures[binding] = texture;
+                    _currentState.Dirty |= DirtyFlags.FragmentTextures;
                     break;
                 case ShaderStage.Vertex:
                     _currentState.VertexTextures[binding] = texture;
+                    _currentState.Dirty |= DirtyFlags.VertexTextures;
                     break;
                 case ShaderStage.Compute:
                     _currentState.ComputeTextures[binding] = texture;
+                    _currentState.Dirty |= DirtyFlags.ComputeTextures;
                     break;
-            }
-
-            if (_pipeline.CurrentEncoder != null)
-            {
-                if (_pipeline.CurrentEncoderType == EncoderType.Render)
-                {
-                    var renderCommandEncoder = new MTLRenderCommandEncoder(_pipeline.CurrentEncoder.Value);
-
-                    switch (stage)
-                    {
-                        case ShaderStage.Fragment:
-                            SetRenderTextures(renderCommandEncoder, stage, _currentState.FragmentTextures, _currentState.FragmentSamplers);
-                            break;
-                        case ShaderStage.Vertex:
-                            SetRenderTextures(renderCommandEncoder, stage, _currentState.VertexTextures, _currentState.VertexSamplers);
-                            break;
-                    }
-                }
-                else if (_pipeline.CurrentEncoderType == EncoderType.Compute)
-                {
-                    var computeCommandEncoder = new MTLComputeCommandEncoder(_pipeline.CurrentEncoder.Value);
-                    SetComputeTextures(computeCommandEncoder, _currentState.ComputeTextures, _currentState.ComputeSamplers);
-                }
             }
         }
 
-        // Inlineable
-        public readonly void UpdateSampler(ShaderStage stage, ulong binding, MTLSamplerState sampler)
+        public void UpdateSampler(ShaderStage stage, ulong binding, MTLSamplerState sampler)
         {
             if (binding > Constants.MaxTexturesPerStage)
             {
@@ -829,41 +823,20 @@ namespace Ryujinx.Graphics.Metal
             {
                 case ShaderStage.Fragment:
                     _currentState.FragmentSamplers[binding] = sampler;
+                    _currentState.Dirty |= DirtyFlags.FragmentTextures;
                     break;
                 case ShaderStage.Vertex:
                     _currentState.VertexSamplers[binding] = sampler;
+                    _currentState.Dirty |= DirtyFlags.VertexTextures;
                     break;
                 case ShaderStage.Compute:
                     _currentState.ComputeSamplers[binding] = sampler;
+                    _currentState.Dirty |= DirtyFlags.ComputeTextures;
                     break;
-            }
-
-            if (_pipeline.CurrentEncoder != null)
-            {
-                if (_pipeline.CurrentEncoderType == EncoderType.Render)
-                {
-                    var renderCommandEncoder = new MTLRenderCommandEncoder(_pipeline.CurrentEncoder.Value);
-
-                    switch (stage)
-                    {
-                        case ShaderStage.Fragment:
-                            SetRenderTextures(renderCommandEncoder, stage, _currentState.FragmentTextures, _currentState.FragmentSamplers);
-                            break;
-                        case ShaderStage.Vertex:
-                            SetRenderTextures(renderCommandEncoder, stage, _currentState.VertexTextures, _currentState.VertexSamplers);
-                            break;
-                    }
-                }
-                else if (_pipeline.CurrentEncoderType == EncoderType.Compute)
-                {
-                    var computeCommandEncoder = new MTLComputeCommandEncoder(_pipeline.CurrentEncoder.Value);
-                    SetComputeTextures(computeCommandEncoder, _currentState.ComputeTextures, _currentState.ComputeSamplers);
-                }
             }
         }
 
-        // Inlineable
-        public readonly void UpdateTextureAndSampler(ShaderStage stage, ulong binding, TextureBase texture, MTLSamplerState sampler)
+        public void UpdateTextureAndSampler(ShaderStage stage, ulong binding, TextureBase texture, MTLSamplerState sampler)
         {
             UpdateTexture(stage, binding, texture);
             UpdateSampler(stage, binding, sampler);
