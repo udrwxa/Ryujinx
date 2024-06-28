@@ -58,11 +58,13 @@ namespace Ryujinx.Graphics.Metal
             _depthStencilCache.Dispose();
         }
 
-        public void SwapState(EncoderState state, DirtyFlags flags = DirtyFlags.All)
+        public EncoderState SwapState(EncoderState state, DirtyFlags flags = DirtyFlags.All)
         {
             _currentState = state ?? _mainState;
 
             _currentState.Dirty |= flags;
+
+            return _mainState;
         }
 
         public PredrawState SavePredrawState()

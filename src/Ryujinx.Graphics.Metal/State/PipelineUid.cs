@@ -4,6 +4,7 @@ using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
+using System.Runtime.Versioning;
 
 namespace Ryujinx.Graphics.Metal
 {
@@ -112,6 +113,7 @@ namespace Ryujinx.Graphics.Metal
         }
     }
 
+    [SupportedOSPlatform("macos")]
     struct PipelineUid : IRefEquatable<PipelineUid>
     {
         public ulong Id0;
@@ -126,6 +128,16 @@ namespace Ryujinx.Graphics.Metal
         public Array8<ColorBlendStateUid> ColorBlendState;
         public uint AttachmentIntegerFormatMask;
         public bool LogicOpsAllowed;
+
+        public void ResetColorState()
+        {
+            ColorBlendState = new();
+
+            for (int i = 0; i < ColorBlendState.Length; i++)
+            {
+                ColorBlendState[i].WriteMask = MTLColorWriteMask.All;
+            }
+        }
 
         public readonly override bool Equals(object obj)
         {

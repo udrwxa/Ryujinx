@@ -3,7 +3,6 @@ using SharpMetal.Foundation;
 using SharpMetal.Metal;
 using System;
 using System.Runtime.Versioning;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Ryujinx.Graphics.Metal
 {
@@ -273,10 +272,7 @@ namespace Ryujinx.Graphics.Metal
         {
             SamplesCount = 1;
 
-            for (int i = 0; i < Internal.ColorBlendState.Length; i++)
-            {
-                Internal.ColorBlendState[i].WriteMask = MTLColorWriteMask.All;
-            }
+            Internal.ResetColorState();
         }
 
         /**

@@ -58,6 +58,13 @@ namespace Ryujinx.Graphics.Metal
         public MTLViewport[] Viewports;
     }
 
+    struct RenderTargetCopy
+    {
+        public MTLScissorRect[] Scissors;
+        public Texture DepthStencil;
+        public Texture[] RenderTargets;
+    }
+
     [SupportedOSPlatform("macos")]
     class EncoderState
     {
@@ -123,6 +130,48 @@ namespace Ryujinx.Graphics.Metal
         {
             Pipeline.Initialize();
             DepthStencilUid.DepthCompareFunction = MTLCompareFunction.Always;
+        }
+
+        public RenderTargetCopy InheritForClear(EncoderState other, bool depth, int singleIndex = -1)
+        {
+            // Inherit render target related information without causing a render encoder split.
+
+            var oldState = new RenderTargetCopy
+            {
+                Scissors = other.Scissors,
+                RenderTargets = other.RenderTargets,
+                DepthStencil = other.DepthStencil
+            };
+
+            Scissors = other.Scissors;
+            RenderTargets = other.RenderTargets;
+            DepthStencil = other.DepthStencil;
+
+            Pipeline.ColorBlendAttachmentStateCount = other.Pipeline.ColorBlendAttachmentStateCount;
+            Pipeline.Internal.ColorBlendState = other.Pipeline.Internal.ColorBlendState;
+            Pipeline.DepthStencilFormat = other.Pipeline.DepthStencilFormat;
+
+            ref var blendStates = ref Pipeline.Internal.ColorBlendState;
+
+            // Mask out irrelevant attachments.
+            for (int i = 0; i < blendStates.Length; i++)
+            {
+                if (depth || (singleIndex != -1 && singleIndex != i))
+                {
+                    blendStates[i].WriteMask = MTLColorWriteMask.None;
+                }
+            }
+
+            return oldState;
+        }
+
+        public void Restore(RenderTargetCopy copy)
+        {
+            Scissors = copy.Scissors;
+            RenderTargets = copy.RenderTargets;
+            DepthStencil = copy.DepthStencil;
+
+            Pipeline.Internal.ResetColorState();
         }
     }
 }

@@ -57,9 +57,9 @@ namespace Ryujinx.Graphics.Metal
             TriFanToTrisPattern = new IndexBufferPattern(_renderer, 3, 3, 2, [int.MinValue, -1, 0], 1, true);
         }
 
-        public void SwapState(EncoderState state, DirtyFlags flags = DirtyFlags.All)
+        public EncoderState SwapState(EncoderState state, DirtyFlags flags = DirtyFlags.All)
         {
-            _encoderStateManager.SwapState(state, flags);
+            return _encoderStateManager.SwapState(state, flags);
         }
 
         public PredrawState SavePredrawState()
