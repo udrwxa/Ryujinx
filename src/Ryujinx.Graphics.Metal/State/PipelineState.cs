@@ -275,7 +275,9 @@ namespace Ryujinx.Graphics.Metal
             Internal.ResetColorState();
         }
 
-        /**
+        /*
+         * TODO, this is from vulkan.
+
         private void UpdateVertexAttributeDescriptions(VulkanRenderer gd)
         {
             // Vertex attributes exceeding the stride are invalid.
