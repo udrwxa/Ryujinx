@@ -122,6 +122,7 @@ namespace Ryujinx.Graphics.Metal
         public EncoderState()
         {
             Pipeline.Initialize();
+            DepthStencilUid.DepthCompareFunction = MTLCompareFunction.Always;
         }
     }
 }
