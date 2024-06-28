@@ -4,7 +4,7 @@ using Ryujinx.Graphics.Metal.State;
 using Ryujinx.Graphics.Shader;
 using SharpMetal.Metal;
 using System;
-using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using BufferAssignment = Ryujinx.Graphics.GAL.BufferAssignment;
@@ -20,8 +20,8 @@ namespace Ryujinx.Graphics.Metal
 
         private readonly DepthStencilCache _depthStencilCache;
 
-        private EncoderState _currentState = new();
-        private readonly Stack<EncoderState> _backStates = [];
+        private readonly EncoderState _mainState = new();
+        private EncoderState _currentState;
 
         public readonly Auto<DisposableBuffer> IndexBuffer => _currentState.IndexBuffer;
         public readonly MTLIndexType IndexType => _currentState.IndexType;
@@ -41,6 +41,7 @@ namespace Ryujinx.Graphics.Metal
             _bufferManager = bufferManager;
 
             _depthStencilCache = new(device);
+            _currentState = _mainState;
 
             // Zero buffer
             byte[] zeros = new byte[ZeroBufferSize];
@@ -57,31 +58,32 @@ namespace Ryujinx.Graphics.Metal
             _depthStencilCache.Dispose();
         }
 
-        public void SaveState()
+        public void SwapState(EncoderState state, DirtyFlags flags = DirtyFlags.All)
         {
-            _backStates.Push(_currentState);
-            _currentState = _currentState.Clone();
+            _currentState = state ?? _mainState;
+
+            _currentState.Dirty |= flags;
         }
 
-        public void SaveAndResetState()
+        public PredrawState SavePredrawState()
         {
-            _backStates.Push(_currentState);
-            _currentState = new();
+            return new PredrawState
+            {
+                CullMode = _currentState.CullMode,
+                DepthStencilUid = _currentState.DepthStencilUid,
+                Topology = _currentState.Topology,
+                Viewports = _currentState.Viewports.ToArray(),
+            };
         }
 
-        public void RestoreState()
+        public void RestorePredrawState(PredrawState state)
         {
-            if (_backStates.Count > 0)
-            {
-                _currentState = _backStates.Pop();
+            _currentState.CullMode = state.CullMode;
+            _currentState.DepthStencilUid = state.DepthStencilUid;
+            _currentState.Topology = state.Topology;
+            _currentState.Viewports = state.Viewports;
 
-                // Mark the other state as dirty
-                _currentState.Dirty |= DirtyFlags.All;
-            }
-            else
-            {
-                Logger.Error?.Print(LogClass.Gpu, "No state to restore");
-            }
+            _currentState.Dirty |= DirtyFlags.CullMode | DirtyFlags.DepthStencil | DirtyFlags.Viewports;
         }
 
         public void SetClearLoadAction(bool clear)

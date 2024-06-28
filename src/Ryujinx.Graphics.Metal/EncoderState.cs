@@ -50,8 +50,16 @@ namespace Ryujinx.Graphics.Metal
         }
     }
 
+    struct PredrawState
+    {
+        public MTLCullMode CullMode;
+        public DepthStencilUid DepthStencilUid;
+        public PrimitiveTopology Topology;
+        public MTLViewport[] Viewports;
+    }
+
     [SupportedOSPlatform("macos")]
-    struct EncoderState
+    class EncoderState
     {
         public Program RenderProgram = null;
         public Program ComputeProgram = null;
@@ -114,24 +122,6 @@ namespace Ryujinx.Graphics.Metal
         public EncoderState()
         {
             Pipeline.Initialize();
-        }
-
-        public readonly EncoderState Clone()
-        {
-            // Certain state (like pipeline state, viewport and scissor) doesn't need to be cloned, as it is always reacreated when assigned to
-            EncoderState clone = this;
-            clone.FragmentTextures = (TextureBase[])FragmentTextures.Clone();
-            clone.FragmentSamplers = (MTLSamplerState[])FragmentSamplers.Clone();
-            clone.VertexTextures = (TextureBase[])VertexTextures.Clone();
-            clone.VertexSamplers = (MTLSamplerState[])VertexSamplers.Clone();
-            clone.ComputeTextures = (TextureBase[])ComputeTextures.Clone();
-            clone.ComputeSamplers = (MTLSamplerState[])ComputeSamplers.Clone();
-            clone.VertexBuffers = (VertexBufferDescriptor[])VertexBuffers.Clone();
-            clone.VertexAttribs = (VertexAttribDescriptor[])VertexAttribs.Clone();
-            clone.UniformBuffers = (BufferRef[])UniformBuffers.Clone();
-            clone.StorageBuffers = (BufferRef[])StorageBuffers.Clone();
-
-            return clone;
         }
     }
 }

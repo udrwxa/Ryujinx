@@ -57,19 +57,19 @@ namespace Ryujinx.Graphics.Metal
             TriFanToTrisPattern = new IndexBufferPattern(_renderer, 3, 3, 2, [int.MinValue, -1, 0], 1, true);
         }
 
-        public void SaveState()
+        public void SwapState(EncoderState state, DirtyFlags flags = DirtyFlags.All)
         {
-            _encoderStateManager.SaveState();
+            _encoderStateManager.SwapState(state, flags);
         }
 
-        public void SaveAndResetState()
+        public PredrawState SavePredrawState()
         {
-            _encoderStateManager.SaveAndResetState();
+            return _encoderStateManager.SavePredrawState();
         }
 
-        public void RestoreState()
+        public void RestorePredrawState(PredrawState state)
         {
-            _encoderStateManager.RestoreState();
+            _encoderStateManager.RestorePredrawState(state);
         }
 
         public void SetClearLoadAction(bool clear)
@@ -240,8 +240,6 @@ namespace Ryujinx.Graphics.Metal
 
         public void FlushCommandsImpl()
         {
-            SaveState();
-
             EndCurrentPass();
 
             _byteWeight = 0;
@@ -254,8 +252,6 @@ namespace Ryujinx.Graphics.Metal
 
             CommandBuffer = (Cbs = _renderer.CommandBufferPool.ReturnAndRent(Cbs)).CommandBuffer;
             _renderer.RegisterFlush();
-
-            RestoreState();
         }
 
         public void BlitColor(
