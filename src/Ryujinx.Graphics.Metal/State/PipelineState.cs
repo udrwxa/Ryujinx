@@ -272,6 +272,11 @@ namespace Ryujinx.Graphics.Metal
         public void Initialize()
         {
             SamplesCount = 1;
+
+            for (int i = 0; i < Internal.ColorBlendState.Length; i++)
+            {
+                Internal.ColorBlendState[i].WriteMask = MTLColorWriteMask.All;
+            }
         }
 
         /**

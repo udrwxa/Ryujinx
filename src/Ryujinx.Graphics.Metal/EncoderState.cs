@@ -111,7 +111,10 @@ namespace Ryujinx.Graphics.Metal
         // Only to be used for present
         public bool ClearLoadAction = false;
 
-        public EncoderState() { }
+        public EncoderState()
+        {
+            Pipeline.Initialize();
+        }
 
         public readonly EncoderState Clone()
         {
