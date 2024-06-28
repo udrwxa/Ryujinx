@@ -507,7 +507,14 @@ namespace Ryujinx.Graphics.Metal
 
         public void SetDepthBias(PolygonModeMask enables, float factor, float units, float clamp)
         {
-            _encoderStateManager.UpdateDepthBias(units, factor, clamp);
+            if (enables == 0)
+            {
+                _encoderStateManager.UpdateDepthBias(0, 0, 0);
+            }
+            else
+            {
+                _encoderStateManager.UpdateDepthBias(units, factor, clamp);
+            }
         }
 
         public void SetDepthClamp(bool clamp)
