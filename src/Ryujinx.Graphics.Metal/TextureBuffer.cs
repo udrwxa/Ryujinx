@@ -52,9 +52,7 @@ namespace Ryujinx.Graphics.Metal
             {
                 DisposableBuffer buffer = bufferAuto.Get(_pipeline.Cbs, _offset, _size);
 
-                // TODO: bytes per pixel coming from GAL is wrong, so it has to use this...
-                // Won't be correct for vector formats.
-                _descriptor.Width = (uint)(_size / Info.Format.GetScalarSize());
+                _descriptor.Width = (uint)(_size / Info.BytesPerPixel);
                 _mtlTexture = buffer.Value.NewTexture(_descriptor, (ulong)_offset, (ulong)_size);
             }
         }
