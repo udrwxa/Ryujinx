@@ -20,8 +20,12 @@ namespace Ryujinx.Graphics.Metal
         private MTLComputePipelineState? _computePipelineCache;
         private bool _firstBackgroundUse;
 
-        public Program(ShaderSource[] shaders, MTLDevice device)
+        private ShaderInfo _info;
+
+        public Program(ShaderSource[] shaders, MTLDevice device, ShaderInfo info = default)
         {
+            _info = info;
+
             for (int index = 0; index < shaders.Length; index++)
             {
                 ShaderSource shader = shaders[index];

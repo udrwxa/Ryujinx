@@ -658,12 +658,11 @@ namespace Ryujinx.Graphics.Metal
         {
             if (texture is TextureBase tex)
             {
-                if (sampler is Sampler samp)
+                if (sampler == null || sampler is Sampler)
                 {
-                    var mtlSampler = samp.GetSampler();
                     var index = (ulong)binding;
 
-                    _encoderStateManager.UpdateTextureAndSampler(stage, index, tex, mtlSampler);
+                    _encoderStateManager.UpdateTextureAndSampler(stage, index, tex, (Sampler)sampler);
                 }
             }
         }

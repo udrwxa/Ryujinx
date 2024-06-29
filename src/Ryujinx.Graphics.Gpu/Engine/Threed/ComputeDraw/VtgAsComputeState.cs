@@ -214,7 +214,7 @@ namespace Ryujinx.Graphics.Gpu.Engine.Threed.ComputeDraw
                 1,
                 ComputeLocalSize,
                 ComputeLocalSize,
-                ComputeLocalSize);
+                1);
         }
 
         /// <summary>
@@ -266,7 +266,7 @@ namespace Ryujinx.Graphics.Gpu.Engine.Threed.ComputeDraw
                 _geometryAsCompute.Info.ThreadsPerInputPrimitive,
                 ComputeLocalSize,
                 ComputeLocalSize,
-                ComputeLocalSize);
+                1);
         }
 
         /// <summary>
