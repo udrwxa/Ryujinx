@@ -134,7 +134,6 @@ namespace Ryujinx.Graphics.Metal
 
         public void SetSize(int width, int height)
         {
-            // Ignore
             _requestedWidth = width;
             _requestedHeight = height;
         }
