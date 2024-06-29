@@ -211,9 +211,6 @@ namespace Ryujinx.Graphics.Gpu.Engine.Threed.ComputeDraw
             _context.Renderer.Pipeline.DispatchCompute(
                 BitUtils.DivRoundUp(_count, ComputeLocalSize),
                 BitUtils.DivRoundUp(_instanceCount, ComputeLocalSize),
-                1,
-                ComputeLocalSize,
-                ComputeLocalSize,
                 1);
         }
 
@@ -263,10 +260,7 @@ namespace Ryujinx.Graphics.Gpu.Engine.Threed.ComputeDraw
             _context.Renderer.Pipeline.DispatchCompute(
                 BitUtils.DivRoundUp(primitivesCount, ComputeLocalSize),
                 BitUtils.DivRoundUp(_instanceCount, ComputeLocalSize),
-                _geometryAsCompute.Info.ThreadsPerInputPrimitive,
-                ComputeLocalSize,
-                ComputeLocalSize,
-                1);
+                _geometryAsCompute.Info.ThreadsPerInputPrimitive);
         }
 
         /// <summary>

@@ -29,6 +29,7 @@ namespace Ryujinx.Graphics.Metal
         public readonly PrimitiveTopology Topology => _currentState.Topology;
         public readonly Texture[] RenderTargets => _currentState.RenderTargets;
         public readonly Texture DepthStencil => _currentState.DepthStencil;
+        public readonly ComputeSize ComputeLocalSize => _currentState.ComputeProgram.ComputeLocalSize;
 
         // RGBA32F is the biggest format
         private const int ZeroBufferSize = 4 * 4;
