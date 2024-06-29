@@ -15,16 +15,15 @@ namespace Ryujinx.Graphics.Metal
         public MTLFunction VertexFunction;
         public MTLFunction FragmentFunction;
         public MTLFunction ComputeFunction;
+        public ComputeSize ComputeLocalSize { get; }
 
         private HashTableSlim<PipelineUid, MTLRenderPipelineState> _graphicsPipelineCache;
         private MTLComputePipelineState? _computePipelineCache;
         private bool _firstBackgroundUse;
 
-        private ShaderInfo _info;
-
-        public Program(ShaderSource[] shaders, MTLDevice device, ShaderInfo info = default)
+        public Program(ShaderSource[] shaders, MTLDevice device, ComputeSize computeLocalSize = default)
         {
-            _info = info;
+            ComputeLocalSize = computeLocalSize;
 
             for (int index = 0; index < shaders.Length; index++)
             {

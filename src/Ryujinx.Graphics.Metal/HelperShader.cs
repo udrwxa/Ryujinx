@@ -65,7 +65,7 @@ namespace Ryujinx.Graphics.Metal
             _programStrideChange = new Program(
             [
                 new ShaderSource(strideChangeSource, ShaderStage.Compute, TargetLanguage.Msl)
-            ], device);
+            ], device, new ComputeSize(64, 1, 1));
         }
 
         private static string ReadMsl(string fileName)

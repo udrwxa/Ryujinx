@@ -92,7 +92,7 @@ namespace Ryujinx.Graphics.Metal
 
         public IProgram CreateProgram(ShaderSource[] shaders, ShaderInfo info)
         {
-            return new Program(shaders, _device, info);
+            return new Program(shaders, _device, info.ComputeLocalSize);
         }
 
         public ISampler CreateSampler(SamplerCreateInfo info)

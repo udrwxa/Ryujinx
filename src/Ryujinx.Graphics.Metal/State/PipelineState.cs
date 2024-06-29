@@ -1,4 +1,5 @@
 using Ryujinx.Common.Logging;
+using Ryujinx.Graphics.GAL;
 using SharpMetal.Foundation;
 using SharpMetal.Metal;
 using System;
@@ -251,10 +252,20 @@ namespace Ryujinx.Graphics.Metal
 
         public static MTLComputePipelineDescriptor CreateComputeDescriptor(Program program)
         {
+            ComputeSize localSize = program.ComputeLocalSize;
+
+            uint maxThreads = (uint)(localSize.X * localSize.Y * localSize.Z);
+
+            if (maxThreads == 0)
+            {
+                throw new InvalidOperationException($"Local thread size for compute cannot be 0 in any dimension.");
+            }
+
             var descriptor = new MTLComputePipelineDescriptor
             {
                 ComputeFunction = program.ComputeFunction,
-                MaxTotalThreadsPerThreadgroup = 1024, // TODO: from shader info
+                MaxTotalThreadsPerThreadgroup = maxThreads,
+                ThreadGroupSizeIsMultipleOfThreadExecutionWidth = true,
             };
 
             return descriptor;

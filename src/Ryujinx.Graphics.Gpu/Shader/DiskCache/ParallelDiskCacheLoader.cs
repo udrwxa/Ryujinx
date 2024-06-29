@@ -495,7 +495,7 @@ namespace Ryujinx.Graphics.Gpu.Shader.DiskCache
                 ShaderInfoBuilder shaderInfoBuilder = new(
                     _context,
                     compilation.SpecializationState.TransformFeedbackDescriptors != null,
-                    computeLocalSize: computeState.GetLocalSize()));
+                    computeLocalSize: computeState.GetLocalSize());
 
                 for (int index = 0; index < compilation.TranslatedStages.Length; index++)
                 {
