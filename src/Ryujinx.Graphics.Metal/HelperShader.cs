@@ -48,7 +48,7 @@ namespace Ryujinx.Graphics.Metal
             ], blitResourceLayout, device);
 
             var colorClearResourceLayout = new ResourceLayoutBuilder()
-                .Add(ResourceStages.Vertex, ResourceType.UniformBuffer, 0).Build();
+                .Add(ResourceStages.Fragment, ResourceType.UniformBuffer, 0).Build();
 
             var colorClearSource = ReadMsl("ColorClear.metal");
             for (int i = 0; i < Constants.MaxColorAttachments; i++)
@@ -70,8 +70,8 @@ namespace Ryujinx.Graphics.Metal
 
             var strideChangeResourceLayout = new ResourceLayoutBuilder()
                 .Add(ResourceStages.Compute, ResourceType.UniformBuffer, 0)
-                .Add(ResourceStages.Compute, ResourceType.StorageBuffer, 0)
-                .Add(ResourceStages.Compute, ResourceType.StorageBuffer, 1).Build();
+                .Add(ResourceStages.Compute, ResourceType.StorageBuffer, 1)
+                .Add(ResourceStages.Compute, ResourceType.StorageBuffer, 2).Build();
 
             var strideChangeSource = ReadMsl("ChangeBufferStride.metal");
             _programStrideChange = new Program(
