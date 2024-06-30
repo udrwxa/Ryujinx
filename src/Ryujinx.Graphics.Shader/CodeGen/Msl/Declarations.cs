@@ -168,7 +168,10 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
 
             List<string> argBufferPointers = [];
 
-            foreach (BufferDefinition buffer in buffers)
+            // TODO: Avoid Linq if we can
+            var sortedBuffers = buffers.OrderBy(x => x.Binding).ToArray();
+
+            foreach (BufferDefinition buffer in sortedBuffers)
             {
                 var needsPadding = buffer.Layout == BufferLayout.Std140;
 
@@ -226,7 +229,10 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
 
             List<string> argBufferPointers = [];
 
-            foreach (TextureDefinition texture in textures)
+            // TODO: Avoid Linq if we can
+            var sortedTextures = textures.OrderBy(x => x.Binding).ToArray();
+
+            foreach (TextureDefinition texture in sortedTextures)
             {
                 var textureTypeName = texture.Type.ToMslTextureType();
                 argBufferPointers.Add($"{textureTypeName} tex_{texture.Name};");
