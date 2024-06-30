@@ -37,7 +37,7 @@ namespace Ryujinx.Graphics.Metal
             _samplerLinear = new Sampler(_device, SamplerCreateInfo.Create(MinFilter.Linear, MagFilter.Linear));
 
             var blitResourceLayout = new ResourceLayoutBuilder()
-                .Add(ResourceStages.Vertex, ResourceType.UniformBuffer, 1)
+                .Add(ResourceStages.Vertex, ResourceType.UniformBuffer, 0)
                 .Add(ResourceStages.Fragment, ResourceType.TextureAndSampler, 0).Build();
 
             var blitSource = ReadMsl("Blit.metal");
@@ -47,7 +47,8 @@ namespace Ryujinx.Graphics.Metal
                 new ShaderSource(blitSource, ShaderStage.Vertex, TargetLanguage.Msl)
             ], blitResourceLayout, device);
 
-            var colorClearResourceLayout = new ResourceLayoutBuilder().Add(ResourceStages.Vertex, ResourceType.UniformBuffer, 1).Build();
+            var colorClearResourceLayout = new ResourceLayoutBuilder()
+                .Add(ResourceStages.Vertex, ResourceType.UniformBuffer, 0).Build();
 
             var colorClearSource = ReadMsl("ColorClear.metal");
             for (int i = 0; i < Constants.MaxColorAttachments; i++)
@@ -69,8 +70,8 @@ namespace Ryujinx.Graphics.Metal
 
             var strideChangeResourceLayout = new ResourceLayoutBuilder()
                 .Add(ResourceStages.Compute, ResourceType.UniformBuffer, 0)
-                .Add(ResourceStages.Compute, ResourceType.StorageBuffer, 1)
-                .Add(ResourceStages.Compute, ResourceType.StorageBuffer, 2).Build();
+                .Add(ResourceStages.Compute, ResourceType.StorageBuffer, 0)
+                .Add(ResourceStages.Compute, ResourceType.StorageBuffer, 1).Build();
 
             var strideChangeSource = ReadMsl("ChangeBufferStride.metal");
             _programStrideChange = new Program(
