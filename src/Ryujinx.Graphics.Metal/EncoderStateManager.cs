@@ -179,7 +179,6 @@ namespace Ryujinx.Graphics.Metal
         {
             if (_currentState.Dirty.HasFlag(DirtyFlags.RenderPipeline))
             {
-                SetVertexBuffers(renderCommandEncoder, _currentState.VertexBuffers);
                 SetRenderPipelineState(renderCommandEncoder);
             }
 
@@ -223,20 +222,30 @@ namespace Ryujinx.Graphics.Metal
                 SetScissors(renderCommandEncoder);
             }
 
-            if (_currentState.Dirty.HasFlag(DirtyFlags.Buffers))
+            if (_currentState.Dirty.HasFlag(DirtyFlags.VertexBuffers))
             {
-                SetRenderBuffers(renderCommandEncoder, _currentState.UniformBuffers, _currentState.StorageBuffers);
+                SetVertexBuffers(renderCommandEncoder, _currentState.VertexBuffers);
             }
 
-            if (_currentState.Dirty.HasFlag(DirtyFlags.VertexTextures))
+            if (_currentState.Dirty.HasFlag(DirtyFlags.Uniforms))
             {
-                SetRenderTextures(renderCommandEncoder, ShaderStage.Vertex, _currentState.VertexTextures, _currentState.VertexSamplers);
+                UpdateAndBind(renderCommandEncoder, _currentState.RenderProgram, MetalRenderer.UniformSetIndex);
             }
 
-            if (_currentState.Dirty.HasFlag(DirtyFlags.FragmentTextures))
+            if (_currentState.Dirty.HasFlag(DirtyFlags.Storages))
             {
-                SetRenderTextures(renderCommandEncoder, ShaderStage.Fragment, _currentState.FragmentTextures, _currentState.FragmentSamplers);
+                UpdateAndBind(renderCommandEncoder, _currentState.RenderProgram, MetalRenderer.StorageSetIndex);
             }
+
+            if (_currentState.Dirty.HasFlag(DirtyFlags.Textures))
+            {
+                UpdateAndBind(renderCommandEncoder, _currentState.RenderProgram, MetalRenderer.TextureSetIndex);
+            }
+
+            // if (_currentState.Dirty.HasFlag(DirtyFlags.Images))
+            // {
+            //     UpdateAndBind(renderCommandEncoder, _currentState.RenderProgram, MetalRenderer.ImageSetIndex);
+            // }
 
             _currentState.Dirty &= ~DirtyFlags.RenderAll;
         }
@@ -248,15 +257,27 @@ namespace Ryujinx.Graphics.Metal
                 SetComputePipelineState(computeCommandEncoder);
             }
 
-            if (_currentState.Dirty.HasFlag(DirtyFlags.Buffers))
+            if (_currentState.Dirty.HasFlag(DirtyFlags.Uniforms))
             {
-                SetComputeBuffers(computeCommandEncoder, _currentState.UniformBuffers, _currentState.StorageBuffers);
+                UpdateAndBind(computeCommandEncoder, _currentState.ComputeProgram, MetalRenderer.UniformSetIndex);
             }
 
-            if (_currentState.Dirty.HasFlag(DirtyFlags.ComputeTextures))
+            if (_currentState.Dirty.HasFlag(DirtyFlags.Storages))
             {
-                SetComputeTextures(computeCommandEncoder, _currentState.ComputeTextures, _currentState.ComputeSamplers);
+                UpdateAndBind(computeCommandEncoder, _currentState.ComputeProgram, MetalRenderer.StorageSetIndex);
             }
+
+            if (_currentState.Dirty.HasFlag(DirtyFlags.Textures))
+            {
+                UpdateAndBind(computeCommandEncoder, _currentState.ComputeProgram, MetalRenderer.TextureSetIndex);
+            }
+
+            // if (_currentState.Dirty.HasFlag(DirtyFlags.Images))
+            // {
+            //     UpdateAndBind(computeCommandEncoder, _currentState.ComputeProgram, MetalRenderer.ImageSetIndex);
+            // }
+
+            _currentState.Dirty &= ~DirtyFlags.ComputeAll;
         }
 
         private void SetRenderPipelineState(MTLRenderCommandEncoder renderCommandEncoder)
@@ -679,8 +700,15 @@ namespace Ryujinx.Graphics.Metal
             // Update the buffers on the pipeline
             UpdatePipelineVertexState(_currentState.VertexBuffers, _currentState.VertexAttribs);
 
+            // Inline update
+            if (_pipeline.Encoders.TryGetRenderEncoder(out MTLRenderCommandEncoder renderCommandEncoder))
+            {
+                SetVertexBuffers(renderCommandEncoder, _currentState.VertexBuffers);
+                return;
+            }
+
             // Mark dirty
-            _currentState.Dirty |= DirtyFlags.RenderPipeline;
+            _currentState.Dirty |= DirtyFlags.RenderPipeline | DirtyFlags.VertexBuffers;
         }
 
         public void UpdateUniformBuffers(ReadOnlySpan<BufferAssignment> buffers)
@@ -694,10 +722,10 @@ namespace Ryujinx.Graphics.Metal
                     ? null
                     : _bufferManager.GetBuffer(buffer.Handle, buffer.Write);
 
-                _currentState.UniformBuffers[index] = new BufferRef(mtlBuffer, ref buffer);
+                _currentState.UniformBufferRefs[index] = new BufferRef(mtlBuffer, ref buffer);
             }
 
-            _currentState.Dirty |= DirtyFlags.Buffers;
+            _currentState.Dirty |= DirtyFlags.Uniforms;
         }
 
         public void UpdateStorageBuffers(ReadOnlySpan<BufferAssignment> buffers)
@@ -711,10 +739,10 @@ namespace Ryujinx.Graphics.Metal
                     ? null
                     : _bufferManager.GetBuffer(buffer.Handle, buffer.Write);
 
-                _currentState.StorageBuffers[index] = new BufferRef(mtlBuffer, ref buffer);
+                _currentState.StorageBufferRefs[index] = new BufferRef(mtlBuffer, ref buffer);
             }
 
-            _currentState.Dirty |= DirtyFlags.Buffers;
+            _currentState.Dirty |= DirtyFlags.Storages;
         }
 
         public void UpdateStorageBuffers(int first, ReadOnlySpan<Auto<DisposableBuffer>> buffers)
@@ -724,10 +752,10 @@ namespace Ryujinx.Graphics.Metal
                 var mtlBuffer = buffers[i];
                 int index = first + i;
 
-                _currentState.StorageBuffers[index] = new BufferRef(mtlBuffer);
+                _currentState.StorageBufferRefs[index] = new BufferRef(mtlBuffer);
             }
 
-            _currentState.Dirty |= DirtyFlags.Buffers;
+            _currentState.Dirty |= DirtyFlags.Storages;
         }
 
         // Inlineable
@@ -786,63 +814,22 @@ namespace Ryujinx.Graphics.Metal
             _currentState.Dirty |= DirtyFlags.StencilRef;
         }
 
-        public void UpdateTexture(ShaderStage stage, ulong binding, TextureBase texture)
-        {
-            if (binding > Constants.MaxTexturesPerStage)
-            {
-                Logger.Warning?.Print(LogClass.Gpu, $"Texture binding ({binding}) must be <= {Constants.MaxTexturesPerStage}");
-                return;
-            }
-
-            switch (stage)
-            {
-                case ShaderStage.Fragment:
-                    _currentState.FragmentTextures[binding] = texture;
-                    _currentState.Dirty |= DirtyFlags.FragmentTextures;
-                    break;
-                case ShaderStage.Vertex:
-                    _currentState.VertexTextures[binding] = texture;
-                    _currentState.Dirty |= DirtyFlags.VertexTextures;
-                    break;
-                case ShaderStage.Compute:
-                    _currentState.ComputeTextures[binding] = texture;
-                    _currentState.Dirty |= DirtyFlags.ComputeTextures;
-                    break;
-            }
-        }
-
-        public void UpdateSampler(ShaderStage stage, ulong binding, MTLSamplerState sampler)
-        {
-            if (binding > Constants.MaxTexturesPerStage)
-            {
-                Logger.Warning?.Print(LogClass.Gpu, $"Sampler binding ({binding}) must be <= {Constants.MaxTexturesPerStage}");
-                return;
-            }
-            switch (stage)
-            {
-                case ShaderStage.Fragment:
-                    _currentState.FragmentSamplers[binding] = sampler;
-                    _currentState.Dirty |= DirtyFlags.FragmentTextures;
-                    break;
-                case ShaderStage.Vertex:
-                    _currentState.VertexSamplers[binding] = sampler;
-                    _currentState.Dirty |= DirtyFlags.VertexTextures;
-                    break;
-                case ShaderStage.Compute:
-                    _currentState.ComputeSamplers[binding] = sampler;
-                    _currentState.Dirty |= DirtyFlags.ComputeTextures;
-                    break;
-            }
-        }
-
         public void UpdateTextureAndSampler(ShaderStage stage, ulong binding, TextureBase texture, Sampler sampler)
         {
-            UpdateTexture(stage, binding, texture);
-
-            if (sampler != null)
+            if (texture is TextureBuffer textureBuffer)
             {
-                UpdateSampler(stage, binding, sampler.GetSampler());
+                // TODO: Texture buffers
             }
+            else if (texture is Texture view)
+            {
+                _currentState.TextureRefs[binding] = new(stage, view, sampler);
+            }
+            else
+            {
+                _currentState.TextureRefs[binding] = default;
+            }
+
+            _currentState.Dirty |= DirtyFlags.Textures;
         }
 
         private readonly void SetDepthStencilState(MTLRenderCommandEncoder renderCommandEncoder)
@@ -1026,6 +1013,128 @@ namespace Ryujinx.Graphics.Metal
             var storageArgBuffer = _bufferManager.GetBuffer(storageArgBufferRange.Handle, true).Get(_pipeline.Cbs).Value;
 
             computeCommandEncoder.SetBuffer(storageArgBuffer, (ulong)storageArgBufferRange.Offset, Constants.StorageBuffersIndex);
+        }
+
+        private void UpdateAndBind(MTLRenderCommandEncoder renderCommandEncoder, Program program, int setIndex)
+        {
+            var bindingSegments = program.BindingSegments[setIndex];
+
+            if (bindingSegments.Length == 0)
+            {
+                return;
+            }
+
+            foreach (ResourceBindingSegment segment in bindingSegments)
+            {
+                int binding = segment.Binding;
+                int count = segment.Count;
+
+                switch (setIndex)
+                {
+                    case MetalRenderer.UniformSetIndex:
+                        for (int i = 0; i < count; i++)
+                        {
+                            int index = binding + i;
+
+                            ref BufferRef buffer = ref _currentState.UniformBufferRefs[index];
+                        }
+                        break;
+                    case MetalRenderer.StorageSetIndex:
+                        for (int i = 0; i < count; i++)
+                        {
+                            int index = binding + i;
+
+                            ref BufferRef buffer = ref _currentState.StorageBufferRefs[index];
+                        }
+                        break;
+                    case MetalRenderer.TextureSetIndex:
+                        if (!segment.IsArray)
+                        {
+                            if (segment.Type != ResourceType.BufferTexture)
+                            {
+                                for (int i = 0; i < count; i++)
+                                {
+                                    int index = binding + i;
+
+                                    ref var texture = ref _currentState.TextureRefs[index];
+                                }
+                            }
+                            else
+                            {
+                                // TODO: Buffer textures
+                            }
+                        }
+                        else
+                        {
+                            // TODO: Texture arrays
+                        }
+                        break;
+                    case MetalRenderer.ImageSetIndex:
+                        // TODO: Images
+                        break;
+                }
+            }
+        }
+
+        private void UpdateAndBind(MTLComputeCommandEncoder computeCommandEncoder, Program program, int setIndex)
+        {
+            var bindingSegments = program.BindingSegments[setIndex];
+
+            if (bindingSegments.Length == 0)
+            {
+                return;
+            }
+
+            foreach (ResourceBindingSegment segment in bindingSegments)
+            {
+                int binding = segment.Binding;
+                int count = segment.Count;
+
+                switch (setIndex)
+                {
+                    case MetalRenderer.UniformSetIndex:
+                        for (int i = 0; i < count; i++)
+                        {
+                            int index = binding + i;
+
+                            ref BufferRef buffer = ref _currentState.UniformBufferRefs[index];
+                        }
+                        break;
+                    case MetalRenderer.StorageSetIndex:
+                        for (int i = 0; i < count; i++)
+                        {
+                            int index = binding + i;
+
+                            ref BufferRef buffer = ref _currentState.StorageBufferRefs[index];
+                        }
+                        break;
+                    case MetalRenderer.TextureSetIndex:
+                        if (!segment.IsArray)
+                        {
+                            if (segment.Type != ResourceType.BufferTexture)
+                            {
+                                for (int i = 0; i < count; i++)
+                                {
+                                    int index = binding + i;
+
+                                    ref var texture = ref _currentState.TextureRefs[index];
+                                }
+                            }
+                            else
+                            {
+                                // TODO: Buffer textures
+                            }
+                        }
+                        else
+                        {
+                            // TODO: Texture arrays
+                        }
+                        break;
+                    case MetalRenderer.ImageSetIndex:
+                        // TODO: Images
+                        break;
+                }
+            }
         }
 
         private readonly BufferRange CreateArgumentBufferForRenderEncoder(MTLRenderCommandEncoder renderCommandEncoder, BufferRef[] buffers, bool constant)
