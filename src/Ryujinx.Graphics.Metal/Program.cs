@@ -25,6 +25,7 @@ namespace Ryujinx.Graphics.Metal
 
         public ResourceBindingSegment[][] ClearSegments { get; }
         public ResourceBindingSegment[][] BindingSegments { get; }
+        public int[] ArgumentBufferSizes { get; }
 
         public Program(ShaderSource[] shaders, ResourceLayout resourceLayout, MTLDevice device, ComputeSize computeLocalSize = default)
         {
@@ -62,7 +63,7 @@ namespace Ryujinx.Graphics.Metal
             }
 
             ClearSegments = BuildClearSegments(resourceLayout.Sets);
-            BindingSegments = BuildBindingSegments(resourceLayout.SetUsages);
+            (BindingSegments, ArgumentBufferSizes) = BuildBindingSegments(resourceLayout.SetUsages);
 
             _status = ProgramLinkStatus.Success;
         }
@@ -123,9 +124,10 @@ namespace Ryujinx.Graphics.Metal
             return segments;
         }
 
-        private static ResourceBindingSegment[][] BuildBindingSegments(ReadOnlyCollection<ResourceUsageCollection> setUsages)
+        private static (ResourceBindingSegment[][], int[]) BuildBindingSegments(ReadOnlyCollection<ResourceUsageCollection> setUsages)
         {
             ResourceBindingSegment[][] segments = new ResourceBindingSegment[setUsages.Count][];
+            int[] argBufferSizes = new int[setUsages.Count];
 
             for (int setIndex = 0; setIndex < setUsages.Count; setIndex++)
             {
@@ -152,6 +154,7 @@ namespace Ryujinx.Graphics.Metal
                                 currentUsage.Type,
                                 currentUsage.Stages,
                                 currentUsage.ArrayLength > 1));
+                            argBufferSizes[setIndex] += currentCount * (currentUsage.Type == ResourceType.TextureAndSampler ? 2 : 1);
                         }
 
                         currentUsage = usage;
@@ -171,12 +174,13 @@ namespace Ryujinx.Graphics.Metal
                         currentUsage.Type,
                         currentUsage.Stages,
                         currentUsage.ArrayLength > 1));
+                    argBufferSizes[setIndex] += currentCount * (currentUsage.Type == ResourceType.TextureAndSampler ? 2 : 1);
                 }
 
                 segments[setIndex] = currentSegments.ToArray();
             }
 
-            return segments;
+            return (segments, argBufferSizes);
         }
 
         public ProgramLinkStatus CheckProgramLink(bool blocking)

@@ -18,9 +18,11 @@ namespace Ryujinx.Graphics.Metal
         public const int MinResourceAlignment = 16;
 
         // Must match constants set in shader generation
+        public const uint ZeroBufferIndex = 18;
+
         public const uint ConstantBuffersIndex = 20;
         public const uint StorageBuffersIndex = 21;
-        public const uint ZeroBufferIndex = 18;
         public const uint TexturesIndex = 22;
+        public const uint ImagessIndex = 23;
     }
 }
