@@ -25,7 +25,10 @@ namespace Ryujinx.Graphics.Metal
 
         public ResourceBindingSegment[][] ClearSegments { get; }
         public ResourceBindingSegment[][] BindingSegments { get; }
+        // Argument buffer sizes for Vertex or Compute stages
         public int[] ArgumentBufferSizes { get; }
+        // Argument buffer sizes for Fragment stage
+        public int[] FragArgumentBufferSizes { get; }
 
         public Program(ShaderSource[] shaders, ResourceLayout resourceLayout, MTLDevice device, ComputeSize computeLocalSize = default)
         {
@@ -63,7 +66,7 @@ namespace Ryujinx.Graphics.Metal
             }
 
             ClearSegments = BuildClearSegments(resourceLayout.Sets);
-            (BindingSegments, ArgumentBufferSizes) = BuildBindingSegments(resourceLayout.SetUsages);
+            (BindingSegments, ArgumentBufferSizes, FragArgumentBufferSizes) = BuildBindingSegments(resourceLayout.SetUsages);
 
             _status = ProgramLinkStatus.Success;
         }
@@ -124,10 +127,11 @@ namespace Ryujinx.Graphics.Metal
             return segments;
         }
 
-        private static (ResourceBindingSegment[][], int[]) BuildBindingSegments(ReadOnlyCollection<ResourceUsageCollection> setUsages)
+        private static (ResourceBindingSegment[][], int[], int[]) BuildBindingSegments(ReadOnlyCollection<ResourceUsageCollection> setUsages)
         {
             ResourceBindingSegment[][] segments = new ResourceBindingSegment[setUsages.Count][];
             int[] argBufferSizes = new int[setUsages.Count];
+            int[] fragArgBufferSizes = new int[setUsages.Count];
 
             for (int setIndex = 0; setIndex < setUsages.Count; setIndex++)
             {
@@ -154,7 +158,18 @@ namespace Ryujinx.Graphics.Metal
                                 currentUsage.Type,
                                 currentUsage.Stages,
                                 currentUsage.ArrayLength > 1));
-                            argBufferSizes[setIndex] += currentCount * (currentUsage.Type == ResourceType.TextureAndSampler ? 2 : 1);
+
+                            var size = currentCount * ResourcePointerSize(currentUsage.Type);
+                            if (currentUsage.Stages.HasFlag(ResourceStages.Fragment))
+                            {
+                                fragArgBufferSizes[setIndex] += size;
+                            }
+
+                            if (currentUsage.Stages.HasFlag(ResourceStages.Vertex) ||
+                                currentUsage.Stages.HasFlag(ResourceStages.Compute))
+                            {
+                                argBufferSizes[setIndex] += size;
+                            }
                         }
 
                         currentUsage = usage;
@@ -174,13 +189,29 @@ namespace Ryujinx.Graphics.Metal
                         currentUsage.Type,
                         currentUsage.Stages,
                         currentUsage.ArrayLength > 1));
-                    argBufferSizes[setIndex] += currentCount * (currentUsage.Type == ResourceType.TextureAndSampler ? 2 : 1);
+
+                    var size = currentCount * ResourcePointerSize(currentUsage.Type);
+                    if (currentUsage.Stages.HasFlag(ResourceStages.Fragment))
+                    {
+                        fragArgBufferSizes[setIndex] += size;
+                    }
+
+                    if (currentUsage.Stages.HasFlag(ResourceStages.Vertex) ||
+                        currentUsage.Stages.HasFlag(ResourceStages.Compute))
+                    {
+                        argBufferSizes[setIndex] += size;
+                    }
                 }
 
                 segments[setIndex] = currentSegments.ToArray();
             }
 
-            return (segments, argBufferSizes);
+            return (segments, argBufferSizes, fragArgBufferSizes);
+        }
+
+        private static int ResourcePointerSize(ResourceType type)
+        {
+            return (type == ResourceType.TextureAndSampler ? 2 : 1);
         }
 
         public ProgramLinkStatus CheckProgramLink(bool blocking)
