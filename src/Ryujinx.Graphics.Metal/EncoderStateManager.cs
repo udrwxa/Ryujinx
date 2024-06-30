@@ -1001,8 +1001,8 @@ namespace Ryujinx.Graphics.Metal
             Span<ulong> vertResourceIds = stackalloc ulong[program.ArgumentBufferSizes[setIndex]];
             Span<ulong> fragResourceIds = stackalloc ulong[program.FragArgumentBufferSizes[setIndex]];
 
-            var vertResourceIdCount = 0;
-            var fragResourceIdCount = 0;
+            var vertResourceIdIndex = 0;
+            var fragResourceIdIndex = 0;
 
             foreach (ResourceBindingSegment segment in bindingSegments)
             {
@@ -1040,12 +1040,25 @@ namespace Ryujinx.Graphics.Metal
                                 mtlBuffer = autoBuffer.Get(_pipeline.Cbs).Value;
                             }
 
-                            renderCommandEncoder.UseResource(new MTLResource(mtlBuffer.NativePtr), MTLResourceUsage.Read, MTLRenderStages.RenderStageVertex | MTLRenderStages.RenderStageFragment);
-                            vertResourceIds[vertResourceIdCount] = mtlBuffer.GpuAddress + (ulong)offset;
-                            vertResourceIdCount++;
+                            MTLRenderStages renderStages = 0;
 
-                            fragResourceIds[vertResourceIdCount] = mtlBuffer.GpuAddress + (ulong)offset;
-                            fragResourceIdCount++;
+                            if (segment.Stages.HasFlag(ResourceStages.Vertex))
+                            {
+                                vertResourceIds[vertResourceIdIndex] = mtlBuffer.GpuAddress + (ulong)offset;
+                                vertResourceIdIndex++;
+
+                                renderStages |= MTLRenderStages.RenderStageVertex;
+                            }
+
+                            if (segment.Stages.HasFlag(ResourceStages.Fragment))
+                            {
+                                fragResourceIds[fragResourceIdIndex] = mtlBuffer.GpuAddress + (ulong)offset;
+                                fragResourceIdIndex++;
+
+                                renderStages |= MTLRenderStages.RenderStageFragment;
+                            }
+
+                            renderCommandEncoder.UseResource(new MTLResource(mtlBuffer.NativePtr), MTLResourceUsage.Read, renderStages);
                         }
                         break;
                     case MetalRenderer.StorageSetIndex:
@@ -1077,12 +1090,25 @@ namespace Ryujinx.Graphics.Metal
                                 mtlBuffer = autoBuffer.Get(_pipeline.Cbs).Value;
                             }
 
-                            renderCommandEncoder.UseResource(new MTLResource(mtlBuffer.NativePtr), MTLResourceUsage.Read | MTLResourceUsage.Write, MTLRenderStages.RenderStageVertex | MTLRenderStages.RenderStageFragment);
-                            vertResourceIds[vertResourceIdCount] = mtlBuffer.GpuAddress + (ulong)offset;
-                            vertResourceIdCount++;
+                            MTLRenderStages renderStages = 0;
 
-                            fragResourceIds[vertResourceIdCount] = mtlBuffer.GpuAddress + (ulong)offset;
-                            fragResourceIdCount++;
+                            if (segment.Stages.HasFlag(ResourceStages.Vertex))
+                            {
+                                vertResourceIds[vertResourceIdIndex] = mtlBuffer.GpuAddress + (ulong)offset;
+                                vertResourceIdIndex++;
+
+                                renderStages |= MTLRenderStages.RenderStageVertex;
+                            }
+
+                            if (segment.Stages.HasFlag(ResourceStages.Fragment))
+                            {
+                                fragResourceIds[fragResourceIdIndex] = mtlBuffer.GpuAddress + (ulong)offset;
+                                fragResourceIdIndex++;
+
+                                renderStages |= MTLRenderStages.RenderStageFragment;
+                            }
+
+                            renderCommandEncoder.UseResource(new MTLResource(mtlBuffer.NativePtr), MTLResourceUsage.Read, renderStages);
                         }
                         break;
                     case MetalRenderer.TextureSetIndex:
@@ -1098,38 +1124,37 @@ namespace Ryujinx.Graphics.Metal
 
                                     var mtlTexture = texture.Storage.GetHandle();
 
-                                    if (texture.Stage != ShaderStage.Vertex || texture.Stage != ShaderStage.Fragment)
-                                    {
-                                        continue;
-                                    }
+                                    MTLRenderStages renderStages = 0;
 
-                                    if (texture.Stage == ShaderStage.Vertex)
+                                    if (segment.Stages.HasFlag(ResourceStages.Vertex))
                                     {
-                                        renderCommandEncoder.UseResource(new MTLResource(mtlTexture.NativePtr), MTLResourceUsage.Read, MTLRenderStages.RenderStageVertex);
-
-                                        vertResourceIds[vertResourceIdCount] = mtlTexture.GpuResourceID._impl;
-                                        vertResourceIdCount++;
+                                        vertResourceIds[vertResourceIdIndex] = mtlTexture.GpuResourceID._impl;
+                                        vertResourceIdIndex++;
 
                                         if (texture.Sampler != null)
                                         {
-                                            vertResourceIds[vertResourceIdCount] = texture.Sampler.GetSampler().GpuResourceID._impl;
-                                            vertResourceIdCount++;
+                                            vertResourceIds[vertResourceIdIndex] = texture.Sampler.GetSampler().GpuResourceID._impl;
+                                            vertResourceIdIndex++;
                                         }
 
+                                        renderStages |= MTLRenderStages.RenderStageVertex;
                                     }
-                                    else if (texture.Stage == ShaderStage.Fragment)
-                                    {
-                                        renderCommandEncoder.UseResource(new MTLResource(mtlTexture.NativePtr), MTLResourceUsage.Read, MTLRenderStages.RenderStageFragment);
 
-                                        fragResourceIds[fragResourceIdCount] = mtlTexture.GpuResourceID._impl;
-                                        fragResourceIdCount++;
+                                    if (segment.Stages.HasFlag(ResourceStages.Fragment))
+                                    {
+                                        fragResourceIds[fragResourceIdIndex] = mtlTexture.GpuResourceID._impl;
+                                        fragResourceIdIndex++;
 
                                         if (texture.Sampler != null)
                                         {
-                                            fragResourceIds[fragResourceIdCount] = texture.Sampler.GetSampler().GpuResourceID._impl;
-                                            fragResourceIdCount++;
+                                            fragResourceIds[fragResourceIdIndex] = texture.Sampler.GetSampler().GpuResourceID._impl;
+                                            fragResourceIdIndex++;
                                         }
+
+                                        renderStages |= MTLRenderStages.RenderStageFragment;
                                     }
+
+                                    renderCommandEncoder.UseResource(new MTLResource(mtlTexture.NativePtr), MTLResourceUsage.Read, renderStages);
                                 }
                             }
                             else
@@ -1169,7 +1194,7 @@ namespace Ryujinx.Graphics.Metal
 
             var argBuffer = _bufferManager.ReserveOrCreate(_pipeline.Cbs, program.ArgumentBufferSizes[setIndex] * sizeof(ulong));
             Span<ulong> resourceIds = stackalloc ulong[program.ArgumentBufferSizes[setIndex]];
-            var resourceIdCount = 0;
+            var resourceIdIndex = 0;
 
             foreach (ResourceBindingSegment segment in bindingSegments)
             {
@@ -1207,9 +1232,12 @@ namespace Ryujinx.Graphics.Metal
                                 mtlBuffer = autoBuffer.Get(_pipeline.Cbs).Value;
                             }
 
-                            computeCommandEncoder.UseResource(new MTLResource(mtlBuffer.NativePtr), MTLResourceUsage.Read);
-                            resourceIds[resourceIdCount] = mtlBuffer.GpuAddress + (ulong)offset;
-                            resourceIdCount++;
+                            if (segment.Stages.HasFlag(ResourceStages.Compute))
+                            {
+                                computeCommandEncoder.UseResource(new MTLResource(mtlBuffer.NativePtr), MTLResourceUsage.Read);
+                                resourceIds[resourceIdIndex] = mtlBuffer.GpuAddress + (ulong)offset;
+                                resourceIdIndex++;
+                            }
                         }
                         break;
                     case MetalRenderer.StorageSetIndex:
@@ -1241,9 +1269,12 @@ namespace Ryujinx.Graphics.Metal
                                 mtlBuffer = autoBuffer.Get(_pipeline.Cbs).Value;
                             }
 
-                            computeCommandEncoder.UseResource(new MTLResource(mtlBuffer.NativePtr), MTLResourceUsage.Read | MTLResourceUsage.Write);
-                            resourceIds[resourceIdCount] = mtlBuffer.GpuAddress + (ulong)offset;
-                            resourceIdCount++;
+                            if (segment.Stages.HasFlag(ResourceStages.Compute))
+                            {
+                                computeCommandEncoder.UseResource(new MTLResource(mtlBuffer.NativePtr), MTLResourceUsage.Read | MTLResourceUsage.Write);
+                                resourceIds[resourceIdIndex] = mtlBuffer.GpuAddress + (ulong)offset;
+                                resourceIdIndex++;
+                            }
                         }
                         break;
                     case MetalRenderer.TextureSetIndex:
@@ -1259,19 +1290,17 @@ namespace Ryujinx.Graphics.Metal
 
                                     var mtlTexture = texture.Storage.GetHandle();
 
-                                    if (texture.Stage != ShaderStage.Compute)
+                                    if (segment.Stages.HasFlag(ResourceStages.Compute))
                                     {
-                                        continue;
-                                    }
+                                        computeCommandEncoder.UseResource(new MTLResource(mtlTexture.NativePtr), MTLResourceUsage.Read);
+                                        resourceIds[resourceIdIndex] = mtlTexture.GpuResourceID._impl;
+                                        resourceIdIndex++;
 
-                                    computeCommandEncoder.UseResource(new MTLResource(mtlTexture.NativePtr), MTLResourceUsage.Read);
-                                    resourceIds[resourceIdCount] = mtlTexture.GpuResourceID._impl;
-                                    resourceIdCount++;
-
-                                    if (texture.Sampler != null)
-                                    {
-                                        resourceIds[resourceIdCount] = texture.Sampler.GetSampler().GpuResourceID._impl;
-                                        resourceIdCount++;
+                                        if (texture.Sampler != null)
+                                        {
+                                            resourceIds[resourceIdIndex] = texture.Sampler.GetSampler().GpuResourceID._impl;
+                                            resourceIdIndex++;
+                                        }
                                     }
                                 }
                             }
