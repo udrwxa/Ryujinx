@@ -89,9 +89,9 @@ namespace Ryujinx.Graphics.Metal
         public PipelineState Pipeline;
         public DepthStencilUid DepthStencilUid;
 
-        public readonly BufferRef[] UniformBufferRefs = new BufferRef[Constants.MaxUniformBuffersPerStage];
-        public readonly BufferRef[] StorageBufferRefs = new BufferRef[Constants.MaxStorageBuffersPerStage];
-        public readonly TextureRef[] TextureRefs = new TextureRef[Constants.MaxTexturesPerStage];
+        public readonly BufferRef[] UniformBufferRefs = new BufferRef[Constants.MaxUniformBufferBindings];
+        public readonly BufferRef[] StorageBufferRefs = new BufferRef[Constants.MaxStorageBufferBindings];
+        public readonly TextureRef[] TextureRefs = new TextureRef[Constants.MaxTextureBindings];
 
         public Auto<DisposableBuffer> IndexBuffer = default;
         public MTLIndexType IndexType = MTLIndexType.UInt16;
