@@ -44,7 +44,7 @@ namespace Ryujinx.Graphics.Metal
 
                 if (srcBuffer.TryIncrementReferenceCount())
                 {
-                    BufferHolder.Copy(_pipeline, cbs, srcBuffer, dstBuffer, offset, 0, size, registerSrcUsage: false);
+                    BufferHolder.Copy(cbs, srcBuffer, dstBuffer, offset, 0, size, registerSrcUsage: false);
                 }
                 else
                 {

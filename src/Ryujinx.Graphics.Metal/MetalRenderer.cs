@@ -221,7 +221,7 @@ namespace Ryujinx.Graphics.Metal
 
         public void SetBufferData(BufferHandle buffer, int offset, ReadOnlySpan<byte> data)
         {
-            BufferManager.SetData(buffer, offset, data, _pipeline.Cbs, _pipeline.EndRenderPassDelegate);
+            BufferManager.SetData(buffer, offset, data, _pipeline.Cbs);
         }
 
         public void UpdateCounters()

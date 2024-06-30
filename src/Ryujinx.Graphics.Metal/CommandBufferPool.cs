@@ -14,6 +14,7 @@ namespace Ryujinx.Graphics.Metal
         private readonly int _totalCommandBuffers;
         private readonly int _totalCommandBuffersMask;
         private readonly MTLCommandQueue _queue;
+        private IEncoderFactory _defaultEncoderFactory;
 
         [SupportedOSPlatform("macos")]
         private struct ReservedCommandBuffer
@@ -22,22 +23,28 @@ namespace Ryujinx.Graphics.Metal
             public bool InConsumption;
             public int SubmissionCount;
             public MTLCommandBuffer CommandBuffer;
+            public CommandBufferEncoder Encoders;
             public FenceHolder Fence;
 
             public List<IAuto> Dependants;
             public List<MultiFenceHolder> Waitables;
 
-            public void Reinitialize(MTLCommandQueue queue)
+            public void Reinitialize(MTLCommandQueue queue, IEncoderFactory stateManager)
             {
                 CommandBuffer = queue.CommandBuffer();
+
+                Encoders.Initialize(CommandBuffer, stateManager);
             }
 
-            public void Initialize(MTLCommandQueue queue)
+            public void Initialize(MTLCommandQueue queue, IEncoderFactory stateManager)
             {
                 CommandBuffer = queue.CommandBuffer();
 
                 Dependants = new List<IAuto>();
                 Waitables = new List<MultiFenceHolder>();
+                Encoders = new CommandBufferEncoder();
+
+                Encoders.Initialize(CommandBuffer, stateManager);
             }
         }
 
@@ -60,10 +67,15 @@ namespace Ryujinx.Graphics.Metal
             _queuedIndexes = new int[_totalCommandBuffers];
             _queuedIndexesPtr = 0;
             _queuedCount = 0;
+        }
+
+        public void Initialize(IEncoderFactory encoderFactory)
+        {
+            _defaultEncoderFactory = encoderFactory;
 
             for (int i = 0; i < _totalCommandBuffers; i++)
             {
-                _commandBuffers[i].Initialize(_queue);
+                _commandBuffers[i].Initialize(_queue, _defaultEncoderFactory);
                 WaitAndDecrementRef(i);
             }
         }
@@ -194,7 +206,7 @@ namespace Ryujinx.Graphics.Metal
 
                         _inUseCount++;
 
-                        return new CommandBufferScoped(this, entry.CommandBuffer, cursor);
+                        return new CommandBufferScoped(this, entry.CommandBuffer, entry.Encoders, cursor);
                     }
 
                     cursor = (cursor + 1) & _totalCommandBuffersMask;
@@ -223,7 +235,7 @@ namespace Ryujinx.Graphics.Metal
                 commandBuffer.Commit();
 
                 // Replace entry with new MTLCommandBuffer
-                entry.Reinitialize(_queue);
+                entry.Reinitialize(_queue, _defaultEncoderFactory);
 
                 int ptr = (_queuedIndexesPtr + _queuedCount) % _totalCommandBuffers;
                 _queuedIndexes[ptr] = cbIndex;
