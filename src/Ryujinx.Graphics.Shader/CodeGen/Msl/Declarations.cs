@@ -164,16 +164,15 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
         private static void DeclareBufferStructures(CodeGenContext context, IEnumerable<BufferDefinition> buffers, bool constant)
         {
             var name = constant ? "ConstantBuffers" : "StorageBuffers";
-            var count = constant ? Defaults.MaxUniformBuffersPerStage : Defaults.MaxStorageBuffersPerStage;
             var addressSpace = constant ? "constant" : "device";
 
-            var argBufferPointers = new string[count];
+            List<string> argBufferPointers = [];
 
             foreach (BufferDefinition buffer in buffers)
             {
                 var needsPadding = buffer.Layout == BufferLayout.Std140;
 
-                argBufferPointers[buffer.Binding] = $"{addressSpace} {Defaults.StructPrefix}_{buffer.Name}* {buffer.Name};";
+                argBufferPointers.Add($"{addressSpace} {Defaults.StructPrefix}_{buffer.Name}* {buffer.Name};");
 
                 context.AppendLine($"struct {Defaults.StructPrefix}_{buffer.Name}");
                 context.EnterScope();
@@ -211,18 +210,9 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
             context.AppendLine($"struct {name}");
             context.EnterScope();
 
-            for (int i = 0; i < argBufferPointers.Length; i++)
+            foreach (var pointer in argBufferPointers)
             {
-                if (argBufferPointers[i] == null)
-                {
-                    // We need to pad the struct definition in order to read
-                    // non-contiguous resources correctly.
-                    context.AppendLine($"ulong padding_{i};");
-                }
-                else
-                {
-                    context.AppendLine(argBufferPointers[i]);
-                }
+                context.AppendLine(pointer);
             }
 
             context.LeaveScope(";");
@@ -234,31 +224,22 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
             context.AppendLine("struct Textures");
             context.EnterScope();
 
-            var argBufferPointers = new string[Defaults.MaxTexturesPerStage * 2];
+            List<string> argBufferPointers = [];
 
             foreach (TextureDefinition texture in textures)
             {
                 var textureTypeName = texture.Type.ToMslTextureType();
-                argBufferPointers[texture.Binding] = $"{textureTypeName} tex_{texture.Name};";
+                argBufferPointers.Add($"{textureTypeName} tex_{texture.Name};");
 
                 if (!texture.Separate && texture.Type != SamplerType.TextureBuffer)
                 {
-                    argBufferPointers[Defaults.MaxTexturesPerStage + texture.Binding] = $"sampler samp_{texture.Name};";
+                    argBufferPointers.Add($"sampler samp_{texture.Name};");
                 }
             }
 
-            for (int i = 0; i < argBufferPointers.Length; i++)
+            foreach (var pointer in argBufferPointers)
             {
-                if (argBufferPointers[i] == null)
-                {
-                    // We need to pad the struct definition in order to read
-                    // non-contiguous resources correctly.
-                    context.AppendLine($"ulong padding_{i};");
-                }
-                else
-                {
-                    context.AppendLine(argBufferPointers[i]);
-                }
+                context.AppendLine(pointer);
             }
 
             context.LeaveScope(";");
