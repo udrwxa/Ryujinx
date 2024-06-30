@@ -59,12 +59,12 @@ namespace Ryujinx.Graphics.Metal
         private int _queuedCount;
         private int _inUseCount;
 
-        public CommandBufferPool(MTLCommandQueue queue)
+        public CommandBufferPool(MTLCommandQueue queue, bool isLight = false)
         {
             _queue = queue;
             _owner = Thread.CurrentThread;
 
-            _totalCommandBuffers = MaxCommandBuffers;
+            _totalCommandBuffers = isLight ? 2 : MaxCommandBuffers;
             _totalCommandBuffersMask = _totalCommandBuffers - 1;
 
             _commandBuffers = new ReservedCommandBuffer[_totalCommandBuffers];
