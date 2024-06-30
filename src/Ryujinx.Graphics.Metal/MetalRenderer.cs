@@ -67,7 +67,10 @@ namespace Ryujinx.Graphics.Metal
 
         public void BackgroundContextAction(Action action, bool alwaysBackground = false)
         {
-            Logger.Warning?.Print(LogClass.Gpu, "Not Implemented!");
+            // GetData methods should be thread safe, so we can call this directly.
+            // Texture copy (scaled) may also happen in here, so that should also be thread safe.
+
+            action();
         }
 
         public BufferHandle CreateBuffer(int size, BufferAccess access)

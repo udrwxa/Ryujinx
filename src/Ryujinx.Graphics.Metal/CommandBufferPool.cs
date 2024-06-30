@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.Versioning;
+using System.Threading;
 
 namespace Ryujinx.Graphics.Metal
 {
@@ -14,7 +15,10 @@ namespace Ryujinx.Graphics.Metal
         private readonly int _totalCommandBuffers;
         private readonly int _totalCommandBuffersMask;
         private readonly MTLCommandQueue _queue;
+        private readonly Thread _owner;
         private IEncoderFactory _defaultEncoderFactory;
+
+        public bool OwnedByCurrentThread => _owner == Thread.CurrentThread;
 
         [SupportedOSPlatform("macos")]
         private struct ReservedCommandBuffer
@@ -58,6 +62,7 @@ namespace Ryujinx.Graphics.Metal
         public CommandBufferPool(MTLCommandQueue queue)
         {
             _queue = queue;
+            _owner = Thread.CurrentThread;
 
             _totalCommandBuffers = MaxCommandBuffers;
             _totalCommandBuffersMask = _totalCommandBuffers - 1;
@@ -218,6 +223,9 @@ namespace Ryujinx.Graphics.Metal
 
         public void Return(CommandBufferScoped cbs)
         {
+            // Ensure the encoder is committed.
+            cbs.Encoders.EndCurrentPass();
+
             lock (_commandBuffers)
             {
                 int cbIndex = cbs.CommandBufferIndex;
