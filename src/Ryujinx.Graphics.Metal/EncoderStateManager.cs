@@ -1111,7 +1111,14 @@ namespace Ryujinx.Graphics.Metal
 
                                     ref var texture = ref _currentState.TextureRefs[index];
 
-                                    var mtlTexture = texture.Storage.GetHandle();
+                                    var storage = texture.Storage;
+
+                                    if (storage == null)
+                                    {
+                                        continue;
+                                    }
+
+                                    var mtlTexture = storage.GetHandle();
 
                                     MTLRenderStages renderStages = 0;
 
@@ -1277,7 +1284,14 @@ namespace Ryujinx.Graphics.Metal
 
                                     ref var texture = ref _currentState.TextureRefs[index];
 
-                                    var mtlTexture = texture.Storage.GetHandle();
+                                    var storage = texture.Storage;
+
+                                    if (storage == null)
+                                    {
+                                        continue;
+                                    }
+
+                                    var mtlTexture = storage.GetHandle();
 
                                     if (segment.Stages.HasFlag(ResourceStages.Compute))
                                     {
