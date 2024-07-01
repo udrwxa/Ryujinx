@@ -23,13 +23,12 @@ namespace Ryujinx.Graphics.Metal
         StencilRef = 1 << 7,
         Viewports = 1 << 8,
         Scissors = 1 << 9,
-        VertexBuffers = 1 << 10,
-        Uniforms = 1 << 11,
-        Storages = 1 << 12,
-        Textures = 1 << 13,
-        Images = 1 << 14,
+        Uniforms = 1 << 10,
+        Storages = 1 << 11,
+        Textures = 1 << 12,
+        Images = 1 << 13,
 
-        RenderAll = RenderPipeline | DepthStencil | DepthClamp | DepthBias | CullMode | FrontFace | StencilRef | Viewports | Scissors | VertexBuffers | Uniforms | Storages | Textures | Images,
+        RenderAll = RenderPipeline | DepthStencil | DepthClamp | DepthBias | CullMode | FrontFace | StencilRef | Viewports | Scissors | Uniforms | Storages | Textures | Images,
         ComputeAll = ComputePipeline | Uniforms | Storages | Textures | Images,
         All = RenderAll | ComputeAll,
     }
