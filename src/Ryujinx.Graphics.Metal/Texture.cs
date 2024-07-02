@@ -95,25 +95,21 @@ namespace Ryujinx.Graphics.Metal
 
         public void CopyTo(ITexture destination, int firstLayer, int firstLevel)
         {
-            if (!_renderer.CommandBufferPool.OwnedByCurrentThread)
-            {
-                Logger.Warning?.PrintMsg(LogClass.Gpu, "Metal doesn't currently support scaled blit on background thread.");
-
-                return;
-            }
-
             var blitCommandEncoder = _pipeline.GetOrCreateBlitEncoder();
 
             if (destination is Texture destinationTexture)
             {
+                int width = Math.Max(1, Math.Min(Info.Width, destinationTexture.Info.Width >> firstLevel));
+                int height = Math.Max(1, Math.Min(Info.Height, destinationTexture.Info.Height >> firstLevel));
+
                 if (destinationTexture.Info.Target == Target.Texture3D)
                 {
                     blitCommandEncoder.CopyFromTexture(
                         _mtlTexture,
                         0,
-                        (ulong)firstLevel,
-                        new MTLOrigin { x = 0, y = 0, z = (ulong)firstLayer },
-                        new MTLSize { width = (ulong)Math.Min(Info.Width, destinationTexture.Info.Width), height = (ulong)Math.Min(Info.Height, destinationTexture.Info.Height), depth = 1 },
+                        0,
+                        new MTLOrigin { x = 0, y = 0, z = 0 },
+                        new MTLSize { width = (ulong)width, height = (ulong)height, depth = 1 },
                         destinationTexture._mtlTexture,
                         0,
                         (ulong)firstLevel,
@@ -123,13 +119,13 @@ namespace Ryujinx.Graphics.Metal
                 {
                     blitCommandEncoder.CopyFromTexture(
                         _mtlTexture,
-                        (ulong)firstLayer,
-                        (ulong)firstLevel,
+                        0,
+                        0,
                         destinationTexture._mtlTexture,
                         (ulong)firstLayer,
                         (ulong)firstLevel,
-                        _mtlTexture.ArrayLength,
-                        _mtlTexture.MipmapLevelCount);
+                        Math.Min(_mtlTexture.ArrayLength, (ulong)destinationTexture.Info.GetDepthOrLayers() - (ulong)firstLayer),
+                        Math.Min(_mtlTexture.MipmapLevelCount, destinationTexture._mtlTexture.MipmapLevelCount - (ulong)firstLevel));
                 }
             }
         }
@@ -140,6 +136,9 @@ namespace Ryujinx.Graphics.Metal
 
             if (destination is Texture destinationTexture)
             {
+                int width = Math.Max(1, Math.Min(Info.Width >> srcLevel, destinationTexture.Info.Width >> dstLevel));
+                int height = Math.Max(1, Math.Min(Info.Height >> srcLevel, destinationTexture.Info.Height >> dstLevel));
+
                 if (destinationTexture.Info.Target == Target.Texture3D)
                 {
                     blitCommandEncoder.CopyFromTexture(
@@ -147,7 +146,7 @@ namespace Ryujinx.Graphics.Metal
                         0,
                         (ulong)srcLevel,
                         new MTLOrigin { x = 0, y = 0, z = (ulong)srcLayer },
-                        new MTLSize { width = (ulong)Math.Min(Info.Width, destinationTexture.Info.Width), height = (ulong)Math.Min(Info.Height, destinationTexture.Info.Height), depth = 1 },
+                        new MTLSize { width = (ulong)width, height = (ulong)height, depth = 1 },
                         destinationTexture._mtlTexture,
                         0,
                         (ulong)dstLevel,
@@ -159,17 +158,25 @@ namespace Ryujinx.Graphics.Metal
                         _mtlTexture,
                         (ulong)srcLayer,
                         (ulong)srcLevel,
+                        new MTLOrigin(),
+                        new MTLSize { width = (ulong)width, height = (ulong)height, depth = 1 },
                         destinationTexture._mtlTexture,
                         (ulong)dstLayer,
                         (ulong)dstLevel,
-                        _mtlTexture.ArrayLength,
-                        _mtlTexture.MipmapLevelCount);
+                        new MTLOrigin());
                 }
             }
         }
 
         public void CopyTo(ITexture destination, Extents2D srcRegion, Extents2D dstRegion, bool linearFilter)
         {
+            if (!_renderer.CommandBufferPool.OwnedByCurrentThread)
+            {
+                Logger.Warning?.PrintMsg(LogClass.Gpu, "Metal doesn't currently support scaled blit on background thread.");
+
+                return;
+            }
+
             var dst = (Texture)destination;
             bool isDepthOrStencil = dst.Info.Format.IsDepthOrStencil();
 
@@ -178,31 +185,19 @@ namespace Ryujinx.Graphics.Metal
 
         public void CopyTo(BufferRange range, int layer, int level, int stride)
         {
-            var blitCommandEncoder = _pipeline.GetOrCreateBlitEncoder();
             var cbs = _pipeline.Cbs;
 
             int outSize = Info.GetMipSize(level);
+            int hostSize = GetBufferDataLength(outSize);
 
-            ulong bytesPerRow = (ulong)Info.GetMipStride(level);
-            ulong bytesPerImage = 0;
-            if (_mtlTexture.TextureType == MTLTextureType.Type3D)
-            {
-                bytesPerImage = bytesPerRow * (ulong)Info.Height;
-            }
+            int offset = range.Offset;
 
             var autoBuffer = _renderer.BufferManager.GetBuffer(range.Handle, true);
             var mtlBuffer = autoBuffer.Get(cbs, range.Offset, outSize).Value;
 
-            blitCommandEncoder.CopyFromTexture(
-                _mtlTexture,
-                (ulong)layer,
-                (ulong)level,
-                new MTLOrigin(),
-                new MTLSize { width = _mtlTexture.Width, height = _mtlTexture.Height, depth = _mtlTexture.Depth },
-                mtlBuffer,
-                (ulong)range.Offset,
-                bytesPerRow,
-                bytesPerImage);
+            // TODO: D32S8 conversion via temp copy holder
+
+            CopyFromOrToBuffer(cbs, mtlBuffer, _mtlTexture, hostSize, true, layer, level, 1, 1, singleSlice: true, offset: offset, stride: stride);
         }
 
         public ITexture CreateView(TextureCreateInfo info, int firstLayer, int firstLevel)
@@ -215,6 +210,13 @@ namespace Ryujinx.Graphics.Metal
             // TODO: D32S8 conversion
 
             return size;
+        }
+
+        private void CopyDataToBuffer(Span<byte> storage, ReadOnlySpan<byte> input)
+        {
+            // TODO: D32S8 conversion
+
+            input.CopyTo(storage);
         }
 
         private ReadOnlySpan<byte> GetDataFromBuffer(ReadOnlySpan<byte> storage, int size, Span<byte> output)
@@ -422,37 +424,29 @@ namespace Ryujinx.Graphics.Metal
             buffer.Dispose();
         }
 
+        private void SetData(ReadOnlySpan<byte> data, int layer, int level, int layers, int levels, bool singleSlice)
+        {
+            int bufferDataLength = GetBufferDataLength(data.Length);
+
+            using var bufferHolder = _renderer.BufferManager.Create(bufferDataLength);
+
+            // TODO: loadInline logic
+
+            var cbs = _pipeline.Cbs;
+
+            CopyDataToBuffer(bufferHolder.GetDataStorage(0, bufferDataLength), data);
+
+            var buffer = bufferHolder.GetBuffer().Get(cbs).Value;
+            var image = GetHandle();
+
+            CopyFromOrToBuffer(cbs, buffer, image, bufferDataLength, false, layer, level, layers, levels, singleSlice);
+        }
+
         public void SetData(IMemoryOwner<byte> data, int layer, int level)
         {
-            var blitCommandEncoder = _pipeline.GetOrCreateBlitEncoder();
+            SetData(data.Memory.Span, layer, level, 1, 1, singleSlice: true);
 
-            ulong bytesPerRow = (ulong)Info.GetMipStride(level);
-            ulong bytesPerImage = 0;
-            if (_mtlTexture.TextureType == MTLTextureType.Type3D)
-            {
-                bytesPerImage = bytesPerRow * (ulong)Info.Height;
-            }
-
-            var dataSpan = data.Memory.Span;
-
-            var buffer = _renderer.BufferManager.Create(dataSpan.Length);
-            buffer.SetDataUnchecked(0, dataSpan);
-            var mtlBuffer = buffer.GetBuffer(false).Get(_pipeline.Cbs).Value;
-
-            blitCommandEncoder.CopyFromBuffer(
-                mtlBuffer,
-                0,
-                bytesPerRow,
-                bytesPerImage,
-                new MTLSize { width = _mtlTexture.Width, height = _mtlTexture.Height, depth = _mtlTexture.Depth },
-                _mtlTexture,
-                (ulong)layer,
-                (ulong)level,
-                new MTLOrigin()
-            );
-
-            // Cleanup
-            buffer.Dispose();
+            data.Dispose();
         }
 
         public void SetData(IMemoryOwner<byte> data, int layer, int level, Rectangle<int> region)
