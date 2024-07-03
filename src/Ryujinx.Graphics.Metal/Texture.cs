@@ -57,7 +57,10 @@ namespace Ryujinx.Graphics.Metal
             var swizzle = GetSwizzle(info, pixelFormat);
 
             _mtlTexture = sourceTexture.NewTextureView(pixelFormat, textureType, levels, slices, swizzle);
+
             MtlFormat = pixelFormat;
+            FirstLayer = firstLayer;
+            FirstLevel = firstLevel;
         }
 
         private MTLTextureSwizzleChannels GetSwizzle(TextureCreateInfo info, MTLPixelFormat pixelFormat)
@@ -95,76 +98,104 @@ namespace Ryujinx.Graphics.Metal
 
         public void CopyTo(ITexture destination, int firstLayer, int firstLevel)
         {
-            var blitCommandEncoder = _pipeline.GetOrCreateBlitEncoder();
+            CommandBufferScoped cbs = _pipeline.Cbs;
 
-            if (destination is Texture destinationTexture)
+            TextureBase src = this;
+            TextureBase dst = (TextureBase)destination;
+
+            var srcImage = GetHandle();
+            var dstImage = dst.GetHandle();
+
+            if (!dst.Info.Target.IsMultisample() && Info.Target.IsMultisample())
             {
-                int width = Math.Max(1, Math.Min(Info.Width, destinationTexture.Info.Width >> firstLevel));
-                int height = Math.Max(1, Math.Min(Info.Height, destinationTexture.Info.Height >> firstLevel));
+                //int layers = Math.Min(Info.GetLayers(), dst.Info.GetLayers() - firstLayer);
 
-                if (destinationTexture.Info.Target == Target.Texture3D)
-                {
-                    blitCommandEncoder.CopyFromTexture(
-                        _mtlTexture,
-                        0,
-                        0,
-                        new MTLOrigin { x = 0, y = 0, z = 0 },
-                        new MTLSize { width = (ulong)width, height = (ulong)height, depth = 1 },
-                        destinationTexture._mtlTexture,
-                        0,
-                        (ulong)firstLevel,
-                        new MTLOrigin { x = 0, y = 0, z = (ulong)firstLayer });
-                }
-                else
-                {
-                    blitCommandEncoder.CopyFromTexture(
-                        _mtlTexture,
-                        0,
-                        0,
-                        destinationTexture._mtlTexture,
-                        (ulong)firstLayer,
-                        (ulong)firstLevel,
-                        Math.Min(_mtlTexture.ArrayLength, (ulong)destinationTexture.Info.GetDepthOrLayers() - (ulong)firstLayer),
-                        Math.Min(_mtlTexture.MipmapLevelCount, destinationTexture._mtlTexture.MipmapLevelCount - (ulong)firstLevel));
-                }
+                //_gd.HelperShader.CopyMSToNonMS(_gd, cbs, src, dst, 0, firstLayer, layers);
+            }
+            else if (dst.Info.Target.IsMultisample() && !Info.Target.IsMultisample())
+            {
+                //int layers = Math.Min(Info.GetLayers(), dst.Info.GetLayers() - firstLayer);
+
+                //_gd.HelperShader.CopyNonMSToMS(_gd, cbs, src, dst, 0, firstLayer, layers);
+            }
+            else if (dst.Info.BytesPerPixel != Info.BytesPerPixel)
+            {
+                //int layers = Math.Min(Info.GetLayers(), dst.Info.GetLayers() - firstLayer);
+                //int levels = Math.Min(Info.Levels, dst.Info.Levels - firstLevel);
+
+                //_gd.HelperShader.CopyIncompatibleFormats(_gd, cbs, src, dst, 0, firstLayer, 0, firstLevel, layers, levels);
+            }
+            else if (src.Info.Format.IsDepthOrStencil() != dst.Info.Format.IsDepthOrStencil())
+            {
+                int layers = Math.Min(Info.GetLayers(), dst.Info.GetLayers() - firstLayer);
+                int levels = Math.Min(Info.Levels, dst.Info.Levels - firstLevel);
+
+                // TODO: depth copy?
+                //_gd.HelperShader.CopyColor(_gd, cbs, src, dst, 0, firstLayer, 0, FirstLevel, layers, levels);
+            }
+            else
+            {
+                TextureCopy.Copy(
+                    cbs,
+                    srcImage,
+                    dstImage,
+                    src.Info,
+                    dst.Info,
+                    0,//src.FirstLayer,
+                    0,//dst.FirstLayer,
+                    0,//src.FirstLevel,
+                    0,//dst.FirstLevel,
+                    0,
+                    firstLayer,
+                    0,
+                    firstLevel);
             }
         }
 
         public void CopyTo(ITexture destination, int srcLayer, int dstLayer, int srcLevel, int dstLevel)
         {
-            var blitCommandEncoder = _pipeline.GetOrCreateBlitEncoder();
+            CommandBufferScoped cbs = _pipeline.Cbs;
 
-            if (destination is Texture destinationTexture)
+            TextureBase src = this;
+            TextureBase dst = (TextureBase)destination;
+
+            var srcImage = GetHandle();
+            var dstImage = dst.GetHandle();
+
+            if (!dst.Info.Target.IsMultisample() && Info.Target.IsMultisample())
             {
-                int width = Math.Max(1, Math.Min(Info.Width >> srcLevel, destinationTexture.Info.Width >> dstLevel));
-                int height = Math.Max(1, Math.Min(Info.Height >> srcLevel, destinationTexture.Info.Height >> dstLevel));
-
-                if (destinationTexture.Info.Target == Target.Texture3D)
-                {
-                    blitCommandEncoder.CopyFromTexture(
-                        _mtlTexture,
-                        0,
-                        (ulong)srcLevel,
-                        new MTLOrigin { x = 0, y = 0, z = (ulong)srcLayer },
-                        new MTLSize { width = (ulong)width, height = (ulong)height, depth = 1 },
-                        destinationTexture._mtlTexture,
-                        0,
-                        (ulong)dstLevel,
-                        new MTLOrigin { x = 0, y = 0, z = (ulong)dstLayer });
-                }
-                else
-                {
-                    blitCommandEncoder.CopyFromTexture(
-                        _mtlTexture,
-                        (ulong)srcLayer,
-                        (ulong)srcLevel,
-                        new MTLOrigin(),
-                        new MTLSize { width = (ulong)width, height = (ulong)height, depth = 1 },
-                        destinationTexture._mtlTexture,
-                        (ulong)dstLayer,
-                        (ulong)dstLevel,
-                        new MTLOrigin());
-                }
+                //_gd.HelperShader.CopyMSToNonMS(_gd, cbs, src, dst, srcLayer, dstLayer, 1);
+            }
+            else if (dst.Info.Target.IsMultisample() && !Info.Target.IsMultisample())
+            {
+                //_gd.HelperShader.CopyNonMSToMS(_gd, cbs, src, dst, srcLayer, dstLayer, 1);
+            }
+            else if (dst.Info.BytesPerPixel != Info.BytesPerPixel)
+            {
+                //_gd.HelperShader.CopyIncompatibleFormats(_gd, cbs, src, dst, srcLayer, dstLayer, srcLevel, dstLevel, 1, 1);
+            }
+            else if (src.Info.Format.IsDepthOrStencil() != dst.Info.Format.IsDepthOrStencil())
+            {
+                //_gd.HelperShader.CopyColor(_gd, cbs, src, dst, srcLayer, dstLayer, srcLevel, dstLevel, 1, 1);
+            }
+            else
+            {
+                TextureCopy.Copy(
+                    cbs,
+                    srcImage,
+                    dstImage,
+                    src.Info,
+                    dst.Info,
+                    0, //src.FirstLayer,
+                    0, //dst.FirstLayer,
+                    0, //src.FirstLevel,
+                    0, //dst.FirstLevel,
+                    srcLayer,
+                    dstLayer,
+                    srcLevel,
+                    dstLevel,
+                    1,
+                    1);
             }
         }
 
@@ -179,6 +210,10 @@ namespace Ryujinx.Graphics.Metal
 
             var dst = (Texture)destination;
             bool isDepthOrStencil = dst.Info.Format.IsDepthOrStencil();
+
+            if (dst.Info.IsCompressed) {
+                Console.WriteLine("shit");
+            }
 
             _pipeline.Blit(this, destination, srcRegion, dstRegion, isDepthOrStencil, linearFilter);
         }
