@@ -389,12 +389,16 @@ namespace Ryujinx.Graphics.Metal
 
             var indexBuffer = _encoderStateManager.IndexBuffer;
 
+            ulong offset = _encoderStateManager.IndexBufferOffset;
+            MTLIndexType type = _encoderStateManager.IndexType;
+            int indexSize = type == MTLIndexType.UInt32 ? sizeof(int) : sizeof(short);
+
             renderCommandEncoder.DrawIndexedPrimitives(
                 primitiveType,
                 (ulong)indexCount,
-                _encoderStateManager.IndexType,
-                indexBuffer.Get(Cbs, 0, indexCount * sizeof(int)).Value,
-                _encoderStateManager.IndexBufferOffset,
+                type,
+                indexBuffer.Get(Cbs, (int)offset, indexCount * indexSize).Value,
+                offset,
                 (ulong)instanceCount,
                 firstVertex,
                 (ulong)firstInstance);
