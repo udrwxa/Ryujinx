@@ -36,7 +36,6 @@ namespace Ryujinx.Graphics.Metal
         internal CommandBufferScoped Cbs { get; private set; }
         internal CommandBufferEncoder Encoders => Cbs.Encoders;
         internal EncoderType CurrentEncoderType => Encoders.CurrentEncoderType;
-        internal bool RenderPassActive { get; private set; }
 
         public Pipeline(MTLDevice device, MetalRenderer renderer)
         {
@@ -144,6 +143,13 @@ namespace Ryujinx.Graphics.Metal
 
             // Cleanup
             dst.Dispose();
+        }
+
+        public CommandBufferScoped GetPreloadCommandBuffer()
+        {
+            PreloadCbs ??= _renderer.CommandBufferPool.Rent();
+
+            return PreloadCbs.Value;
         }
 
         public void FlushCommandsIfWeightExceeding(IAuto disposedResource, ulong byteWeight)
@@ -533,11 +539,13 @@ namespace Ryujinx.Graphics.Metal
 
         public void SetPrimitiveRestart(bool enable, int index)
         {
-            // TODO: Supported for LineStrip and TriangleStrip
+            // Always active for LineStrip and TriangleStrip
             // https://github.com/gpuweb/gpuweb/issues/1220#issuecomment-732483263
             // https://developer.apple.com/documentation/metal/mtlrendercommandencoder/1515520-drawindexedprimitives
             // https://stackoverflow.com/questions/70813665/how-to-render-multiple-trianglestrips-using-metal
-            Logger.Warning?.Print(LogClass.Gpu, "Not Implemented!");
+
+            // Emulating disabling this is very difficult. It's unlikely for an index buffer to use the largest possible index,
+            // so it's fine nearly all of the time.
         }
 
         public void SetPrimitiveTopology(PrimitiveTopology topology)
