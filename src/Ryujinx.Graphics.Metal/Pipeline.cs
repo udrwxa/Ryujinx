@@ -136,7 +136,7 @@ namespace Ryujinx.Graphics.Metal
 
             Cbs.CommandBuffer.PresentDrawable(drawable);
 
-            CommandBuffer = (Cbs = _renderer.CommandBufferPool.ReturnAndRent(Cbs)).CommandBuffer;
+            FlushCommandsImpl();
 
             // TODO: Auto flush counting
             _renderer.SyncManager.GetAndResetWaitTicks();
