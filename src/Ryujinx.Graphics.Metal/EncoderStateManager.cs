@@ -145,11 +145,14 @@ namespace Ryujinx.Graphics.Metal
                 }
             }
 
+            renderPassDescriptor.VisibilityResultBuffer = _bufferManager.GetBuffer(_visibilityResultBuffer, true).Get(_pipeline.Cbs).Value;
+
             // Initialise Encoder
             var renderCommandEncoder = _pipeline.CommandBuffer.RenderCommandEncoder(renderPassDescriptor);
 
             // Mark all state as dirty to ensure it is set on the encoder
             _currentState.Dirty |= DirtyFlags.RenderAll;
+            _currentState.VisibilityCounterDirty = true;
 
             // Cleanup
             renderPassDescriptor.Dispose();
@@ -240,6 +243,12 @@ namespace Ryujinx.Graphics.Metal
             // }
 
             _currentState.Dirty &= ~DirtyFlags.RenderAll;
+
+            if (_currentState.VisibilityCounterDirty)
+            {
+                renderCommandEncoder.SetVisibilityResultMode(MTLVisibilityResultMode.Counting, (ulong)(8 * _visibilityResultIndex));
+                _currentState.VisibilityCounterDirty = false;
+            }
         }
 
         public readonly void RebindComputeState(MTLComputeCommandEncoder computeCommandEncoder)

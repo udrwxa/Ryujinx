@@ -25,6 +25,7 @@ namespace Ryujinx.Graphics.Metal
 
         private Pipeline _pipeline;
         private Window _window;
+        private CounterQueue _counterQueue;
 
         public event EventHandler<ScreenCaptureImageInfo> ScreenCaptured;
         public bool PreferThreading => true;
@@ -236,7 +237,7 @@ namespace Ryujinx.Graphics.Metal
 
         public void UpdateCounters()
         {
-            // https://developer.apple.com/documentation/metal/gpu_counters_and_counter_sample_buffers/creating_a_counter_sample_buffer_to_store_a_gpu_s_counter_data_during_a_pass?language=objc
+            _counterQueue.Flush(false);
         }
 
         public void PreFrame()
@@ -246,15 +247,24 @@ namespace Ryujinx.Graphics.Metal
 
         public ICounterEvent ReportCounter(CounterType type, EventHandler<ulong> resultHandler, float divisor, bool hostReserved)
         {
-            // https://developer.apple.com/documentation/metal/gpu_counters_and_counter_sample_buffers/creating_a_counter_sample_buffer_to_store_a_gpu_s_counter_data_during_a_pass?language=objc
-            var counterEvent = new CounterEvent();
-            resultHandler?.Invoke(counterEvent, type == CounterType.SamplesPassed ? (ulong)1 : 0);
+            if (type == CounterType.SamplesPassed)
+            {
+                return _counterQueue.QueueReport(resultHandler, divisor, _pipeline.DrawCount);
+            }
+
+            // Unsupported counter event type just return a dummy counter
+
+            var counterEvent = new DummyCounterEvent();
+            resultHandler?.Invoke(counterEvent, 0);
             return counterEvent;
         }
 
         public void ResetCounter(CounterType type)
         {
-            // https://developer.apple.com/documentation/metal/gpu_counters_and_counter_sample_buffers/creating_a_counter_sample_buffer_to_store_a_gpu_s_counter_data_during_a_pass?language=objc
+            if (type == CounterType.SamplesPassed)
+            {
+                _counterQueue.QueueReset();
+            }
         }
 
         public void WaitSync(ulong id)

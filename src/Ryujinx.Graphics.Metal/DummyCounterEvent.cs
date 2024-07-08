@@ -2,9 +2,9 @@ using Ryujinx.Graphics.GAL;
 
 namespace Ryujinx.Graphics.Metal
 {
-    class CounterEvent : ICounterEvent
+    class DummyCounterEvent : ICounterEvent
     {
-        public CounterEvent()
+        public DummyCounterEvent()
         {
             Invalid = false;
         }
@@ -18,5 +18,6 @@ namespace Ryujinx.Graphics.Metal
         public void Flush() { }
 
         public void Dispose() { }
+
     }
 }
