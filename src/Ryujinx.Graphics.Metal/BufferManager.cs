@@ -51,6 +51,7 @@ namespace Ryujinx.Graphics.Metal
         public int BufferCount { get; private set; }
 
         public StagingBuffer StagingBuffer { get; }
+        public VisibilityBuffer VisibilityBuffer { get; }
 
         public BufferManager(MTLDevice device, MetalRenderer renderer, Pipeline pipeline)
         {
@@ -60,6 +61,7 @@ namespace Ryujinx.Graphics.Metal
             _buffers = new IdList<BufferHolder>();
 
             StagingBuffer = new StagingBuffer(_renderer, this);
+            VisibilityBuffer = new VisibilityBuffer(this);
         }
 
         public BufferHandle Create(nint pointer, int size)

@@ -129,6 +129,7 @@ namespace Ryujinx.Graphics.Metal
 
         // Only to be used for present
         public bool ClearLoadAction = false;
+        public bool VisibilityCounterDirty = false;
 
         public EncoderState()
         {

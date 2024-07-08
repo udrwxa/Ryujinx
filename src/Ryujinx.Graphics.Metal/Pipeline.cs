@@ -22,6 +22,8 @@ namespace Ryujinx.Graphics.Metal
     {
         private const ulong MinByteWeightForFlush = 256 * 1024 * 1024; // MiB
 
+        internal ulong DrawCount { get; private set; }
+
         private readonly MTLDevice _device;
         private readonly MetalRenderer _renderer;
         private EncoderStateManager _encoderStateManager;
@@ -86,6 +88,7 @@ namespace Ryujinx.Graphics.Metal
 
             if (forDraw)
             {
+                DrawCount++;
                 _encoderStateManager.RebindRenderState(renderCommandEncoder);
             }
 
