@@ -9,6 +9,7 @@
     xmlns:helpers="clr-namespace:Ryujinx.Ava.UI.Helpers"
     xmlns:controls="clr-namespace:Ryujinx.Ava.UI.Controls"
     xmlns:main="clr-namespace:Ryujinx.Ava.UI.Views.Main"
+    xmlns:locale="clr-namespace:Ryujinx.Ava.Common.Locale"
     Cursor="{Binding Cursor}"
     Title="{Binding Title}"
     WindowState="{Binding WindowState}"
@@ -33,6 +34,196 @@
     <Window.Resources>
         <helpers:BitmapArrayValueConverter x:Key="ByteImage" />
     </Window.Resources>
+        <NativeMenu.Menu>
+        <NativeMenu>
+            <NativeMenuItem Header="{locale:Locale MenuBarFile}">
+                <NativeMenu>
+                    <NativeMenuItem
+                        Command="{Binding OpenFile}"
+                        Header="{locale:Locale MenuBarFileOpenFromFile}"
+                        IsEnabled="{Binding EnableNonGameRunningControls}" />
+                    <NativeMenuItem
+                        Command="{Binding OpenFolder}"
+                        Header="{locale:Locale MenuBarFileOpenUnpacked}"
+                        IsEnabled="{Binding EnableNonGameRunningControls}" />
+                    <NativeMenuItem Header="{locale:Locale MenuBarFileOpenApplet}" IsEnabled="{Binding IsAppletMenuActive}">
+                        <NativeMenu>
+                            <NativeMenuItem
+                                Header="Mii Edit Applet" />
+                        </NativeMenu>
+                    </NativeMenuItem>
+                    <NativeMenuItemSeparator />
+                    <NativeMenuItem
+                        Command="{Binding OpenRyujinxFolder}"
+                        Header="{locale:Locale MenuBarFileOpenEmuFolder}" />
+                    <NativeMenuItem
+                        Command="{Binding OpenLogsFolder}"
+                        Header="{locale:Locale MenuBarFileOpenLogsFolder}" />
+                    <NativeMenuItemSeparator />
+                    <NativeMenuItem
+                        Header="{locale:Locale MenuBarFileExit}" />
+                </NativeMenu>
+            </NativeMenuItem>
+            <NativeMenuItem Header="{locale:Locale MenuBarOptions}">
+                <NativeMenu>
+                    <NativeMenuItem
+                        Command="{Binding ToggleFullscreen}"
+                        Header="{locale:Locale MenuBarOptionsToggleFullscreen}"
+                        Gesture="F11" />
+                    <NativeMenuItem
+                        ToggleType="CheckBox"
+                        IsChecked="True"
+                        Command="{ReflectionBinding ToggleStartGamesInFullscreen}"
+                        Header="{locale:Locale MenuBarOptionsStartGamesInFullscreen}" />
+                    <NativeMenuItemSeparator />
+                    <NativeMenuItem Header="{locale:Locale MenuBarOptionsChangeLanguage}">
+                        <NativeMenu>
+                            <NativeMenuItem
+                                Command="{ReflectionBinding ChangeLanguage}"
+                                CommandParameter="de_DE"
+                                Header="Deutsch" />
+                            <NativeMenuItem
+                                Command="{ReflectionBinding ChangeLanguage}"
+                                CommandParameter="en_US"
+                                Header="English (US)" />
+                            <NativeMenuItem
+                                Command="{ReflectionBinding ChangeLanguage}"
+                                CommandParameter="es_ES"
+                                Header="Español (ES)" />
+                            <NativeMenuItem
+                                Command="{ReflectionBinding ChangeLanguage}"
+                                CommandParameter="fr_FR"
+                                Header="Français" />
+                            <NativeMenuItem
+                                Command="{ReflectionBinding ChangeLanguage}"
+                                CommandParameter="it_IT"
+                                Header="Italiano" />
+                            <NativeMenuItem
+                                Command="{ReflectionBinding ChangeLanguage}"
+                                CommandParameter="pt_BR"
+                                Header="Português (BR)" />
+                            <NativeMenuItem
+                                Command="{ReflectionBinding ChangeLanguage}"
+                                CommandParameter="tr_TR"
+                                Header="Türkçe" />
+                            <NativeMenuItem
+                                Command="{ReflectionBinding ChangeLanguage}"
+                                CommandParameter="el_GR"
+                                Header="Ελληνικά" />
+                            <NativeMenuItem
+                                Command="{ReflectionBinding ChangeLanguage}"
+                                CommandParameter="pl_PL"
+                                Header="Polski" />
+                            <NativeMenuItem
+                                Command="{ReflectionBinding ChangeLanguage}"
+                                CommandParameter="ru_RU"
+                                Header="Русский" />
+                            <NativeMenuItem
+                                Command="{ReflectionBinding ChangeLanguage}"
+                                CommandParameter="zh_CN"
+                                Header="简体中文" />
+                            <NativeMenuItem
+                                Command="{ReflectionBinding ChangeLanguage}"
+                                CommandParameter="zh_TW"
+                                Header="繁體中文" />
+                            <NativeMenuItem
+                                Command="{ReflectionBinding ChangeLanguage}"
+                                CommandParameter="ja_JP"
+                                Header="日本語" />
+                            <NativeMenuItem
+                                Command="{ReflectionBinding ChangeLanguage}"
+                                CommandParameter="ko_KR"
+                                Header="한국어" />
+                        </NativeMenu>
+                    </NativeMenuItem>
+                    <NativeMenuItemSeparator />
+                    <NativeMenuItem
+                        Command="{ReflectionBinding OpenSettings}"
+                        Header="{locale:Locale MenuBarOptionsSettings}" />
+                    <NativeMenuItem
+                        Command="{Binding ManageProfiles}"
+                        Header="{locale:Locale MenuBarOptionsManageUserProfiles}"
+                        IsEnabled="{Binding EnableNonGameRunningControls}" />
+                </NativeMenu>
+            </NativeMenuItem>
+            <NativeMenuItem
+                Header="{locale:Locale MenuBarActions}"
+                IsVisible="{Binding IsGameRunning}">
+                <NativeMenu>
+                    <NativeMenuItem
+                        Header="{locale:Locale MenuBarOptionsPauseEmulation}"
+                        Gesture="{Binding PauseKey}"
+                        IsEnabled="{Binding !IsPaused}"
+                        IsVisible="{Binding !IsPaused}" />
+                    <NativeMenuItem
+                        Header="{locale:Locale MenuBarOptionsResumeEmulation}"
+                        Gesture="{Binding PauseKey}"
+                        IsEnabled="{Binding IsPaused}"
+                        IsVisible="{Binding IsPaused}" />
+                    <NativeMenuItem
+                        Header="{locale:Locale MenuBarOptionsStopEmulation}"
+                        Gesture="Escape"
+                        IsEnabled="{Binding IsGameRunning}" />
+                    <NativeMenuItem
+                        Command="{Binding SimulateWakeUpMessage}"
+                        Header="{locale:Locale MenuBarOptionsSimulateWakeUpMessage}" />
+                    <NativeMenuItemSeparator />
+                    <NativeMenuItem
+                        Command="{ReflectionBinding OpenAmiiboWindow}"
+                        Header="{locale:Locale MenuBarActionsScanAmiibo}"
+                        IsEnabled="{Binding IsAmiiboRequested}" />
+                    <NativeMenuItem
+                        Command="{Binding TakeScreenshot}"
+                        Header="{locale:Locale MenuBarFileToolsTakeScreenshot}"
+                        Gesture="{Binding ScreenshotKey}"
+                        IsEnabled="{Binding IsGameRunning}" />
+                    <NativeMenuItem
+                        Command="{Binding HideUi}"
+                        Header="{locale:Locale MenuBarFileToolsHideUi}"
+                        Gesture="{Binding ShowUiKey}"
+                        IsEnabled="{Binding IsGameRunning}" />
+                    <NativeMenuItem
+                        Command="{ReflectionBinding OpenCheatManagerForCurrentApp}"
+                        Header="{locale:Locale GameListContextMenuManageCheat}"
+                        IsEnabled="{Binding IsGameRunning}" />
+                </NativeMenu>
+            </NativeMenuItem>
+            <NativeMenuItem Header="{locale:Locale MenuBarTools}">
+                <NativeMenu>
+                    <NativeMenuItem Header="{locale:Locale MenuBarToolsInstallFirmware}" IsEnabled="{Binding EnableNonGameRunningControls}">
+                        <NativeMenu>
+                            <NativeMenuItem
+                                Command="{Binding InstallFirmwareFromFile}"
+                                Header="{locale:Locale MenuBarFileToolsInstallFirmwareFromFile}" />
+                            <NativeMenuItem
+                                Command="{Binding InstallFirmwareFromFolder}"
+                                Header="{locale:Locale MenuBarFileToolsInstallFirmwareFromDirectory}" />
+                        </NativeMenu>
+                    </NativeMenuItem>
+                </NativeMenu>
+            </NativeMenuItem>
+            <NativeMenuItem Header="{locale:Locale MenuBarView}">
+                <NativeMenu>
+                    <NativeMenuItem  Header="{locale:Locale MenuBarViewWindow}">
+                        <NativeMenu>
+                            <NativeMenuItem Header="{locale:Locale MenuBarViewWindow720}" />
+                            <NativeMenuItem Header="{locale:Locale MenuBarViewWindow1080}" />
+                        </NativeMenu>
+                    </NativeMenuItem>
+                </NativeMenu>
+            </NativeMenuItem>
+            <NativeMenuItem Header="{locale:Locale MenuBarHelp}">
+                <NativeMenu>
+                    <NativeMenuItem
+                        IsEnabled="{Binding CanUpdate}"
+                        Header="{locale:Locale MenuBarHelpCheckForUpdates}" />
+                    <NativeMenuItemSeparator />
+                    <NativeMenuItem
+                        Header="{locale:Locale MenuBarHelpAbout}" />
+                </NativeMenu>
+            </NativeMenuItem>
+        </NativeMenu>
+    </NativeMenu.Menu>
     <Window.KeyBindings>
         <KeyBinding Gesture="Alt+Return" Command="{Binding ToggleFullscreen}" />
         <KeyBinding Gesture="F11" Command="{Binding ToggleFullscreen}" />
