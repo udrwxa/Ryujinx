@@ -112,12 +112,12 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
                 switch (stage)
                 {
                     case ShaderStage.Vertex:
-                        context.AppendLine("VertexOut out;");
+                        context.AppendLine("VertexOut out = {};");
                         // TODO: Only add if necessary
                         context.AppendLine("uint instance_index = instance_id + base_instance;");
                         break;
                     case ShaderStage.Fragment:
-                        context.AppendLine("FragmentOut out;");
+                        context.AppendLine("FragmentOut out = {};");
                         break;
                 }
 
