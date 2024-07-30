@@ -2,14 +2,15 @@
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Ryujinx.SDL2-CS" />
+    <ProjectReference Include="..\Ryujinx.Common\Ryujinx.Common.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Ryujinx.Common\Ryujinx.Common.csproj" />
+    <PackageReference Include="ppy.SDL3-CS" />
   </ItemGroup>
 
 </Project>

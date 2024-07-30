@@ -1,13 +1,15 @@
 using Ryujinx.SDL2.Common;
+using SDL;
 using System;
 using System.Collections.Generic;
-using static SDL2.SDL;
+using System.Runtime.InteropServices;
+using static SDL.SDL3;
 
 namespace Ryujinx.Input.SDL2
 {
     public class SDL2GamepadDriver : IGamepadDriver
     {
-        private readonly Dictionary<int, string> _gamepadsInstanceIdsMapping;
+        private readonly Dictionary<SDL_JoystickID, string> _gamepadsInstanceIdsMapping;
         private readonly List<string> _gamepadsIds;
         private readonly object _lock = new object();
 
@@ -29,7 +31,7 @@ namespace Ryujinx.Input.SDL2
 
         public SDL2GamepadDriver()
         {
-            _gamepadsInstanceIdsMapping = new Dictionary<int, string>();
+            _gamepadsInstanceIdsMapping = new Dictionary<SDL_JoystickID, string>();
             _gamepadsIds = new List<string>();
 
             SDL2Driver.Instance.Initialize();
@@ -37,7 +39,7 @@ namespace Ryujinx.Input.SDL2
             SDL2Driver.Instance.OnJoystickDisconnected += HandleJoyStickDisconnected;
 
             // Add already connected gamepads
-            int numJoysticks = SDL_NumJoysticks();
+            int numJoysticks = SDL_GetJoysticks().Count;
 
             for (int joystickIndex = 0; joystickIndex < numJoysticks; joystickIndex++)
             {
@@ -45,13 +47,17 @@ namespace Ryujinx.Input.SDL2
             }
         }
 
-        private string GenerateGamepadId(int joystickIndex)
+        private string GenerateGamepadId(SDL_JoystickID joystickIndex)
         {
-            Guid guid = SDL_JoystickGetDeviceGUID(joystickIndex);
+            SDL_GUID guid = SDL_GetJoystickGUIDForID();
+
+            // We can't compare SDL_GUID directly in SDL3-CS right now.
+            ReadOnlySpan<byte> span = guid.data;
+            UInt128 guidNum = MemoryMarshal.Read<UInt128>(span);
 
             // Add a unique identifier to the start of the GUID in case of duplicates.
 
-            if (guid == Guid.Empty)
+            if (guidNum == 0)
             {
                 return null;
             }
@@ -80,7 +86,7 @@ namespace Ryujinx.Input.SDL2
             }
         }
 
-        private void HandleJoyStickDisconnected(int joystickInstanceId)
+        private void HandleJoyStickDisconnected(SDL_JoystickID joystickInstanceId)
         {
             if (_gamepadsInstanceIdsMapping.TryGetValue(joystickInstanceId, out string id))
             {
@@ -95,11 +101,11 @@ namespace Ryujinx.Input.SDL2
             }
         }
 
-        private void HandleJoyStickConnected(int joystickDeviceId, int joystickInstanceId)
+        private void HandleJoyStickConnected(SDL_JoystickID joystickDeviceId)
         {
-            if (SDL_IsGameController(joystickDeviceId) == SDL_bool.SDL_TRUE)
+            if (SDL_IsGamepad(joystickDeviceId) == SDL_bool.SDL_TRUE)
             {
-                if (_gamepadsInstanceIdsMapping.ContainsKey(joystickInstanceId))
+                if (_gamepadsInstanceIdsMapping.ContainsKey(joystickDeviceId))
                 {
                     // Sometimes a JoyStick connected event fires after the app starts even though it was connected before
                     // so it is rejected to avoid doubling the entries.
@@ -113,7 +119,7 @@ namespace Ryujinx.Input.SDL2
                     return;
                 }
 
-                if (_gamepadsInstanceIdsMapping.TryAdd(joystickInstanceId, id))
+                if (_gamepadsInstanceIdsMapping.TryAdd(joystickDeviceId, id))
                 {
                     lock (_lock)
                     {
@@ -153,18 +159,18 @@ namespace Ryujinx.Input.SDL2
             Dispose(true);
         }
 
-        public IGamepad GetGamepad(string id)
+        public unsafe IGamepad GetGamepad(string id)
         {
-            int joystickIndex = GetJoystickIndexByGamepadId(id);
+            SDL_JoystickID joystickIndex = GetJoystickIndexByGamepadId(id);
 
             if (joystickIndex == -1)
             {
                 return null;
             }
 
-            IntPtr gamepadHandle = SDL_GameControllerOpen(joystickIndex);
+            SDL_Gamepad* gamepadHandle = SDL_OpenGamepad(joystickIndex);
 
-            if (gamepadHandle == IntPtr.Zero)
+            if ((IntPtr)gamepadHandle == IntPtr.Zero)
             {
                 return null;
             }

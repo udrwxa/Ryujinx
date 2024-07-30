@@ -3,12 +3,12 @@ using Ryujinx.Audio.Integration;
 using Ryujinx.Common.Logging;
 using Ryujinx.Memory;
 using Ryujinx.SDL2.Common;
+using SDL;
 using System;
 using System.Collections.Concurrent;
-using System.Runtime.InteropServices;
 using System.Threading;
 using static Ryujinx.Audio.Integration.IHardwareDeviceDriver;
-using static SDL2.SDL;
+using static SDL.SDL3;
 
 namespace Ryujinx.Audio.Backends.SDL2
 {
@@ -22,14 +22,7 @@ namespace Ryujinx.Audio.Backends.SDL2
 
         public float Volume { get; set; }
 
-        // TODO: Add this to SDL2-CS
-        // NOTE: We use a DllImport here because of marshaling issue for spec.
-#pragma warning disable SYSLIB1054
-        [DllImport("SDL2")]
-        private static extern int SDL_GetDefaultAudioInfo(IntPtr name, out SDL_AudioSpec spec, int isCapture);
-#pragma warning restore SYSLIB1054
-
-        public SDL2HardwareDeviceDriver()
+        public unsafe SDL2HardwareDeviceDriver()
         {
             _updateRequiredEvent = new ManualResetEvent(false);
             _pauseEvent = new ManualResetEvent(true);
@@ -37,12 +30,15 @@ namespace Ryujinx.Audio.Backends.SDL2
 
             SDL2Driver.Instance.Initialize();
 
-            int res = SDL_GetDefaultAudioInfo(IntPtr.Zero, out var spec, 0);
+            SDL_AudioSpec spec = new();
+            SDL_AudioSpec* specPtr = &spec;
+
+            int res = SDL_GetAudioDeviceFormat(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, specPtr, (int*)IntPtr.Zero);
 
             if (res != 0)
             {
                 Logger.Error?.Print(LogClass.Application,
-                    $"SDL_GetDefaultAudioInfo failed with error \"{SDL_GetError()}\"");
+                    $"SDL_GetAudioDeviceFormat failed with error \"{SDL_GetError()}\"");
 
                 _supportSurroundConfiguration = true;
             }
@@ -56,16 +52,16 @@ namespace Ryujinx.Audio.Backends.SDL2
 
         public static bool IsSupported => IsSupportedInternal();
 
-        private static bool IsSupportedInternal()
+        private unsafe static bool IsSupportedInternal()
         {
-            uint device = OpenStream(SampleFormat.PcmInt16, Constants.TargetSampleRate, Constants.ChannelCountMax, Constants.TargetSampleCount, null);
+            SDL_AudioStream* stream = OpenStream(SampleFormat.PcmInt16, Constants.TargetSampleRate, Constants.ChannelCountMax, null);
 
-            if (device != 0)
+            if ((IntPtr)stream != 0)
             {
-                SDL_CloseAudioDevice(device);
+                SDL_DestroyAudioStream(stream);
             }
 
-            return device != 0;
+            return (IntPtr)stream != 0;
         }
 
         public ManualResetEvent GetUpdateRequiredEvent()
@@ -107,42 +103,39 @@ namespace Ryujinx.Audio.Backends.SDL2
             return _sessions.TryRemove(session, out _);
         }
 
-        private static SDL_AudioSpec GetSDL2Spec(SampleFormat requestedSampleFormat, uint requestedSampleRate, uint requestedChannelCount, uint sampleCount)
+        private static SDL_AudioSpec GetSDL2Spec(SampleFormat requestedSampleFormat, uint requestedSampleRate, uint requestedChannelCount)
         {
             return new SDL_AudioSpec
             {
                 channels = (byte)requestedChannelCount,
                 format = GetSDL2Format(requestedSampleFormat),
                 freq = (int)requestedSampleRate,
-                samples = (ushort)sampleCount,
             };
         }
 
-        internal static ushort GetSDL2Format(SampleFormat format)
+        internal static SDL_AudioFormat GetSDL2Format(SampleFormat format)
         {
             return format switch
             {
-                SampleFormat.PcmInt8 => AUDIO_S8,
-                SampleFormat.PcmInt16 => AUDIO_S16,
-                SampleFormat.PcmInt32 => AUDIO_S32,
-                SampleFormat.PcmFloat => AUDIO_F32,
+                SampleFormat.PcmInt8 => SDL_AudioFormat.SDL_AUDIO_U8,
+                SampleFormat.PcmInt16 => SDL_AudioFormat.SDL_AUDIO_S16LE,
+                SampleFormat.PcmInt32 => SDL_AudioFormat.SDL_AUDIO_S32LE,
+                SampleFormat.PcmFloat => SDL_AudioFormat.SDL_AUDIO_F32LE,
                 _ => throw new ArgumentException($"Unsupported sample format {format}"),
             };
         }
 
-        internal static uint OpenStream(SampleFormat requestedSampleFormat, uint requestedSampleRate, uint requestedChannelCount, uint sampleCount, SDL_AudioCallback callback)
+        internal unsafe static SDL_AudioStream* OpenStream(SampleFormat requestedSampleFormat, uint requestedSampleRate, uint requestedChannelCount, SDL_AudioCallback callback)
         {
-            SDL_AudioSpec desired = GetSDL2Spec(requestedSampleFormat, requestedSampleRate, requestedChannelCount, sampleCount);
+            SDL_AudioSpec desired = GetSDL2Spec(requestedSampleFormat, requestedSampleRate, requestedChannelCount);
 
-            desired.callback = callback;
+            SDL_AudioStream* stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, );
 
-            uint device = SDL_OpenAudioDevice(IntPtr.Zero, 0, ref desired, out SDL_AudioSpec got, 0);
-
-            if (device == 0)
+            if ((IntPtr)stream == IntPtr.Zero)
             {
                 Logger.Error?.Print(LogClass.Application, $"SDL2 open audio device initialization failed with error \"{SDL_GetError()}\"");
 
-                return 0;
+                return (SDL_AudioStream*)IntPtr.Zero;
             }
 
             bool isValid = got.format == desired.format && got.freq == desired.freq && got.channels == desired.channels;
@@ -150,12 +143,12 @@ namespace Ryujinx.Audio.Backends.SDL2
             if (!isValid)
             {
                 Logger.Error?.Print(LogClass.Application, "SDL2 open audio device is not valid");
-                SDL_CloseAudioDevice(device);
+                SDL_DestroyAudioStream(stream);
 
-                return 0;
+                return (SDL_AudioStream*)IntPtr.Zero;
             }
 
-            return device;
+            return stream;
         }
 
         public void Dispose()

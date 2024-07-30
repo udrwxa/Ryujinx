@@ -1,10 +1,11 @@
 using Ryujinx.Common.Configuration.Hid;
 using Ryujinx.Common.Configuration.Hid.Keyboard;
+using SDL;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Runtime.CompilerServices;
-using static SDL2.SDL;
+using static SDL.SDL3;
 
 using ConfigKey = Ryujinx.Common.Configuration.Hid.Key;
 
@@ -32,8 +33,8 @@ namespace Ryujinx.Input.SDL2
         private StandardKeyboardInputConfig _configuration;
         private readonly List<ButtonMappingEntry> _buttonsUserMapping;
 
-        private static readonly SDL_Keycode[] _keysDriverMapping = new SDL_Keycode[(int)Key.Count]
-        {
+        private static readonly SDL_Keycode[] _keysDriverMapping =
+        [
             // INVALID
             SDL_Keycode.SDLK_0,
             // Presented as modifiers, so invalid here.
@@ -121,32 +122,32 @@ namespace Ryujinx.Input.SDL2
             SDL_Keycode.SDLK_KP_PLUS,
             SDL_Keycode.SDLK_KP_DECIMAL,
             SDL_Keycode.SDLK_KP_ENTER,
-            SDL_Keycode.SDLK_a,
-            SDL_Keycode.SDLK_b,
-            SDL_Keycode.SDLK_c,
-            SDL_Keycode.SDLK_d,
-            SDL_Keycode.SDLK_e,
-            SDL_Keycode.SDLK_f,
-            SDL_Keycode.SDLK_g,
-            SDL_Keycode.SDLK_h,
-            SDL_Keycode.SDLK_i,
-            SDL_Keycode.SDLK_j,
-            SDL_Keycode.SDLK_k,
-            SDL_Keycode.SDLK_l,
-            SDL_Keycode.SDLK_m,
-            SDL_Keycode.SDLK_n,
-            SDL_Keycode.SDLK_o,
-            SDL_Keycode.SDLK_p,
-            SDL_Keycode.SDLK_q,
-            SDL_Keycode.SDLK_r,
-            SDL_Keycode.SDLK_s,
-            SDL_Keycode.SDLK_t,
-            SDL_Keycode.SDLK_u,
-            SDL_Keycode.SDLK_v,
-            SDL_Keycode.SDLK_w,
-            SDL_Keycode.SDLK_x,
-            SDL_Keycode.SDLK_y,
-            SDL_Keycode.SDLK_z,
+            SDL_Keycode.SDLK_A,
+            SDL_Keycode.SDLK_B,
+            SDL_Keycode.SDLK_C,
+            SDL_Keycode.SDLK_D,
+            SDL_Keycode.SDLK_E,
+            SDL_Keycode.SDLK_F,
+            SDL_Keycode.SDLK_G,
+            SDL_Keycode.SDLK_H,
+            SDL_Keycode.SDLK_I,
+            SDL_Keycode.SDLK_J,
+            SDL_Keycode.SDLK_K,
+            SDL_Keycode.SDLK_L,
+            SDL_Keycode.SDLK_M,
+            SDL_Keycode.SDLK_N,
+            SDL_Keycode.SDLK_O,
+            SDL_Keycode.SDLK_P,
+            SDL_Keycode.SDLK_Q,
+            SDL_Keycode.SDLK_R,
+            SDL_Keycode.SDLK_S,
+            SDL_Keycode.SDLK_T,
+            SDL_Keycode.SDLK_U,
+            SDL_Keycode.SDLK_V,
+            SDL_Keycode.SDLK_W,
+            SDL_Keycode.SDLK_X,
+            SDL_Keycode.SDLK_Y,
+            SDL_Keycode.SDLK_Z,
             SDL_Keycode.SDLK_0,
             SDL_Keycode.SDLK_1,
             SDL_Keycode.SDLK_2,
@@ -157,22 +158,22 @@ namespace Ryujinx.Input.SDL2
             SDL_Keycode.SDLK_7,
             SDL_Keycode.SDLK_8,
             SDL_Keycode.SDLK_9,
-            SDL_Keycode.SDLK_BACKQUOTE,
-            SDL_Keycode.SDLK_BACKQUOTE,
+            SDL_Keycode.SDLK_GRAVE,
+            SDL_Keycode.SDLK_GRAVE,
             SDL_Keycode.SDLK_MINUS,
             SDL_Keycode.SDLK_PLUS,
             SDL_Keycode.SDLK_LEFTBRACKET,
             SDL_Keycode.SDLK_RIGHTBRACKET,
             SDL_Keycode.SDLK_SEMICOLON,
-            SDL_Keycode.SDLK_QUOTE,
+            SDL_Keycode.SDLK_APOSTROPHE,
             SDL_Keycode.SDLK_COMMA,
             SDL_Keycode.SDLK_PERIOD,
             SDL_Keycode.SDLK_SLASH,
             SDL_Keycode.SDLK_BACKSLASH,
 
             // Invalids
-            SDL_Keycode.SDLK_0,
-        };
+            SDL_Keycode.SDLK_0
+        ];
 
         public SDL2Keyboard(SDL2KeyboardDriver driver, string id, string name)
         {
@@ -198,30 +199,30 @@ namespace Ryujinx.Input.SDL2
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static int ToSDL2Scancode(Key key)
+        private unsafe static int ToSDL2Scancode(Key key)
         {
             if (key >= Key.Unknown && key <= Key.Menu)
             {
                 return -1;
             }
 
-            return (int)SDL_GetScancodeFromKey(_keysDriverMapping[(int)key]);
+            return (int)SDL_GetScancodeFromKey(_keysDriverMapping[(int)key], (SDL_Keymod*)IntPtr.Zero);
         }
 
         private static SDL_Keymod GetKeyboardModifierMask(Key key)
         {
             return key switch
             {
-                Key.ShiftLeft => SDL_Keymod.KMOD_LSHIFT,
-                Key.ShiftRight => SDL_Keymod.KMOD_RSHIFT,
-                Key.ControlLeft => SDL_Keymod.KMOD_LCTRL,
-                Key.ControlRight => SDL_Keymod.KMOD_RCTRL,
-                Key.AltLeft => SDL_Keymod.KMOD_LALT,
-                Key.AltRight => SDL_Keymod.KMOD_RALT,
-                Key.WinLeft => SDL_Keymod.KMOD_LGUI,
-                Key.WinRight => SDL_Keymod.KMOD_RGUI,
+                Key.ShiftLeft => SDL_Keymod.SDL_KMOD_LSHIFT,
+                Key.ShiftRight => SDL_Keymod.SDL_KMOD_RSHIFT,
+                Key.ControlLeft => SDL_Keymod.SDL_KMOD_LCTRL,
+                Key.ControlRight => SDL_Keymod.SDL_KMOD_RCTRL,
+                Key.AltLeft => SDL_Keymod.SDL_KMOD_LALT,
+                Key.AltRight => SDL_Keymod.SDL_KMOD_RALT,
+                Key.WinLeft => SDL_Keymod.SDL_KMOD_LGUI,
+                Key.WinRight => SDL_Keymod.SDL_KMOD_RGUI,
                 // NOTE: Menu key isn't supported by SDL2.
-                _ => SDL_Keymod.KMOD_NONE,
+                _ => SDL_Keymod.SDL_KMOD_NONE,
             };
         }
 
@@ -232,9 +233,12 @@ namespace Ryujinx.Input.SDL2
 
             unsafe
             {
-                IntPtr statePtr = SDL_GetKeyboardState(out int numKeys);
+                int numKeys = 0;
+                int* numKeysPtr = &numKeys;
 
-                rawKeyboardState = new ReadOnlySpan<byte>((byte*)statePtr, numKeys);
+                byte* statePtr = SDL_GetKeyboardState(numKeysPtr);
+
+                rawKeyboardState = new ReadOnlySpan<byte>(statePtr, numKeys);
             }
 
             bool[] keysState = new bool[(int)Key.Count];
@@ -246,7 +250,7 @@ namespace Ryujinx.Input.SDL2
                 {
                     SDL_Keymod modifierMask = GetKeyboardModifierMask(key);
 
-                    if (modifierMask == SDL_Keymod.KMOD_NONE)
+                    if (modifierMask == SDL_Keymod.SDL_KMOD_NONE)
                     {
                         continue;
                     }

@@ -1,14 +1,15 @@
 using Ryujinx.Common.Configuration.Hid;
 using Ryujinx.Common.Configuration.Hid.Controller;
 using Ryujinx.Common.Logging;
+using SDL;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
-using static SDL2.SDL;
+using static SDL.SDL3;
 
 namespace Ryujinx.Input.SDL2
 {
-    class SDL2Gamepad : IGamepad
+    unsafe class SDL2Gamepad : IGamepad
     {
         private bool HasConfiguration => _configuration != null;
 
@@ -16,68 +17,67 @@ namespace Ryujinx.Input.SDL2
 
         private StandardControllerInputConfig _configuration;
 
-        private static readonly SDL_GameControllerButton[] _buttonsDriverMapping = new SDL_GameControllerButton[(int)GamepadButtonInputId.Count]
-        {
+        private static readonly SDL_GamepadButton[] _buttonsDriverMapping =
+        [
             // Unbound, ignored.
-            SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_INVALID,
-
-            SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_A,
-            SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_B,
-            SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_X,
-            SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_Y,
-            SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_LEFTSTICK,
-            SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_RIGHTSTICK,
-            SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_LEFTSHOULDER,
-            SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_RIGHTSHOULDER,
+            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_INVALID,
+            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_SOUTH,
+            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_EAST,
+            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_WEST,
+            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_NORTH,
+            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_LEFT_STICK,
+            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_RIGHT_STICK,
+            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_LEFT_SHOULDER,
+            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER,
 
             // NOTE: The left and right trigger are axis, we handle those differently
-            SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_INVALID,
-            SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_INVALID,
+            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_INVALID,
+            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_INVALID,
 
-            SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_DPAD_UP,
-            SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_DPAD_DOWN,
-            SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_DPAD_LEFT,
-            SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_DPAD_RIGHT,
-            SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_BACK,
-            SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_START,
-            SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_GUIDE,
-            SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_MISC1,
-            SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_PADDLE1,
-            SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_PADDLE2,
-            SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_PADDLE3,
-            SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_PADDLE4,
-            SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_TOUCHPAD,
+            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_DPAD_UP,
+            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_DPAD_DOWN,
+            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_DPAD_LEFT,
+            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_DPAD_RIGHT,
+            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_BACK,
+            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_START,
+            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_GUIDE,
+            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_MISC1,
+            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_RIGHT_PADDLE1,
+            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_LEFT_PADDLE1,
+            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_RIGHT_PADDLE2,
+            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_LEFT_PADDLE2,
+            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_TOUCHPAD,
 
             // Virtual buttons are invalid, ignored.
-            SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_INVALID,
-            SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_INVALID,
-            SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_INVALID,
-            SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_INVALID,
-        };
+            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_INVALID,
+            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_INVALID,
+            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_INVALID,
+            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_INVALID
+        ];
 
         private readonly object _userMappingLock = new();
 
         private readonly List<ButtonMappingEntry> _buttonsUserMapping;
 
-        private readonly StickInputId[] _stickUserMapping = new StickInputId[(int)StickInputId.Count]
-        {
+        private readonly StickInputId[] _stickUserMapping =
+        [
             StickInputId.Unbound,
             StickInputId.Left,
-            StickInputId.Right,
-        };
+            StickInputId.Right
+        ];
 
         public GamepadFeaturesFlag Features { get; }
 
-        private IntPtr _gamepadHandle;
+        private SDL_Gamepad* _gamepadHandle;
 
         private float _triggerThreshold;
 
-        public SDL2Gamepad(IntPtr gamepadHandle, string driverId)
+        public SDL2Gamepad(SDL_Gamepad* gamepadHandle, string driverId)
         {
             _gamepadHandle = gamepadHandle;
             _buttonsUserMapping = new List<ButtonMappingEntry>(20);
 
-            Name = SDL_GameControllerName(_gamepadHandle);
+            Name = SDL_GetGamepadName(_gamepadHandle);
             Id = driverId;
             Features = GetFeaturesFlag();
             _triggerThreshold = 0.0f;
@@ -85,12 +85,12 @@ namespace Ryujinx.Input.SDL2
             // Enable motion tracking
             if (Features.HasFlag(GamepadFeaturesFlag.Motion))
             {
-                if (SDL_GameControllerSetSensorEnabled(_gamepadHandle, SDL_SensorType.SDL_SENSOR_ACCEL, SDL_bool.SDL_TRUE) != 0)
+                if (SDL_SetGamepadSensorEnabled(_gamepadHandle, SDL_SensorType.SDL_SENSOR_ACCEL, SDL_bool.SDL_TRUE) != 0)
                 {
                     Logger.Error?.Print(LogClass.Hid, $"Could not enable data reporting for SensorType {SDL_SensorType.SDL_SENSOR_ACCEL}.");
                 }
 
-                if (SDL_GameControllerSetSensorEnabled(_gamepadHandle, SDL_SensorType.SDL_SENSOR_GYRO, SDL_bool.SDL_TRUE) != 0)
+                if (SDL_SetGamepadSensorEnabled(_gamepadHandle, SDL_SensorType.SDL_SENSOR_GYRO, SDL_bool.SDL_TRUE) != 0)
                 {
                     Logger.Error?.Print(LogClass.Hid, $"Could not enable data reporting for SensorType {SDL_SensorType.SDL_SENSOR_GYRO}.");
                 }
@@ -101,13 +101,13 @@ namespace Ryujinx.Input.SDL2
         {
             GamepadFeaturesFlag result = GamepadFeaturesFlag.None;
 
-            if (SDL_GameControllerHasSensor(_gamepadHandle, SDL_SensorType.SDL_SENSOR_ACCEL) == SDL_bool.SDL_TRUE &&
-                SDL_GameControllerHasSensor(_gamepadHandle, SDL_SensorType.SDL_SENSOR_GYRO) == SDL_bool.SDL_TRUE)
+            if (SDL_GamepadHasSensor(_gamepadHandle, SDL_SensorType.SDL_SENSOR_ACCEL) == SDL_bool.SDL_TRUE &&
+                SDL_GamepadHasSensor(_gamepadHandle, SDL_SensorType.SDL_SENSOR_GYRO) == SDL_bool.SDL_TRUE)
             {
                 result |= GamepadFeaturesFlag.Motion;
             }
 
-            int error = SDL_GameControllerRumble(_gamepadHandle, 0, 0, 100);
+            int error = SDL_RumbleGamepad(_gamepadHandle, 0, 0, 100);
 
             if (error == 0)
             {
@@ -120,15 +120,15 @@ namespace Ryujinx.Input.SDL2
         public string Id { get; }
         public string Name { get; }
 
-        public bool IsConnected => SDL_GameControllerGetAttached(_gamepadHandle) == SDL_bool.SDL_TRUE;
+        public bool IsConnected => SDL_GamepadConnected(_gamepadHandle) == SDL_bool.SDL_TRUE;
 
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing && _gamepadHandle != IntPtr.Zero)
+            if (disposing && (IntPtr)_gamepadHandle != IntPtr.Zero)
             {
-                SDL_GameControllerClose(_gamepadHandle);
+                SDL_CloseGamepad(_gamepadHandle);
 
-                _gamepadHandle = IntPtr.Zero;
+                _gamepadHandle = (SDL_Gamepad*)IntPtr.Zero;
             }
         }
 
@@ -151,7 +151,7 @@ namespace Ryujinx.Input.SDL2
 
                 if (durationMs == uint.MaxValue)
                 {
-                    if (SDL_GameControllerRumble(_gamepadHandle, lowFrequencyRaw, highFrequencyRaw, SDL_HAPTIC_INFINITY) != 0)
+                    if (SDL_RumbleGamepad(_gamepadHandle, lowFrequencyRaw, highFrequencyRaw, SDL_HAPTIC_INFINITY) != 0)
                     {
                         Logger.Error?.Print(LogClass.Hid, "Rumble is not supported on this game controller.");
                     }
@@ -162,7 +162,7 @@ namespace Ryujinx.Input.SDL2
                 }
                 else
                 {
-                    if (SDL_GameControllerRumble(_gamepadHandle, lowFrequencyRaw, highFrequencyRaw, durationMs) != 0)
+                    if (SDL_RumbleGamepad(_gamepadHandle, lowFrequencyRaw, highFrequencyRaw, durationMs) != 0)
                     {
                         Logger.Error?.Print(LogClass.Hid, "Rumble is not supported on this game controller.");
                     }
@@ -187,28 +187,25 @@ namespace Ryujinx.Input.SDL2
             {
                 const int ElementCount = 3;
 
-                unsafe
+                float* values = stackalloc float[ElementCount];
+
+                int result = SDL_GetGamepadSensorData(_gamepadHandle, sensorType, values, ElementCount);
+
+                if (result == 0)
                 {
-                    float* values = stackalloc float[ElementCount];
+                    Vector3 value = new(values[0], values[1], values[2]);
 
-                    int result = SDL_GameControllerGetSensorData(_gamepadHandle, sensorType, (IntPtr)values, ElementCount);
-
-                    if (result == 0)
+                    if (inputId == MotionInputId.Gyroscope)
                     {
-                        Vector3 value = new(values[0], values[1], values[2]);
-
-                        if (inputId == MotionInputId.Gyroscope)
-                        {
-                            return RadToDegree(value);
-                        }
-
-                        if (inputId == MotionInputId.Accelerometer)
-                        {
-                            return GsToMs2(value);
-                        }
-
-                        return value;
+                        return RadToDegree(value);
                     }
+
+                    if (inputId == MotionInputId.Accelerometer)
+                    {
+                        return GsToMs2(value);
+                    }
+
+                    return value;
                 }
             }
 
@@ -325,13 +322,13 @@ namespace Ryujinx.Input.SDL2
 
             if (inputId == StickInputId.Left)
             {
-                stickX = SDL_GameControllerGetAxis(_gamepadHandle, SDL_GameControllerAxis.SDL_CONTROLLER_AXIS_LEFTX);
-                stickY = SDL_GameControllerGetAxis(_gamepadHandle, SDL_GameControllerAxis.SDL_CONTROLLER_AXIS_LEFTY);
+                stickX = SDL_GetGamepadAxis(_gamepadHandle, SDL_GamepadAxis.SDL_GAMEPAD_AXIS_LEFTX);
+                stickY = SDL_GetGamepadAxis(_gamepadHandle, SDL_GamepadAxis.SDL_GAMEPAD_AXIS_LEFTY);
             }
             else if (inputId == StickInputId.Right)
             {
-                stickX = SDL_GameControllerGetAxis(_gamepadHandle, SDL_GameControllerAxis.SDL_CONTROLLER_AXIS_RIGHTX);
-                stickY = SDL_GameControllerGetAxis(_gamepadHandle, SDL_GameControllerAxis.SDL_CONTROLLER_AXIS_RIGHTY);
+                stickX = SDL_GetGamepadAxis(_gamepadHandle, SDL_GamepadAxis.SDL_GAMEPAD_AXIS_RIGHTX);
+                stickY = SDL_GetGamepadAxis(_gamepadHandle, SDL_GamepadAxis.SDL_GAMEPAD_AXIS_RIGHTY);
             }
             else
             {
@@ -371,20 +368,20 @@ namespace Ryujinx.Input.SDL2
         {
             if (inputId == GamepadButtonInputId.LeftTrigger)
             {
-                return ConvertRawStickValue(SDL_GameControllerGetAxis(_gamepadHandle, SDL_GameControllerAxis.SDL_CONTROLLER_AXIS_TRIGGERLEFT)) > _triggerThreshold;
+                return ConvertRawStickValue(SDL_GetGamepadAxis(_gamepadHandle, SDL_GamepadAxis.SDL_GAMEPAD_AXIS_LEFT_TRIGGER)) > _triggerThreshold;
             }
 
             if (inputId == GamepadButtonInputId.RightTrigger)
             {
-                return ConvertRawStickValue(SDL_GameControllerGetAxis(_gamepadHandle, SDL_GameControllerAxis.SDL_CONTROLLER_AXIS_TRIGGERRIGHT)) > _triggerThreshold;
+                return ConvertRawStickValue(SDL_GetGamepadAxis(_gamepadHandle, SDL_GamepadAxis.SDL_GAMEPAD_AXIS_RIGHT_TRIGGER)) > _triggerThreshold;
             }
 
-            if (_buttonsDriverMapping[(int)inputId] == SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_INVALID)
+            if (_buttonsDriverMapping[(int)inputId] == SDL_GamepadButton.SDL_GAMEPAD_BUTTON_INVALID)
             {
                 return false;
             }
 
-            return SDL_GameControllerGetButton(_gamepadHandle, _buttonsDriverMapping[(int)inputId]) == 1;
+            return SDL_GetGamepadButton(_gamepadHandle, _buttonsDriverMapping[(int)inputId]) == 1;
         }
     }
 }
