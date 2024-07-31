@@ -535,8 +535,6 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
         {
             return (uint)set switch
             {
-                Defaults.ConstantBuffersSetIndex => "ConstantBuffers",
-                Defaults.StorageBuffersSetIndex => "StorageBuffers",
                 Defaults.TexturesSetIndex => forVar ? "textures" : "Textures",
                 Defaults.ImagesSetIndex => forVar ? "images" : "Images",
                 _ => $"{(forVar ? "set" : "Set")}{set}"
