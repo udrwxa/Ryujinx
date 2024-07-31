@@ -1297,14 +1297,14 @@ namespace Ryujinx.Graphics.Metal
 
                                     if ((segment.Stages & ResourceStages.Vertex) != 0)
                                     {
-                                        // vertResourceIds[vertResourceIdIndex] = sampler.GetSampler().GpuResourceID._impl;
-                                        // vertResourceIdIndex++;
+                                        vertResourceIds[vertResourceIdIndex] = sampler.GetSampler().GpuResourceID._impl;
+                                        vertResourceIdIndex++;
                                     }
 
                                     if ((segment.Stages & ResourceStages.Fragment) != 0)
                                     {
-                                        // fragResourceIds[fragResourceIdIndex] = sampler.GetSampler().GpuResourceID._impl;
-                                        // fragResourceIdIndex++;
+                                        fragResourceIds[fragResourceIdIndex] = sampler.GetSampler().GpuResourceID._impl;
+                                        fragResourceIdIndex++;
                                     }
                                 }
                             }
@@ -1574,8 +1574,8 @@ namespace Ryujinx.Graphics.Metal
                                 {
                                     if (sampler != null)
                                     {
-                                        // resourceIds[resourceIdIndex] = sampler.GetSampler().GpuResourceID._impl;
-                                        // resourceIdIndex++;
+                                        resourceIds[resourceIdIndex] = sampler.GetSampler().GpuResourceID._impl;
+                                        resourceIdIndex++;
                                     }
                                 }
                             }
