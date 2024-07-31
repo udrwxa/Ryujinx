@@ -233,22 +233,22 @@ namespace Ryujinx.Graphics.Metal
 
             if ((_currentState.Dirty & DirtyFlags.Uniforms) != 0)
             {
-                UpdateAndBind(renderCommandEncoder, _currentState.RenderProgram, MetalRenderer.UniformSetIndex);
+                UpdateAndBind(renderCommandEncoder, _currentState.RenderProgram, Constants.ConstantBuffersSetIndex);
             }
 
             if ((_currentState.Dirty & DirtyFlags.Storages) != 0)
             {
-                UpdateAndBind(renderCommandEncoder, _currentState.RenderProgram, MetalRenderer.StorageSetIndex);
+                UpdateAndBind(renderCommandEncoder, _currentState.RenderProgram, Constants.StorageBuffersSetIndex);
             }
 
             if ((_currentState.Dirty & DirtyFlags.Textures) != 0)
             {
-                UpdateAndBind(renderCommandEncoder, _currentState.RenderProgram, MetalRenderer.TextureSetIndex);
+                UpdateAndBind(renderCommandEncoder, _currentState.RenderProgram, Constants.TexturesSetIndex);
             }
 
-            if (_currentState.Dirty.HasFlag(DirtyFlags.Images))
+            if ((_currentState.Dirty & DirtyFlags.Images) != 0)
             {
-                UpdateAndBind(renderCommandEncoder, _currentState.RenderProgram, MetalRenderer.ImageSetIndex);
+                UpdateAndBind(renderCommandEncoder, _currentState.RenderProgram, Constants.ImagesSetIndex);
             }
 
             _currentState.Dirty &= ~DirtyFlags.RenderAll;
@@ -256,29 +256,29 @@ namespace Ryujinx.Graphics.Metal
 
         public readonly void RebindComputeState(MTLComputeCommandEncoder computeCommandEncoder)
         {
-            if (_currentState.Dirty.HasFlag(DirtyFlags.ComputePipeline))
+            if ((_currentState.Dirty & DirtyFlags.ComputePipeline) != 0)
             {
                 SetComputePipelineState(computeCommandEncoder);
             }
 
-            if (_currentState.Dirty.HasFlag(DirtyFlags.Uniforms))
+            if ((_currentState.Dirty & DirtyFlags.Uniforms) != 0)
             {
-                UpdateAndBind(computeCommandEncoder, _currentState.ComputeProgram, MetalRenderer.UniformSetIndex);
+                UpdateAndBind(computeCommandEncoder, _currentState.ComputeProgram, Constants.ConstantBuffersSetIndex);
             }
 
-            if (_currentState.Dirty.HasFlag(DirtyFlags.Storages))
+            if ((_currentState.Dirty & DirtyFlags.Storages) != 0)
             {
-                UpdateAndBind(computeCommandEncoder, _currentState.ComputeProgram, MetalRenderer.StorageSetIndex);
+                UpdateAndBind(computeCommandEncoder, _currentState.ComputeProgram, Constants.StorageBuffersSetIndex);
             }
 
-            if (_currentState.Dirty.HasFlag(DirtyFlags.Textures))
+            if ((_currentState.Dirty & DirtyFlags.Textures) != 0)
             {
-                UpdateAndBind(computeCommandEncoder, _currentState.ComputeProgram, MetalRenderer.TextureSetIndex);
+                UpdateAndBind(computeCommandEncoder, _currentState.ComputeProgram, Constants.TexturesSetIndex);
             }
 
-            if (_currentState.Dirty.HasFlag(DirtyFlags.Images))
+            if ((_currentState.Dirty & DirtyFlags.Images) != 0)
             {
-                UpdateAndBind(computeCommandEncoder, _currentState.ComputeProgram, MetalRenderer.ImageSetIndex);
+                UpdateAndBind(computeCommandEncoder, _currentState.ComputeProgram, Constants.ImagesSetIndex);
             }
 
             _currentState.Dirty &= ~DirtyFlags.ComputeAll;
@@ -1054,7 +1054,7 @@ namespace Ryujinx.Graphics.Metal
             renderCommandEncoder.SetVertexBuffer(zeroMtlBuffer, 0, Constants.ZeroBufferIndex);
         }
 
-        private readonly void UpdateAndBind(MTLRenderCommandEncoder renderCommandEncoder, Program program, int setIndex)
+        private readonly void UpdateAndBind(MTLRenderCommandEncoder renderCommandEncoder, Program program, uint setIndex)
         {
             var bindingSegments = program.BindingSegments[setIndex];
 
@@ -1089,7 +1089,7 @@ namespace Ryujinx.Graphics.Metal
 
                 switch (setIndex)
                 {
-                    case MetalRenderer.UniformSetIndex:
+                    case Constants.ConstantBuffersSetIndex:
                         for (int i = 0; i < count; i++)
                         {
                             int index = binding + i;
@@ -1139,7 +1139,7 @@ namespace Ryujinx.Graphics.Metal
                             renderCommandEncoder.UseResource(new MTLResource(mtlBuffer.NativePtr), MTLResourceUsage.Read, renderStages);
                         }
                         break;
-                    case MetalRenderer.StorageSetIndex:
+                    case Constants.StorageBuffersSetIndex:
                         for (int i = 0; i < count; i++)
                         {
                             int index = binding + i;
@@ -1170,7 +1170,7 @@ namespace Ryujinx.Graphics.Metal
 
                             MTLRenderStages renderStages = 0;
 
-                            if (segment.Stages.HasFlag(ResourceStages.Vertex))
+                            if ((segment.Stages & ResourceStages.Vertex) != 0)
                             {
                                 vertResourceIds[vertResourceIdIndex] = mtlBuffer.GpuAddress + (ulong)offset;
                                 vertResourceIdIndex++;
@@ -1178,7 +1178,7 @@ namespace Ryujinx.Graphics.Metal
                                 renderStages |= MTLRenderStages.RenderStageVertex;
                             }
 
-                            if (segment.Stages.HasFlag(ResourceStages.Fragment))
+                            if ((segment.Stages & ResourceStages.Fragment) != 0)
                             {
                                 fragResourceIds[fragResourceIdIndex] = mtlBuffer.GpuAddress + (ulong)offset;
                                 fragResourceIdIndex++;
@@ -1189,7 +1189,7 @@ namespace Ryujinx.Graphics.Metal
                             renderCommandEncoder.UseResource(new MTLResource(mtlBuffer.NativePtr), MTLResourceUsage.Read, renderStages);
                         }
                         break;
-                    case MetalRenderer.TextureSetIndex:
+                    case Constants.TexturesSetIndex:
                         if (!segment.IsArray)
                         {
                             for (int i = 0; i < count; i++)
@@ -1346,7 +1346,7 @@ namespace Ryujinx.Graphics.Metal
                             }
                         }
                         break;
-                    case MetalRenderer.ImageSetIndex:
+                    case Constants.ImagesSetIndex:
                         if (!segment.IsArray)
                         {
                             for (int i = 0; i < count; i++)
@@ -1402,7 +1402,7 @@ namespace Ryujinx.Graphics.Metal
             }
         }
 
-        private readonly void UpdateAndBind(MTLComputeCommandEncoder computeCommandEncoder, Program program, int setIndex)
+        private readonly void UpdateAndBind(MTLComputeCommandEncoder computeCommandEncoder, Program program, uint setIndex)
         {
             var bindingSegments = program.BindingSegments[setIndex];
 
@@ -1428,7 +1428,7 @@ namespace Ryujinx.Graphics.Metal
 
                 switch (setIndex)
                 {
-                    case MetalRenderer.UniformSetIndex:
+                    case Constants.ConstantBuffersSetIndex:
                         for (int i = 0; i < count; i++)
                         {
                             int index = binding + i;
@@ -1465,7 +1465,7 @@ namespace Ryujinx.Graphics.Metal
                             }
                         }
                         break;
-                    case MetalRenderer.StorageSetIndex:
+                    case Constants.StorageBuffersSetIndex:
                         for (int i = 0; i < count; i++)
                         {
                             int index = binding + i;
@@ -1502,7 +1502,7 @@ namespace Ryujinx.Graphics.Metal
                             }
                         }
                         break;
-                    case MetalRenderer.TextureSetIndex:
+                    case Constants.TexturesSetIndex:
                         if (!segment.IsArray)
                         {
                             for (int i = 0; i < count; i++)
@@ -1604,7 +1604,7 @@ namespace Ryujinx.Graphics.Metal
                             }
                         }
                         break;
-                    case MetalRenderer.ImageSetIndex:
+                    case Constants.ImagesSetIndex:
                         if (!segment.IsArray)
                         {
                             if (segment.Type != ResourceType.BufferTexture)
@@ -1624,7 +1624,7 @@ namespace Ryujinx.Graphics.Metal
 
                                     var mtlTexture = storage.GetHandle();
 
-                                    if (segment.Stages.HasFlag(ResourceStages.Compute))
+                                    if ((segment.Stages & ResourceStages.Compute) != 0)
                                     {
                                         computeCommandEncoder.UseResource(new MTLResource(mtlTexture.NativePtr), MTLResourceUsage.Read | MTLResourceUsage.Write);
                                         resourceIds[resourceIdIndex] = mtlTexture.GpuResourceID._impl;
@@ -1645,14 +1645,14 @@ namespace Ryujinx.Graphics.Metal
             }
         }
 
-        private static uint SetIndexToBindingIndex(int setIndex)
+        private static uint SetIndexToBindingIndex(uint setIndex)
         {
             return setIndex switch
             {
-                MetalRenderer.UniformSetIndex => Constants.ConstantBuffersIndex,
-                MetalRenderer.StorageSetIndex => Constants.StorageBuffersIndex,
-                MetalRenderer.TextureSetIndex => Constants.TexturesIndex,
-                MetalRenderer.ImageSetIndex => Constants.ImagesIndex,
+                Constants.ConstantBuffersSetIndex => Constants.ConstantBuffersIndex,
+                Constants.StorageBuffersSetIndex => Constants.StorageBuffersIndex,
+                Constants.TexturesSetIndex => Constants.TexturesIndex,
+                Constants.ImagesSetIndex => Constants.ImagesIndex,
             };
         }
 
