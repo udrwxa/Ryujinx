@@ -13,11 +13,6 @@ namespace Ryujinx.Graphics.Metal
     {
         public const int TotalSets = 4;
 
-        public const int UniformSetIndex = 0;
-        public const int StorageSetIndex = 1;
-        public const int TextureSetIndex = 2;
-        public const int ImageSetIndex = 3;
-
         private readonly MTLDevice _device;
         private readonly MTLCommandQueue _queue;
         private readonly Func<CAMetalLayer> _getMetalLayer;
@@ -193,10 +188,10 @@ namespace Ryujinx.Graphics.Metal
                 supportsViewportSwizzle: false,
                 supportsIndirectParameters: true,
                 supportsDepthClipControl: false,
-                uniformBufferSetIndex: UniformSetIndex,
-                storageBufferSetIndex: StorageSetIndex,
-                textureSetIndex: TextureSetIndex,
-                imageSetIndex: ImageSetIndex,
+                uniformBufferSetIndex: (int)Constants.ConstantBuffersSetIndex,
+                storageBufferSetIndex: (int)Constants.StorageBuffersSetIndex,
+                textureSetIndex: (int)Constants.TexturesSetIndex,
+                imageSetIndex: (int)Constants.ImagesSetIndex,
                 extraSetBaseIndex: TotalSets,
                 maximumExtraSets: (int)Constants.MaximumExtraSets,
                 maximumUniformBuffersPerStage: Constants.MaxUniformBuffersPerStage,

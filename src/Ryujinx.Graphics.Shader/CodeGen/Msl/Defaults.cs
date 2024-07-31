@@ -17,10 +17,12 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
         public const int MaxVertexBuffers = 16;
 
         public const uint ZeroBufferIndex = MaxVertexBuffers;
-        public const uint ConstantBuffersIndex = MaxVertexBuffers + 1;
-        public const uint StorageBuffersIndex = MaxVertexBuffers + 2;
-        public const uint TexturesIndex = MaxVertexBuffers + 3;
-        public const uint ImagesIndex = MaxVertexBuffers + 4;
+        public const uint BaseSetIndex = MaxVertexBuffers + 1;
+
+        public const uint ConstantBuffersIndex = BaseSetIndex;
+        public const uint StorageBuffersIndex = BaseSetIndex + 1;
+        public const uint TexturesIndex = BaseSetIndex + 2;
+        public const uint ImagesIndex = BaseSetIndex + 3;
 
         public const uint ConstantBuffersSetIndex = 0;
         public const uint StorageBuffersSetIndex = 1;
