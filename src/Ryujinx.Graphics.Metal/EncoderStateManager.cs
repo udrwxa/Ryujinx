@@ -857,7 +857,7 @@ namespace Ryujinx.Graphics.Metal
 
         public void UpdateTextureArraySeparate(ShaderStage stage, int setIndex, TextureArray array)
         {
-            ref EncoderState.ArrayRef<TextureArray> arrayRef = ref GetArrayRef(ref _currentState.TextureArrayRefs, setIndex - MetalRenderer.TotalSets);
+            ref EncoderState.ArrayRef<TextureArray> arrayRef = ref GetArrayRef(ref _currentState.TextureArrayExtraRefs, setIndex - MetalRenderer.TotalSets);
 
             if (arrayRef.Stage != stage || arrayRef.Array != array)
             {
