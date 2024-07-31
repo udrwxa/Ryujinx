@@ -261,11 +261,24 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
             foreach (TextureDefinition texture in sortedTextures)
             {
                 var textureTypeName = texture.Type.ToMslTextureType();
+
+                if (texture.ArrayLength > 1)
+                {
+                    textureTypeName = $"array<{textureTypeName}, {texture.ArrayLength}>";
+                }
+
                 argBufferPointers.Add($"{textureTypeName} tex_{texture.Name};");
 
                 if (!texture.Separate && texture.Type != SamplerType.TextureBuffer)
                 {
-                    argBufferPointers.Add($"sampler samp_{texture.Name};");
+                    var samplerType = "sampler";
+
+                    if (texture.ArrayLength > 1)
+                    {
+                        samplerType = $"array<{samplerType}, {texture.ArrayLength}>";
+                    }
+
+                    argBufferPointers.Add($"{samplerType} samp_{texture.Name};");
                 }
             }
 
@@ -291,6 +304,11 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
             foreach (TextureDefinition image in sortedImages)
             {
                 var imageTypeName = image.Type.ToMslTextureType(true);
+                if (image.ArrayLength > 1)
+                {
+                    imageTypeName = $"array<{imageTypeName}, {image.ArrayLength}>";
+                }
+
                 string fsiSuffix = fsi ? " [[raster_order_group(0)]]" : "";
 
                 argBufferPointers.Add($"{imageTypeName} {image.Name}{fsiSuffix};");

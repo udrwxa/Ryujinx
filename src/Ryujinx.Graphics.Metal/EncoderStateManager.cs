@@ -857,7 +857,7 @@ namespace Ryujinx.Graphics.Metal
 
         public void UpdateTextureArraySeparate(ShaderStage stage, int setIndex, TextureArray array)
         {
-            ref EncoderState.ArrayRef<TextureArray> arrayRef = ref GetArrayRef(ref _currentState.TextureArrayRefs, setIndex);
+            ref EncoderState.ArrayRef<TextureArray> arrayRef = ref GetArrayRef(ref _currentState.TextureArrayRefs, setIndex - MetalRenderer.TotalSets);
 
             if (arrayRef.Stage != stage || arrayRef.Array != array)
             {
@@ -881,7 +881,7 @@ namespace Ryujinx.Graphics.Metal
 
         public void UpdateImageArraySeparate(ShaderStage stage, int setIndex, ImageArray array)
         {
-            ref EncoderState.ArrayRef<ImageArray> arrayRef = ref GetArrayRef(ref _currentState.ImageArrayExtraRefs, setIndex);
+            ref EncoderState.ArrayRef<ImageArray> arrayRef = ref GetArrayRef(ref _currentState.ImageArrayExtraRefs, setIndex - MetalRenderer.TotalSets);
 
             if (arrayRef.Stage != stage || arrayRef.Array != array)
             {
@@ -1247,7 +1247,103 @@ namespace Ryujinx.Graphics.Metal
                         }
                         else
                         {
-                            // TODO: Texture arrays
+                            var textureArray = _currentState.TextureArrayRefs[binding].Array;
+
+                            if (segment.Type != ResourceType.BufferTexture)
+                            {
+                                var textures = textureArray.GetTextureRefs();
+                                var samplers = new Sampler[textures.Length];
+
+                                for (int i = 0; i < textures.Length; i++)
+                                {
+                                    TextureRef texture = textures[i];
+
+                                    if (texture.Storage == null)
+                                    {
+                                        continue;
+                                    }
+
+                                    var mtlTexture = texture.Storage.GetHandle();
+                                    samplers[i] = texture.Sampler;
+
+                                    MTLRenderStages renderStages = 0;
+
+                                    if ((segment.Stages & ResourceStages.Vertex) != 0)
+                                    {
+                                        vertResourceIds[vertResourceIdIndex] = mtlTexture.GpuResourceID._impl;
+                                        vertResourceIdIndex++;
+
+                                        renderStages |= MTLRenderStages.RenderStageVertex;
+                                    }
+
+                                    if ((segment.Stages & ResourceStages.Fragment) != 0)
+                                    {
+                                        fragResourceIds[fragResourceIdIndex] = mtlTexture.GpuResourceID._impl;
+                                        fragResourceIdIndex++;
+
+                                        renderStages |= MTLRenderStages.RenderStageFragment;
+                                    }
+
+                                    renderCommandEncoder.UseResource(new MTLResource(mtlTexture.NativePtr),
+                                        MTLResourceUsage.Read, renderStages);
+                                }
+
+                                foreach (var sampler in samplers)
+                                {
+                                    if (sampler == null)
+                                    {
+                                        continue;
+                                    }
+
+                                    if ((segment.Stages & ResourceStages.Vertex) != 0)
+                                    {
+                                        // vertResourceIds[vertResourceIdIndex] = sampler.GetSampler().GpuResourceID._impl;
+                                        // vertResourceIdIndex++;
+                                    }
+
+                                    if ((segment.Stages & ResourceStages.Fragment) != 0)
+                                    {
+                                        // fragResourceIds[fragResourceIdIndex] = sampler.GetSampler().GpuResourceID._impl;
+                                        // fragResourceIdIndex++;
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                var bufferTextures = textureArray.GetBufferTextureRefs();
+
+                                foreach (TextureBuffer bufferTexture in bufferTextures)
+                                {
+                                    if (bufferTexture == null)
+                                    {
+                                        continue;
+                                    }
+
+                                    bufferTexture.RebuildStorage(false);
+
+                                    var mtlTexture = bufferTexture.GetHandle();
+
+                                    MTLRenderStages renderStages = 0;
+
+                                    if ((segment.Stages & ResourceStages.Vertex) != 0)
+                                    {
+                                        vertResourceIds[vertResourceIdIndex] = mtlTexture.GpuResourceID._impl;
+                                        vertResourceIdIndex++;
+
+                                        renderStages |= MTLRenderStages.RenderStageVertex;
+                                    }
+
+                                    if ((segment.Stages & ResourceStages.Fragment) != 0)
+                                    {
+                                        fragResourceIds[fragResourceIdIndex] = mtlTexture.GpuResourceID._impl;
+                                        fragResourceIdIndex++;
+
+                                        renderStages |= MTLRenderStages.RenderStageFragment;
+                                    }
+
+                                    renderCommandEncoder.UseResource(new MTLResource(mtlTexture.NativePtr), MTLResourceUsage.Read, renderStages);
+                                }
+                            }
                         }
                         break;
                     case MetalRenderer.ImageSetIndex:
@@ -1429,7 +1525,7 @@ namespace Ryujinx.Graphics.Metal
 
                                 var mtlTexture = storage.GetHandle();
 
-                                if (segment.Stages.HasFlag(ResourceStages.Compute))
+                                if ((segment.Stages & ResourceStages.Compute) != 0)
                                 {
                                     computeCommandEncoder.UseResource(new MTLResource(mtlTexture.NativePtr), MTLResourceUsage.Read);
                                     resourceIds[resourceIdIndex] = mtlTexture.GpuResourceID._impl;
@@ -1445,7 +1541,67 @@ namespace Ryujinx.Graphics.Metal
                         }
                         else
                         {
-                            // TODO: Texture arrays
+                            var textureArray = _currentState.TextureArrayRefs[binding].Array;
+
+                            if (segment.Type != ResourceType.BufferTexture)
+                            {
+                                var textures = textureArray.GetTextureRefs();
+                                var samplers = new Sampler[textures.Length];
+
+                                for (int i = 0; i < textures.Length; i++)
+                                {
+                                    TextureRef texture = textures[i];
+
+                                    if (texture.Storage == null)
+                                    {
+                                        continue;
+                                    }
+
+                                    var mtlTexture = texture.Storage.GetHandle();
+
+                                    if ((segment.Stages & ResourceStages.Compute) != 0)
+                                    {
+                                        computeCommandEncoder.UseResource(new MTLResource(mtlTexture.NativePtr),
+                                            MTLResourceUsage.Read);
+                                        resourceIds[resourceIdIndex] = mtlTexture.GpuResourceID._impl;
+                                        resourceIdIndex++;
+
+                                        samplers[i] = texture.Sampler;
+                                    }
+                                }
+
+                                foreach (var sampler in samplers)
+                                {
+                                    if (sampler != null)
+                                    {
+                                        // resourceIds[resourceIdIndex] = sampler.GetSampler().GpuResourceID._impl;
+                                        // resourceIdIndex++;
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                var bufferTextures = textureArray.GetBufferTextureRefs();
+
+                                foreach (TextureBuffer bufferTexture in bufferTextures)
+                                {
+                                    if (bufferTexture == null)
+                                    {
+                                        continue;
+                                    }
+
+                                    bufferTexture.RebuildStorage(false);
+
+                                    var mtlTexture = bufferTexture.GetHandle();
+
+                                    if ((segment.Stages & ResourceStages.Compute) != 0)
+                                    {
+                                        computeCommandEncoder.UseResource(new MTLResource(mtlTexture.NativePtr), MTLResourceUsage.Read);
+                                        resourceIds[resourceIdIndex] = mtlTexture.GpuResourceID._impl;
+                                        resourceIdIndex++;
+                                    }
+                                }
+                            }
                         }
                         break;
                     case MetalRenderer.ImageSetIndex:

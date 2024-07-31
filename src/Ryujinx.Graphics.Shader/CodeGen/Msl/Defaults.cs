@@ -23,6 +23,11 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
         public const uint TexturesIndex = 22;
         public const uint ImagesIndex = 23;
 
+        public const uint ConstantBuffersSetIndex = 0;
+        public const uint StorageBuffersSetIndex = 1;
+        public const uint TexturesSetIndex = 2;
+        public const uint ImagesSetIndex = 3;
+
         public const int TotalClipDistances = 8;
     }
 }
