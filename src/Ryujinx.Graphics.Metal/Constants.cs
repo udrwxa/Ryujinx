@@ -2,7 +2,6 @@ namespace Ryujinx.Graphics.Metal
 {
     static class Constants
     {
-        // TODO: Check these values, these were largely copied from Vulkan
         public const int MaxShaderStages = 5;
         public const int MaxVertexBuffers = 16;
         public const int MaxUniformBuffersPerStage = 18;
@@ -15,17 +14,18 @@ namespace Ryujinx.Graphics.Metal
         public const int MaxViewports = 16;
         // TODO: Check this value
         public const int MaxVertexAttributes = 31;
-        // TODO: Check this value
-        public const int MaxVertexLayouts = 31;
 
         public const int MinResourceAlignment = 16;
 
         // Must match constants set in shader generation
-        public const uint ZeroBufferIndex = 18;
+        public const uint ZeroBufferIndex = MaxVertexBuffers;
+        public const uint ConstantBuffersIndex = MaxVertexBuffers + 1;
+        public const uint StorageBuffersIndex = MaxVertexBuffers + 2;
+        public const uint TexturesIndex = MaxVertexBuffers + 3;
+        public const uint ImagesIndex = MaxVertexBuffers + 4;
 
-        public const uint ConstantBuffersIndex = 20;
-        public const uint StorageBuffersIndex = 21;
-        public const uint TexturesIndex = 22;
-        public const uint ImagesIndex = 23;
+        public const uint MaximumBufferArgumentTableEntries = 31;
+
+        public const uint MaximumExtraSets = MaximumBufferArgumentTableEntries - ImagesIndex;
     }
 }

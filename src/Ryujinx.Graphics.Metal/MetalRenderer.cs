@@ -198,7 +198,7 @@ namespace Ryujinx.Graphics.Metal
                 textureSetIndex: TextureSetIndex,
                 imageSetIndex: ImageSetIndex,
                 extraSetBaseIndex: TotalSets,
-                maximumExtraSets: 32 - TotalSets,
+                maximumExtraSets: (int)Constants.MaximumExtraSets,
                 maximumUniformBuffersPerStage: Constants.MaxUniformBuffersPerStage,
                 maximumStorageBuffersPerStage: Constants.MaxStorageBuffersPerStage,
                 maximumTexturesPerStage: Constants.MaxTexturesPerStage,

@@ -77,8 +77,25 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
             context.AppendLine();
             DeclareBufferStructures(context, context.Properties.ConstantBuffers.Values, true, fsi);
             DeclareBufferStructures(context, context.Properties.StorageBuffers.Values, false, fsi);
-            DeclareTextures(context, context.Properties.Textures.Values);
-            DeclareImages(context, context.Properties.Images.Values, fsi);
+
+            // We need to declare each set as a new struct
+            var textureDefinitions = context.Properties.Textures.Values
+                .GroupBy(x => x.Set)
+                .ToDictionary(x => x.Key, x => x.OrderBy(y => y.Binding).ToArray());
+
+            var imageDefinitions = context.Properties.Images.Values
+                .GroupBy(x => x.Set)
+                .ToDictionary(x => x.Key, x => x.OrderBy(y => y.Binding).ToArray());
+
+            foreach (var set in textureDefinitions)
+            {
+                DeclareTextures(context, set.Value, set.Key);
+            }
+
+            foreach (var set in imageDefinitions)
+            {
+                DeclareImages(context, set.Value, set.Key, fsi);
+            }
 
             if ((info.HelperFunctionsMask & HelperFunctionsMask.FindLSB) != 0)
             {
@@ -248,17 +265,15 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
             context.AppendLine();
         }
 
-        private static void DeclareTextures(CodeGenContext context, IEnumerable<TextureDefinition> textures)
+        private static void DeclareTextures(CodeGenContext context, TextureDefinition[] textures, int set)
         {
-            context.AppendLine("struct Textures");
+            var setName = GetNameForSet(set);
+            context.AppendLine($"struct {setName}");
             context.EnterScope();
 
             List<string> argBufferPointers = [];
 
-            // TODO: Avoid Linq if we can
-            var sortedTextures = textures.OrderBy(x => x.Binding).ToArray();
-
-            foreach (TextureDefinition texture in sortedTextures)
+            foreach (TextureDefinition texture in textures)
             {
                 var textureTypeName = texture.Type.ToMslTextureType();
 
@@ -291,17 +306,15 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
             context.AppendLine();
         }
 
-        private static void DeclareImages(CodeGenContext context, IEnumerable<TextureDefinition> images, bool fsi)
+        private static void DeclareImages(CodeGenContext context, TextureDefinition[] images, int set, bool fsi)
         {
-            context.AppendLine("struct Images");
+            var setName = GetNameForSet(set);
+            context.AppendLine($"struct {setName}");
             context.EnterScope();
 
             List<string> argBufferPointers = [];
 
-            // TODO: Avoid Linq if we can
-            var sortedImages = images.OrderBy(x => x.Binding).ToArray();
-
-            foreach (TextureDefinition image in sortedImages)
+            foreach (TextureDefinition image in images)
             {
                 var imageTypeName = image.Type.ToMslTextureType(true);
                 if (image.ArrayLength > 1)
@@ -503,6 +516,16 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
 
             context.AppendLine(code);
             context.AppendLine();
+        }
+
+        public static string GetNameForSet(int set)
+        {
+            return (uint)set switch
+            {
+                Defaults.TexturesSetIndex => "Textures",
+                Defaults.ImagesSetIndex => "Images",
+                _ => $"Set{set}"
+            };
         }
     }
 }
