@@ -20,7 +20,7 @@ namespace Ryujinx.Audio.Backends.SDL2
         private readonly ManualResetEvent _updateRequiredEvent;
         private SDL_AudioStream* _outputStream;
         private bool _hasSetupError;
-        private readonly SDL_AudioCallback _callbackDelegate;
+        // private readonly SDL_AudioCallback _callbackDelegate;
         private readonly int _bytesPerFrame;
         private bool _started;
         private float _volume;
@@ -32,7 +32,7 @@ namespace Ryujinx.Audio.Backends.SDL2
             _updateRequiredEvent = _driver.GetUpdateRequiredEvent();
             _queuedBuffers = new ConcurrentQueue<SDL2AudioBuffer>();
             _ringBuffer = new DynamicRingBuffer();
-            _callbackDelegate = Update;
+            // _callbackDelegate = Update;
             _bytesPerFrame = BackendHelper.GetSampleSize(RequestedSampleFormat) * (int)RequestedChannelCount;
             _nativeSampleFormat = SDL2HardwareDeviceDriver.GetSDL2Format(RequestedSampleFormat);
             _started = false;
@@ -45,7 +45,7 @@ namespace Ryujinx.Audio.Backends.SDL2
 
             if (needAudioSetup)
             {
-                SDL_AudioStream* newOutputStream = SDL2HardwareDeviceDriver.OpenStream(RequestedSampleFormat, RequestedSampleRate, RequestedChannelCount, _callbackDelegate);
+                SDL_AudioStream* newOutputStream = SDL2HardwareDeviceDriver.OpenStream(RequestedSampleFormat, RequestedSampleRate, RequestedChannelCount);
 
                 _hasSetupError = (IntPtr)newOutputStream == 0;
 

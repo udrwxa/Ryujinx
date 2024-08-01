@@ -54,14 +54,15 @@ namespace Ryujinx.Audio.Backends.SDL2
 
         private unsafe static bool IsSupportedInternal()
         {
-            SDL_AudioStream* stream = OpenStream(SampleFormat.PcmInt16, Constants.TargetSampleRate, Constants.ChannelCountMax, null);
-
-            if ((IntPtr)stream != 0)
-            {
-                SDL_DestroyAudioStream(stream);
-            }
-
-            return (IntPtr)stream != 0;
+            // SDL_AudioStream* stream = OpenStream(SampleFormat.PcmInt16, Constants.TargetSampleRate, Constants.ChannelCountMax, null);
+            //
+            // if ((IntPtr)stream != 0)
+            // {
+            //     SDL_DestroyAudioStream(stream);
+            // }
+            //
+            // return (IntPtr)stream != 0;
+            return true;
         }
 
         public ManualResetEvent GetUpdateRequiredEvent()
@@ -125,30 +126,31 @@ namespace Ryujinx.Audio.Backends.SDL2
             };
         }
 
-        internal unsafe static SDL_AudioStream* OpenStream(SampleFormat requestedSampleFormat, uint requestedSampleRate, uint requestedChannelCount, SDL_AudioCallback callback)
+        internal unsafe static SDL_AudioStream* OpenStream(SampleFormat requestedSampleFormat, uint requestedSampleRate, uint requestedChannelCount)
         {
             SDL_AudioSpec desired = GetSDL2Spec(requestedSampleFormat, requestedSampleRate, requestedChannelCount);
 
-            SDL_AudioStream* stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, );
-
-            if ((IntPtr)stream == IntPtr.Zero)
-            {
-                Logger.Error?.Print(LogClass.Application, $"SDL2 open audio device initialization failed with error \"{SDL_GetError()}\"");
-
-                return (SDL_AudioStream*)IntPtr.Zero;
-            }
-
-            bool isValid = got.format == desired.format && got.freq == desired.freq && got.channels == desired.channels;
-
-            if (!isValid)
-            {
-                Logger.Error?.Print(LogClass.Application, "SDL2 open audio device is not valid");
-                SDL_DestroyAudioStream(stream);
-
-                return (SDL_AudioStream*)IntPtr.Zero;
-            }
-
-            return stream;
+            // SDL_AudioStream* stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, );
+            //
+            // if ((IntPtr)stream == IntPtr.Zero)
+            // {
+            //     Logger.Error?.Print(LogClass.Application, $"SDL2 open audio device initialization failed with error \"{SDL_GetError()}\"");
+            //
+            //     return (SDL_AudioStream*)IntPtr.Zero;
+            // }
+            //
+            // bool isValid = got.format == desired.format && got.freq == desired.freq && got.channels == desired.channels;
+            //
+            // if (!isValid)
+            // {
+            //     Logger.Error?.Print(LogClass.Application, "SDL2 open audio device is not valid");
+            //     SDL_DestroyAudioStream(stream);
+            //
+            //     return (SDL_AudioStream*)IntPtr.Zero;
+            // }
+            //
+            // return stream;
+            return (SDL_AudioStream*)IntPtr.Zero;
         }
 
         public void Dispose()

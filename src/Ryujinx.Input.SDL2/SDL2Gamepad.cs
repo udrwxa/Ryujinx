@@ -21,10 +21,10 @@ namespace Ryujinx.Input.SDL2
         [
             // Unbound, ignored.
             SDL_GamepadButton.SDL_GAMEPAD_BUTTON_INVALID,
-            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_SOUTH,
             SDL_GamepadButton.SDL_GAMEPAD_BUTTON_EAST,
-            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_WEST,
+            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_SOUTH,
             SDL_GamepadButton.SDL_GAMEPAD_BUTTON_NORTH,
+            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_WEST,
             SDL_GamepadButton.SDL_GAMEPAD_BUTTON_LEFT_STICK,
             SDL_GamepadButton.SDL_GAMEPAD_BUTTON_RIGHT_STICK,
             SDL_GamepadButton.SDL_GAMEPAD_BUTTON_LEFT_SHOULDER,

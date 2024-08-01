@@ -2,6 +2,7 @@ using Ryujinx.SDL2.Common;
 using SDL;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.InteropServices;
 using static SDL.SDL3;
 
@@ -24,7 +25,7 @@ namespace Ryujinx.Input.SDL2
             }
         }
 
-        public string DriverName => "SDL2";
+        public string DriverName => "SDL3";
 
         public event Action<string> OnGamepadConnected;
         public event Action<string> OnGamepadDisconnected;
@@ -39,17 +40,17 @@ namespace Ryujinx.Input.SDL2
             SDL2Driver.Instance.OnJoystickDisconnected += HandleJoyStickDisconnected;
 
             // Add already connected gamepads
-            int numJoysticks = SDL_GetJoysticks().Count;
+            var joysticks = SDL_GetJoysticks();
 
-            for (int joystickIndex = 0; joystickIndex < numJoysticks; joystickIndex++)
+            for (int i = 0; i < joysticks.Count; i++)
             {
-                HandleJoyStickConnected(joystickIndex, SDL_JoystickGetDeviceInstanceID(joystickIndex));
+                HandleJoyStickConnected(joysticks[i]);
             }
         }
 
         private string GenerateGamepadId(SDL_JoystickID joystickIndex)
         {
-            SDL_GUID guid = SDL_GetJoystickGUIDForID();
+            SDL_GUID guid = SDL_GetJoystickGUIDForID(joystickIndex);
 
             // We can't compare SDL_GUID directly in SDL3-CS right now.
             ReadOnlySpan<byte> span = guid.data;
@@ -161,14 +162,9 @@ namespace Ryujinx.Input.SDL2
 
         public unsafe IGamepad GetGamepad(string id)
         {
-            SDL_JoystickID joystickIndex = GetJoystickIndexByGamepadId(id);
+            var joystickId = _gamepadsInstanceIdsMapping.FirstOrDefault(x => x.Value == id).Key;
 
-            if (joystickIndex == -1)
-            {
-                return null;
-            }
-
-            SDL_Gamepad* gamepadHandle = SDL_OpenGamepad(joystickIndex);
+            SDL_Gamepad* gamepadHandle = SDL_OpenGamepad(joystickId);
 
             if ((IntPtr)gamepadHandle == IntPtr.Zero)
             {
