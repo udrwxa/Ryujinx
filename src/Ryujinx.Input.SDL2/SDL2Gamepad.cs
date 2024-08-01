@@ -17,43 +17,7 @@ namespace Ryujinx.Input.SDL2
 
         private StandardControllerInputConfig _configuration;
 
-        private static readonly SDL_GamepadButton[] _buttonsDriverMapping =
-        [
-            // Unbound, ignored.
-            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_INVALID,
-            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_EAST,
-            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_SOUTH,
-            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_NORTH,
-            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_WEST,
-            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_LEFT_STICK,
-            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_RIGHT_STICK,
-            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_LEFT_SHOULDER,
-            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER,
-
-            // NOTE: The left and right trigger are axis, we handle those differently
-            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_INVALID,
-            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_INVALID,
-
-            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_DPAD_UP,
-            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_DPAD_DOWN,
-            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_DPAD_LEFT,
-            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_DPAD_RIGHT,
-            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_BACK,
-            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_START,
-            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_GUIDE,
-            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_MISC1,
-            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_RIGHT_PADDLE1,
-            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_LEFT_PADDLE1,
-            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_RIGHT_PADDLE2,
-            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_LEFT_PADDLE2,
-            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_TOUCHPAD,
-
-            // Virtual buttons are invalid, ignored.
-            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_INVALID,
-            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_INVALID,
-            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_INVALID,
-            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_INVALID
-        ];
+        private SDL_GamepadButton[] _buttonsDriverMapping;
 
         private readonly object _userMappingLock = new();
 
@@ -77,6 +41,8 @@ namespace Ryujinx.Input.SDL2
             _gamepadHandle = gamepadHandle;
             _buttonsUserMapping = new List<ButtonMappingEntry>(20);
 
+            SetButtonMapping();
+
             Name = SDL_GetGamepadName(_gamepadHandle);
             Id = driverId;
             Features = GetFeaturesFlag();
@@ -95,6 +61,50 @@ namespace Ryujinx.Input.SDL2
                     Logger.Error?.Print(LogClass.Hid, $"Could not enable data reporting for SensorType {SDL_SensorType.SDL_SENSOR_GYRO}.");
                 }
             }
+        }
+
+        private void SetButtonMapping()
+        {
+            var label = SDL_GetGamepadButtonLabel(_gamepadHandle, SDL_GamepadButton.SDL_GAMEPAD_BUTTON_SOUTH);
+            var flippedButtons = label == SDL_GamepadButtonLabel.SDL_GAMEPAD_BUTTON_LABEL_B;
+
+            _buttonsDriverMapping =
+            [
+                // Unbound, ignored.
+                SDL_GamepadButton.SDL_GAMEPAD_BUTTON_INVALID,
+                flippedButtons ? SDL_GamepadButton.SDL_GAMEPAD_BUTTON_SOUTH : SDL_GamepadButton.SDL_GAMEPAD_BUTTON_EAST,
+                flippedButtons ? SDL_GamepadButton.SDL_GAMEPAD_BUTTON_EAST : SDL_GamepadButton.SDL_GAMEPAD_BUTTON_SOUTH,
+                flippedButtons ? SDL_GamepadButton.SDL_GAMEPAD_BUTTON_WEST : SDL_GamepadButton.SDL_GAMEPAD_BUTTON_NORTH,
+                flippedButtons ? SDL_GamepadButton.SDL_GAMEPAD_BUTTON_NORTH : SDL_GamepadButton.SDL_GAMEPAD_BUTTON_WEST,
+                SDL_GamepadButton.SDL_GAMEPAD_BUTTON_LEFT_STICK,
+                SDL_GamepadButton.SDL_GAMEPAD_BUTTON_RIGHT_STICK,
+                SDL_GamepadButton.SDL_GAMEPAD_BUTTON_LEFT_SHOULDER,
+                SDL_GamepadButton.SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER,
+
+                // NOTE: The left and right trigger are axis, we handle those differently
+                SDL_GamepadButton.SDL_GAMEPAD_BUTTON_INVALID,
+                SDL_GamepadButton.SDL_GAMEPAD_BUTTON_INVALID,
+
+                SDL_GamepadButton.SDL_GAMEPAD_BUTTON_DPAD_UP,
+                SDL_GamepadButton.SDL_GAMEPAD_BUTTON_DPAD_DOWN,
+                SDL_GamepadButton.SDL_GAMEPAD_BUTTON_DPAD_LEFT,
+                SDL_GamepadButton.SDL_GAMEPAD_BUTTON_DPAD_RIGHT,
+                SDL_GamepadButton.SDL_GAMEPAD_BUTTON_BACK,
+                SDL_GamepadButton.SDL_GAMEPAD_BUTTON_START,
+                SDL_GamepadButton.SDL_GAMEPAD_BUTTON_GUIDE,
+                SDL_GamepadButton.SDL_GAMEPAD_BUTTON_MISC1,
+                SDL_GamepadButton.SDL_GAMEPAD_BUTTON_RIGHT_PADDLE1,
+                SDL_GamepadButton.SDL_GAMEPAD_BUTTON_LEFT_PADDLE1,
+                SDL_GamepadButton.SDL_GAMEPAD_BUTTON_RIGHT_PADDLE2,
+                SDL_GamepadButton.SDL_GAMEPAD_BUTTON_LEFT_PADDLE2,
+                SDL_GamepadButton.SDL_GAMEPAD_BUTTON_TOUCHPAD,
+
+                // Virtual buttons are invalid, ignored.
+                SDL_GamepadButton.SDL_GAMEPAD_BUTTON_INVALID,
+                SDL_GamepadButton.SDL_GAMEPAD_BUTTON_INVALID,
+                SDL_GamepadButton.SDL_GAMEPAD_BUTTON_INVALID,
+                SDL_GamepadButton.SDL_GAMEPAD_BUTTON_INVALID
+            ];
         }
 
         private GamepadFeaturesFlag GetFeaturesFlag()
