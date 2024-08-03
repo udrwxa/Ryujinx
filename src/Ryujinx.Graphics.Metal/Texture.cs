@@ -26,7 +26,7 @@ namespace Ryujinx.Graphics.Metal
                 TextureType = Info.Target.Convert(),
                 Width = (ulong)Info.Width,
                 Height = (ulong)Info.Height,
-                MipmapLevelCount = (ulong)Info.Levels
+                MipmapLevelCount = (ulong)Info.GetLevelsClamped()
             };
 
             if (info.Target == Target.Texture3D)
@@ -62,7 +62,7 @@ namespace Ryujinx.Graphics.Metal
             var textureType = Info.Target.Convert();
             NSRange levels;
             levels.location = (ulong)firstLevel;
-            levels.length = (ulong)Info.Levels;
+            levels.length = (ulong)Info.GetLevelsClamped();
             NSRange slices;
             slices.location = (ulong)firstLayer;
             slices.length = textureType == MTLTextureType.Type3D ? 1 : (ulong)info.GetDepthOrLayers();
@@ -95,7 +95,7 @@ namespace Ryujinx.Graphics.Metal
         {
             NSRange levels;
             levels.location = 0;
-            levels.length = (ulong)Info.Levels;
+            levels.length = (ulong)Info.GetLevelsClamped();
             NSRange slices;
             slices.location = 0;
             slices.length = Info.Target == Target.Texture3D ? 1 : (ulong)Info.GetDepthOrLayers();
@@ -388,7 +388,7 @@ namespace Ryujinx.Graphics.Metal
         {
             int size = 0;
 
-            for (int level = 0; level < Info.Levels; level++)
+            for (int level = 0; level < Info.GetLevelsClamped(); level++)
             {
                 size += Info.GetMipSize(level);
             }
