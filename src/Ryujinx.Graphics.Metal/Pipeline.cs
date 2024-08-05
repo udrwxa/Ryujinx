@@ -82,6 +82,8 @@ namespace Ryujinx.Graphics.Metal
 
         public MTLRenderCommandEncoder GetOrCreateRenderEncoder(bool forDraw = false)
         {
+            _encoderStateManager.RenderResourcesPrepass();
+
             MTLRenderCommandEncoder renderCommandEncoder = Cbs.Encoders.EnsureRenderEncoder();
 
             if (forDraw)
@@ -99,6 +101,8 @@ namespace Ryujinx.Graphics.Metal
 
         public MTLComputeCommandEncoder GetOrCreateComputeEncoder(bool forDispatch = false)
         {
+            _encoderStateManager.ComputeResourcesPrepass();
+
             MTLComputeCommandEncoder computeCommandEncoder = Cbs.Encoders.EnsureComputeEncoder();
 
             if (forDispatch)
