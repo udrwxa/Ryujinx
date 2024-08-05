@@ -183,10 +183,9 @@ namespace Ryujinx.Graphics.Metal
 
         public readonly MTLComputeCommandEncoder CreateComputeCommandEncoder()
         {
-            var descriptor = new MTLComputePassDescriptor();
+            using var descriptor = new MTLComputePassDescriptor();
             var computeCommandEncoder = _pipeline.CommandBuffer.ComputeCommandEncoder(descriptor);
 
-            // Cleanup
             descriptor.Dispose();
 
             return computeCommandEncoder;
