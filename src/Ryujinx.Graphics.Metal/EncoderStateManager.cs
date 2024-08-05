@@ -62,6 +62,16 @@ namespace Ryujinx.Graphics.Metal
             _currentState.Dirty |= flags;
         }
 
+        public void SignalRenderDirty()
+        {
+            SignalDirty(DirtyFlags.RenderAll);
+        }
+
+        public void SignalComputeDirty()
+        {
+            SignalDirty(DirtyFlags.ComputeAll);
+        }
+
         public EncoderState SwapState(EncoderState state, DirtyFlags flags = DirtyFlags.All)
         {
             _currentState = state ?? _mainState;
@@ -165,9 +175,6 @@ namespace Ryujinx.Graphics.Metal
             // Initialise Encoder
             var renderCommandEncoder = _pipeline.CommandBuffer.RenderCommandEncoder(renderPassDescriptor);
 
-            // Mark all state as dirty to ensure it is set on the encoder
-            SignalDirty(DirtyFlags.RenderAll);
-
             // Cleanup
             renderPassDescriptor.Dispose();
 
@@ -178,9 +185,6 @@ namespace Ryujinx.Graphics.Metal
         {
             var descriptor = new MTLComputePassDescriptor();
             var computeCommandEncoder = _pipeline.CommandBuffer.ComputeCommandEncoder(descriptor);
-
-            // Mark all state as dirty to ensure it is set on the encoder
-            SignalDirty(DirtyFlags.ComputeAll);
 
             // Cleanup
             descriptor.Dispose();

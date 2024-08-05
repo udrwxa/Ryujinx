@@ -82,7 +82,16 @@ namespace Ryujinx.Graphics.Metal
 
         public MTLRenderCommandEncoder GetOrCreateRenderEncoder(bool forDraw = false)
         {
-            _encoderStateManager.RenderResourcesPrepass();
+            // Mark all state as dirty to ensure it is set on the new encoder
+            if (Cbs.Encoders.CurrentEncoderType != EncoderType.Render)
+            {
+                _encoderStateManager.SignalRenderDirty();
+            }
+
+            if (forDraw)
+            {
+                _encoderStateManager.RenderResourcesPrepass();
+            }
 
             MTLRenderCommandEncoder renderCommandEncoder = Cbs.Encoders.EnsureRenderEncoder();
 
@@ -101,7 +110,16 @@ namespace Ryujinx.Graphics.Metal
 
         public MTLComputeCommandEncoder GetOrCreateComputeEncoder(bool forDispatch = false)
         {
-            _encoderStateManager.ComputeResourcesPrepass();
+            // Mark all state as dirty to ensure it is set on the new encoder
+            if (Cbs.Encoders.CurrentEncoderType != EncoderType.Compute)
+            {
+                _encoderStateManager.SignalComputeDirty();
+            }
+
+            if (forDispatch)
+            {
+                _encoderStateManager.ComputeResourcesPrepass();
+            }
 
             MTLComputeCommandEncoder computeCommandEncoder = Cbs.Encoders.EnsureComputeEncoder();
 
