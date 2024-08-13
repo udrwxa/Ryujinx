@@ -175,6 +175,17 @@ namespace Ryujinx.Graphics.Metal
             };
         }
 
+        public static MTLPrimitiveTopologyClass Convert(this MTLPrimitiveType topology)
+        {
+            return topology switch
+            {
+                MTLPrimitiveType.Point => MTLPrimitiveTopologyClass.Point,
+                MTLPrimitiveType.Line or MTLPrimitiveType.LineStrip => MTLPrimitiveTopologyClass.Line,
+                MTLPrimitiveType.Triangle or MTLPrimitiveType.TriangleStrip => MTLPrimitiveTopologyClass.Triangle,
+                _ => LogInvalidAndReturn(topology, nameof(PrimitiveTopology), MTLPrimitiveTopologyClass.Unspecified)
+            };
+        }
+
         public static MTLStencilOperation Convert(this StencilOp op)
         {
             return op switch
