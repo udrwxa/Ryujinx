@@ -36,15 +36,6 @@ namespace Ryujinx.Graphics.Metal
             set => Internal.Id0 = (Internal.Id0 & 0xFFFFFFFF00FFFFFF) | ((ulong)value << 24);
         }
 
-        /*
-         * Can be an input to a pipeline, but not sure what the situation for that is.
-        public PrimitiveTopology Topology
-        {
-            readonly get => (PrimitiveTopology)((Internal.Id6 >> 16) & 0xF);
-            set => Internal.Id6 = (Internal.Id6 & 0xFFFFFFFFFFF0FFFF) | ((ulong)value << 16);
-        }
-        */
-
         public MTLLogicOperation LogicOp
         {
             readonly get => (MTLLogicOperation)((Internal.Id0 >> 32) & 0xF);
@@ -91,15 +82,22 @@ namespace Ryujinx.Graphics.Metal
         // Not sure how to appropriately use this, but it does need to be passed for tess.
         public uint PatchControlPoints
         {
-            readonly get => (uint)((Internal.Id1 >> 0) & 0xFFFFFFFF);
-            set => Internal.Id1 = (Internal.Id1 & 0xFFFFFFFF00000000) | ((ulong)value << 0);
+            readonly get => (uint)((Internal.Id1 >> 0) & 0xFF);
+            set => Internal.Id1 = (Internal.Id1 & 0xFFFFFFFFFFFFFF00) | ((ulong)value << 0);
         }
 
         public uint SamplesCount
         {
-            readonly get => (uint)((Internal.Id1 >> 32) & 0xFFFFFFFF);
-            set => Internal.Id1 = (Internal.Id1 & 0xFFFFFFFF) | ((ulong)value << 32);
+            readonly get => (uint)((Internal.Id1 >> 8) & 0xFF);
+            set => Internal.Id1 = (Internal.Id1 & 0xFFFFFFFFFFFF00FF) | ((ulong)value << 8);
         }
+
+        public PrimitiveTopology Topology
+        {
+            readonly get => (PrimitiveTopology)((Internal.Id1 >> 16) & 0xFF);
+            set => Internal.Id1 = (Internal.Id1 & 0xFFFFFFFFFF00FFFF) | ((ulong)value << 16);
+        }
+
 
         // Advanced blend not supported
 
@@ -188,6 +186,7 @@ namespace Ryujinx.Graphics.Metal
                 }
             }
 
+            renderPipelineDescriptor.InputPrimitiveTopology = Pipeline.TopologyRemap(Topology).Convert().Convert();
             renderPipelineDescriptor.LogicOperationEnabled = LogicOpEnable;
             renderPipelineDescriptor.LogicOperation = LogicOp;
             renderPipelineDescriptor.AlphaToCoverageEnabled = AlphaToCoverageEnable;

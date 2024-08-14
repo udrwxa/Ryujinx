@@ -26,7 +26,7 @@ namespace Ryujinx.Graphics.Metal
         private EncoderState _currentState;
 
         public readonly IndexBufferState IndexBuffer => _currentState.IndexBuffer;
-        public readonly PrimitiveTopology Topology => _currentState.Topology;
+        public readonly PrimitiveTopology Topology => _currentState.Pipeline.Topology;
         public readonly Texture[] RenderTargets => _currentState.RenderTargets;
         public readonly Texture DepthStencil => _currentState.DepthStencil;
         public readonly ComputeSize ComputeLocalSize => _currentState.ComputeProgram.ComputeLocalSize;
@@ -87,7 +87,7 @@ namespace Ryujinx.Graphics.Metal
             {
                 CullMode = _currentState.CullMode,
                 DepthStencilUid = _currentState.DepthStencilUid,
-                Topology = _currentState.Topology,
+                Topology = _currentState.Pipeline.Topology,
                 Viewports = _currentState.Viewports.ToArray(),
             };
         }
@@ -96,7 +96,7 @@ namespace Ryujinx.Graphics.Metal
         {
             _currentState.CullMode = state.CullMode;
             _currentState.DepthStencilUid = state.DepthStencilUid;
-            _currentState.Topology = state.Topology;
+            _currentState.Pipeline.Topology = state.Topology;
             _currentState.Viewports = state.Viewports;
 
             SignalDirty(DirtyFlags.CullMode | DirtyFlags.DepthStencil | DirtyFlags.Viewports);
@@ -365,7 +365,9 @@ namespace Ryujinx.Graphics.Metal
 
         public readonly void UpdatePrimitiveTopology(PrimitiveTopology topology)
         {
-            _currentState.Topology = topology;
+            _currentState.Pipeline.Topology = topology;
+
+            SignalDirty(DirtyFlags.RenderPipeline);
         }
 
         public readonly void UpdateProgram(IProgram program)
@@ -969,8 +971,8 @@ namespace Ryujinx.Graphics.Metal
 
         private unsafe void SetScissors(MTLRenderCommandEncoder renderCommandEncoder)
         {
-            var isTriangles = (_currentState.Topology == PrimitiveTopology.Triangles) ||
-                              (_currentState.Topology == PrimitiveTopology.TriangleStrip);
+            var isTriangles = (_currentState.Pipeline.Topology == PrimitiveTopology.Triangles) ||
+                              (_currentState.Pipeline.Topology == PrimitiveTopology.TriangleStrip);
 
             if (_currentState.CullBoth && isTriangles)
             {

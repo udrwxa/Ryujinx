@@ -525,6 +525,7 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
                         IoVariable.FragmentOutputColor => GetVarTypeName(context.Definitions.GetFragmentOutputColorType(ioDefinition.Location)),
                         IoVariable.FragmentOutputDepth => "float",
                         IoVariable.ClipDistance => "float",
+                        IoVariable.Layer => "uint",
                         _ => GetVarTypeName(context.Definitions.GetUserDefinedType(ioDefinition.Location, isOutput: true))
                     };
                     string name = ioDefinition.IoVariable switch
@@ -534,6 +535,7 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
                         IoVariable.FragmentOutputColor => $"color{ioDefinition.Location}",
                         IoVariable.FragmentOutputDepth => "depth",
                         IoVariable.ClipDistance => "clip_distance",
+                        IoVariable.Layer => "layer",
                         _ => $"{Defaults.OAttributePrefix}{ioDefinition.Location}"
                     };
                     string suffix = ioDefinition.IoVariable switch
@@ -544,6 +546,7 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Msl
                         IoVariable.FragmentOutputColor => $"[[color({ioDefinition.Location})]]",
                         IoVariable.FragmentOutputDepth => "[[depth(any)]]",
                         IoVariable.ClipDistance => $"[[clip_distance]][{Defaults.TotalClipDistances}]",
+                        IoVariable.Layer => "[[render_target_array_index]]",
                         _ => ""
                     };
 

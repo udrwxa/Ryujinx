@@ -84,7 +84,7 @@ namespace Ryujinx.Graphics.Shader.Translation
             // OpenGL requires the point size to be always written on the shader if PROGRAM_POINT_SIZE is set.
             if (TranslatorContext.Definitions.Stage == ShaderStage.Vertex)
             {
-                this.Store(StorageKind.Output, IoVariable.PointSize, null, ConstF(TranslatorContext.Definitions.PointSize));
+                // this.Store(StorageKind.Output, IoVariable.PointSize, null, ConstF(TranslatorContext.Definitions.PointSize));
             }
 
             if (VertexAsCompute)

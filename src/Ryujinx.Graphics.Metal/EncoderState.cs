@@ -126,7 +126,6 @@ namespace Ryujinx.Graphics.Metal
         public int BackRefValue = 0;
         public int FrontRefValue = 0;
 
-        public PrimitiveTopology Topology = PrimitiveTopology.Triangles;
         public MTLCullMode CullMode = MTLCullMode.None;
         public MTLWinding Winding = MTLWinding.CounterClockwise;
         public bool CullBoth = false;

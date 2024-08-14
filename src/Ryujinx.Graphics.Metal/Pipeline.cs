@@ -456,7 +456,7 @@ namespace Ryujinx.Graphics.Metal
             };
         }
 
-        private PrimitiveTopology TopologyRemap(PrimitiveTopology topology)
+        public static PrimitiveTopology TopologyRemap(PrimitiveTopology topology)
         {
             return topology switch
             {
