@@ -486,6 +486,7 @@ namespace Ryujinx.Graphics.Metal
             MTLBuffer mtlBuffer;
             int offset;
             MTLIndexType type;
+            int finalIndexCount = indexCount;
 
             var primitiveType = TopologyRemap(_encoderStateManager.Topology).Convert();
 
@@ -493,6 +494,8 @@ namespace Ryujinx.Graphics.Metal
             {
                 var pattern = GetIndexBufferPattern();
                 int convertedCount = pattern.GetConvertedCount(indexCount);
+
+                finalIndexCount = convertedCount;
 
                 (mtlBuffer, offset, type) = _encoderStateManager.IndexBuffer.GetConvertedIndexBuffer(_renderer, Cbs, firstIndex, indexCount, convertedCount, pattern);
             }
@@ -507,7 +510,7 @@ namespace Ryujinx.Graphics.Metal
 
                 renderCommandEncoder.DrawIndexedPrimitives(
                     primitiveType,
-                    (ulong)indexCount,
+                    (ulong)finalIndexCount,
                     type,
                     mtlBuffer,
                     (ulong)offset,

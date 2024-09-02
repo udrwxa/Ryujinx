@@ -695,7 +695,7 @@ namespace Ryujinx.Graphics.Metal
             _pipeline.SetStorageBuffers([new BufferAssignment(3, patternScoped.Range)]);
 
             _pipeline.SetProgram(_programConvertIndexBuffer);
-            _pipeline.DispatchCompute(1, 1, 1, "Convert Index Buffer");
+            _pipeline.DispatchCompute(BitUtils.DivRoundUp(primitiveCount, 16), 1, 1, "Convert Index Buffer");
 
             // Restore previous state
             _pipeline.SwapState(null);
