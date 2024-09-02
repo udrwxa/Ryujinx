@@ -3,7 +3,6 @@ using Ryujinx.Common.Logging;
 using Ryujinx.Graphics.GAL;
 using Ryujinx.Graphics.Shader;
 using Ryujinx.Graphics.Shader.Translation;
-using SharpMetal.Foundation;
 using SharpMetal.Metal;
 using System;
 using System.Collections.Generic;
