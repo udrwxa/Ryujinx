@@ -43,7 +43,7 @@ kernel void kernelMain(device StorageBuffers &storage_buffers [[buffer(STORAGE_B
     for (int i = 0; i < storage_buffers.index_buffer_pattern->primitiveVerticesOut; i++)
     {
         int j;
-        int io = max(0, inOffset + storage_buffers.index_buffer_pattern->pattern[i]) * storage_buffers.index_buffer_pattern->indexSize;
+        int io = max(0, inOffset + storage_buffers.index_buffer_pattern->baseIndex + storage_buffers.index_buffer_pattern->pattern[i]) * storage_buffers.index_buffer_pattern->indexSize;
         int oo = (outOffset + i) * storage_buffers.index_buffer_pattern->indexSizeOut;
 
         for (j = 0; j < storage_buffers.index_buffer_pattern->indexSize; j++)

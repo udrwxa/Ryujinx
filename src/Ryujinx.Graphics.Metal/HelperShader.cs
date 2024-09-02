@@ -173,7 +173,7 @@ namespace Ryujinx.Graphics.Metal
             _programConvertIndexBuffer = new Program(
             [
                 new ShaderSource(convertIndexBufferSource, ShaderStage.Compute, TargetLanguage.Msl)
-            ], convertIndexBufferLayout, device, new ComputeSize(64, 1, 1));
+            ], convertIndexBufferLayout, device, new ComputeSize(16, 1, 1));
 
             var depthBlitSource = ReadMsl("DepthBlit.metal");
             _programDepthBlit = new Program(
