@@ -354,6 +354,55 @@ namespace Ryujinx.Graphics.Metal
             computeCommandEncoder.SetComputePipelineState(pipelineState);
         }
 
+        private static bool BindingOverlaps(BufferRange info, int offset, int size)
+        {
+            return offset < info.Offset + info.Size && (offset + size) > info.Offset;
+        }
+
+        public void Rebind(Auto<DisposableBuffer> buffer, int offset, int size)
+        {
+            if (_pipeline.CurrentEncoderType == EncoderType.None)
+            {
+                return;
+            }
+
+            // Check stage bindings
+
+            for (int i = 0; i < _currentState.UniformBufferRefs.Length; i++)
+            {
+                ref BufferRef bufferRef = ref _currentState.UniformBufferRefs[i];
+                if (bufferRef.Buffer == buffer)
+                {
+                    if (bufferRef.Range != null)
+                    {
+                        if (!BindingOverlaps(bufferRef.Range.Value, offset, size))
+                        {
+                            continue;
+                        }
+                    }
+
+                    _currentState.Dirty |= DirtyFlags.Uniforms;
+                }
+            }
+
+            for (int i = 0; i < _currentState.StorageBufferRefs.Length; i++)
+            {
+                ref BufferRef bufferRef = ref _currentState.StorageBufferRefs[i];
+                if (bufferRef.Buffer == buffer)
+                {
+                    if (bufferRef.Range != null)
+                    {
+                        if (!BindingOverlaps(bufferRef.Range.Value, offset, size))
+                        {
+                            continue;
+                        }
+                    }
+
+                    _currentState.Dirty |= DirtyFlags.Storages;
+                }
+            }
+        }
+
         public readonly void UpdateIndexBuffer(BufferRange buffer, IndexType type)
         {
             if (buffer.Handle != BufferHandle.Null)
@@ -1167,7 +1216,7 @@ namespace Ryujinx.Graphics.Metal
                                 if (range.HasValue)
                                 {
                                     offset = range.Value.Offset;
-                                    mtlBuffer = autoBuffer.Get(_pipeline.Cbs, offset, range.Value.Size, range.Value.Write).Value;
+                                    mtlBuffer = autoBuffer.GetMirrorable(_pipeline.Cbs, ref offset, range.Value.Size).Value;
 
                                 }
                                 else
@@ -1221,7 +1270,7 @@ namespace Ryujinx.Graphics.Metal
                                 if (range.HasValue)
                                 {
                                     offset = range.Value.Offset;
-                                    mtlBuffer = autoBuffer.Get(_pipeline.Cbs, offset, range.Value.Size, range.Value.Write).Value;
+                                    mtlBuffer = autoBuffer.GetMirrorable(_pipeline.Cbs, ref offset, range.Value.Size).Value;
 
                                 }
                                 else
@@ -1532,7 +1581,7 @@ namespace Ryujinx.Graphics.Metal
                                 if (range.HasValue)
                                 {
                                     offset = range.Value.Offset;
-                                    mtlBuffer = autoBuffer.Get(_pipeline.Cbs, offset, range.Value.Size, range.Value.Write).Value;
+                                    mtlBuffer = autoBuffer.GetMirrorable(_pipeline.Cbs, ref offset, range.Value.Size).Value;
 
                                 }
                                 else
@@ -1573,7 +1622,7 @@ namespace Ryujinx.Graphics.Metal
                                 if (range.HasValue)
                                 {
                                     offset = range.Value.Offset;
-                                    mtlBuffer = autoBuffer.Get(_pipeline.Cbs, offset, range.Value.Size, range.Value.Write).Value;
+                                    mtlBuffer = autoBuffer.GetMirrorable(_pipeline.Cbs, ref offset, range.Value.Size).Value;
 
                                 }
                                 else
