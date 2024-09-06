@@ -8,6 +8,8 @@ namespace Ryujinx.Graphics.Metal
     [SupportedOSPlatform("macos")]
     readonly internal struct IndexBufferState
     {
+        private const int IndexBufferMaxMirrorable = 0x20000;
+
         public static IndexBufferState Null => new(BufferHandle.Null, 0, 0);
 
         private readonly int _offset;
@@ -29,6 +31,7 @@ namespace Ryujinx.Graphics.Metal
             Auto<DisposableBuffer> autoBuffer;
             int offset, size;
             MTLIndexType type;
+            bool mirrorable = false;
 
             if (_type == IndexType.UByte)
             {
@@ -49,13 +52,15 @@ namespace Ryujinx.Graphics.Metal
                 }
 
                 type = _type.Convert();
+                mirrorable = _size < IndexBufferMaxMirrorable;
+
                 offset = _offset;
                 size = _size;
             }
 
             if (autoBuffer != null)
             {
-                DisposableBuffer buffer = autoBuffer.Get(cbs, offset, size);
+                DisposableBuffer buffer = mirrorable ? autoBuffer.GetMirrorable(cbs, ref offset, size) : autoBuffer.Get(cbs, offset, size);
 
                 return (buffer.Value, offset, type);
             }

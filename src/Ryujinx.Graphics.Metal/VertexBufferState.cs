@@ -8,6 +8,8 @@ namespace Ryujinx.Graphics.Metal
     [SupportedOSPlatform("macos")]
     readonly internal struct VertexBufferState
     {
+        private const int VertexBufferMaxMirrorable = 0x20000;
+
         public static VertexBufferState Null => new(BufferHandle.Null, 0, 0, 0);
 
         private readonly BufferHandle _handle;
@@ -49,7 +51,8 @@ namespace Ryujinx.Graphics.Metal
             if (autoBuffer != null)
             {
                 int offset = _offset;
-                var buffer = autoBuffer.Get(cbs, offset, _size).Value;
+                bool mirrorable = _size <= VertexBufferMaxMirrorable;
+                var buffer = mirrorable ? autoBuffer.GetMirrorable(cbs, ref offset, _size).Value : autoBuffer.Get(cbs, offset, _size).Value;
 
                 return (buffer, offset);
             }
